@@ -1,0 +1,80 @@
+|>styles
+  * := \emph
+  ** := \textbf
+  *** := \defn
+  @ := \cref
+
+|>commands
+  \NP := \textbf{NP}
+-> \def\NP{\textbf{NP}}
+|>spaces \NP
+|>spaces \NP := \textbf{NP}
+|>dumbquotes
+
+# Introduction
+
+This is *emphasized*.  And **really emphasized**.
+And ***super emphasized***.
+
+This is \NP-complete, and in \NP but not \NP-hard.
+-> This is \NP-complete, and in \NP\ but not \NP-hard.
+
+This is a problem.
+\footnote:
+  This is actually not true.
+
+This is a problem[1], but not too bad[2].
+[1]:
+  This is actually not true.
+  See Figure @fig:example.
+[2]: This is actually true.
+
+Cleveref: @fig:example1 & @fig:example2
+
+\subcaptionbox:
+- This is a figure.
+  @=fig:example
+- \centering
+  \includegraphics:
+    example.png
+  -> \includegraphics{example.png}
+  \includegraphics:
+  ~ width: 0.5\textwidth
+  - example.png
+  -> \includegraphics[width=0.5\textwidth]{example.png}
+
+## Outline
+
+# Results
+
+> theorem [Big Theorem] @=thm:big
+  This is true.
+  - One
+  - Two
+    * Sub item
+      1. One
+      2. Two
+
+> theorem: @=thm:big
+  ~ Big Theorem
+  This is true.
+
+See Theorem @thm:big
+
+[[Langerman-2024, Demaine-2024]]
+-> \cite{Langerman-2024,Demaine-2024}
+
+[[Langerman-2024 (p. 101), Demaine-2024]]
+-> \cite[p. 101]{Langerman-2024}, \cite{Demaine-2024}
+
+> table
+  > tabular
+    a & b & c \\
+
+> quote
+  \raggedleft
+  "Three Rings for the Elven-kings under the sky, \dots"
+  -> ``Three Rings for the Elven-kings under the sky, \dots''
+
+\bibliography{example}
+\bibliographystyle{alpha}
