@@ -43,6 +43,11 @@ Cleveref: @fig:example1 & @fig:example2
   - example.png
   -> \includegraphics[width=0.5\textwidth]{example.png}
 
+$$
+  -b \pm \sqrt:
+    b^2 - 4 a c
+$$
+
 ## Outline
 
 # Results

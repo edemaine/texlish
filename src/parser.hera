@@ -26,7 +26,10 @@ Statement
   Header
   Environment
   CommandWithNestedArgument
-  Text
+  TextLine
+
+TextLine
+  Indent Text InlineCommandWithNestedArgument?
 
 Text
   TextPart*
@@ -38,7 +41,8 @@ TextPart
     return `\\ref{${$1}}`
   /\[\[(.*?)\]\]/ ->
     return `\\cite{${$1}}`
-  /[^\r\n][^\r\n@\[]*/
+  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@\[\\]*/ ->
+    return $2[0]
 
 TrimmedText
   Text:t ->
@@ -62,9 +66,7 @@ Header
     return `${command}{${title}}`
 
 Environment
-  &/[ \t]*>/ PushIndent:indent ( />\s*((?:[^:\s]+|:(?!\s))+):?/ TrimmedText NestedBody )?:content PopIndent ->
-    if (!content) return $skip
-    let [ env, first, body ] = content
+  &/[ \t]*>/ Indent:indent />\s*((?:[^:\s]+|:(?!\s))+):?/:env TrimmedText:first NestedBody:body ->
     env = env[1].trim()
     return [
       indent,
@@ -77,9 +79,7 @@ Environment
     ]
 
 CommandWithNestedArgument
-  &/[ \t]*\\/ PushIndent:indent ( /(\\[^:\s]+):/ NestedBody )?:content PopIndent ->
-    if (!content) return $skip
-    let [ command, body ] = content
+  Indent:indent /(\\[^:\s]+):/:command NonEmptyNestedBody:body ->
     command = command[1]
     return [
       indent,
@@ -91,26 +91,46 @@ CommandWithNestedArgument
       "}%",
     ]
 
+InlineCommandWithNestedArgument
+  SaveIndent:indent /(\\[^:\s]+):/:command NonEmptyNestedBody:body ->
+    command = command[1]
+    return [
+      command,
+      "{%",
+      body,
+      "\n",
+      indent,
+      "}%",
+    ]
+
+NonEmptyNestedBody
+  NestedBody ->
+    if (!$1.length) return $skip
+    return $1
+
 NestedBody
-  NestedItem*
+  PushIndent NestedItem* PopIndent
 
 NestedItem
   Nested Statement
 
 ## Indentation management, inspired by Civet's parser.hera
 
-Indent
+Indentation
   /[ \t]*/ ->
     const numTabs = $0.match(/\t/g)?.length ?? 0
     const level = numTabs * 8 + ($0.length - numTabs)
     return { $loc, token: $0, level }
 
+Indent
+  Indentation ->
+    return state.thisLineIndent = $1
+
 PushIndent
-  Indent:indent ->
-    const {level} = indent
+  "" ->
+    //const {level} = indent
     //if (level < state.currentIndent.level) return $skip
-    state.indents.push(indent)
-    return $1
+    state.indents.push(state.thisLineIndent)
 
 PopIndent
   "" ->
@@ -120,6 +140,10 @@ Nested
   EOL &IndentedFurther -> $1
 
 IndentedFurther
-  Indent:indent ->
+  Indentation:indent ->
     if (indent.level <= state.currentIndent.level) return $skip
     return $0
+
+SaveIndent
+  "" ->
+    return state.thisLineIndent
