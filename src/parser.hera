@@ -20,7 +20,7 @@ Program
   ( Statement EOL )*
 
 EOL
-  /\n|\r\n?|$/
+  /[ \t]*(\n|\r\n?|$)/
 
 Statement
   Header
@@ -81,8 +81,13 @@ Environment
     ]
 
 CommandWithNestedArgument
-  Indent:indent /(\\[^:\s]+):/:command NonEmptyNestedBody:body ->
-    command = command[1]
+  Indent:indent CommandColon:command NestedArgumentList:args ->
+    return [
+      indent,
+      command,
+      args,
+    ]
+  Indent:indent CommandColon:command NonEmptyNestedBody:body ->
     return [
       indent,
       command,
@@ -92,6 +97,9 @@ CommandWithNestedArgument
       indent,
       "}%",
     ]
+
+CommandColon
+  /(\\[^:\s]+):/ -> $1
 
 InlineCommandWithNestedArgument
   SaveIndent:indent /(\\[^:\s]+):/:command NonEmptyNestedBody:body ->
@@ -130,7 +138,7 @@ UnorderedList
     ]
 
 UnorderedBullet
-  Indent:indent /[*\-]([ \t]+)/ Text:text NestedBody:body ->
+  Indent:indent /[*\-~]([ \t]+)/ Text:text NestedBody:body ->
     let space = $2[1]
     return [ indent, '\\item', space, text, body ]
 
@@ -151,6 +159,27 @@ OrderedBullet
   Indent:indent /\d+\.([ \t]+)/ Text:text NestedBody:body ->
     let space = $2[1]
     return [ indent, '\\item', space, text, body ]
+
+NestedArgumentList
+  PushIndent NonstrictlyNested:nested ArgumentList?:list PopIndent ->
+    if (!list) return $skip
+    return [ nested, list ]
+
+ArgumentList
+  &/\s*[*\-~]/ PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
+    return content
+
+ArgumentBullet
+  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
+    let [ , bullet, space ] = $2
+    return [
+      indent,
+      ' '.repeat(space.length),
+      bullet === '~' ? '[' : '{',
+      text,
+      body,
+      bullet === '~' ? ']%' : '}%',
+    ]
 
 ## Indentation management, inspired by Civet's parser.hera
 
@@ -188,6 +217,14 @@ SameLevel
 IndentedSame
   Indentation:indent ->
     if (indent.level !== state.currentIndent.level) return $skip
+    return $0
+
+NonstrictlyNested
+  EOL &IndentedNotLess -> $1
+
+IndentedNotLess
+  Indentation:indent ->
+    if (indent.level < state.currentIndent.level) return $skip
     return $0
 
 SaveIndent

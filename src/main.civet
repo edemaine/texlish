@@ -96,10 +96,10 @@ function makeCache: CacheEvents
         }
 
     exit(ruleName: string, state: ParseState, result: ParseResult): void
-      if !uncacheable.has(ruleName)
-        stateKey := getStateKey()
-        key: CacheKey := [stateKey, state.pos, ruleName ]
-        stateCache.set(key, result)
+      return if uncacheable.has(ruleName)
+      stateKey := getStateKey()
+      key: CacheKey := [stateKey, state.pos, ruleName ]
+      stateCache.set(key, result)
   }
 
   return events
