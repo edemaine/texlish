@@ -103,11 +103,16 @@ PopIndent
   "" ->
     state.indents.pop()
 
-# "Nested" actually means "new line at current indentation level",
+# "Nested" actually means "new line at current or deeper indentation level",
 # where the current indentation level is set by TrackIndented / PushIndent
 # (which require strictly more indentation than previous levels)
 # Consumes and returns the newline and indentation
 Nested
+  EOL Indent:indent ->
+    if (indent.level < state.currentIndent.level) return $skip
+    return $0
+
+NestedStrict
   EOL Indent:indent ->
     if (indent.level !== state.currentIndent.level) return $skip
     return $0
