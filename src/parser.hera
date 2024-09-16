@@ -62,38 +62,42 @@ Header
     return `${command}{${title}}`
 
 Environment
-  />\s*((?:[^:\s]+|:(?!\s))+):?/:env TrimmedText:first NestedBody:body ->
+  &/[ \t]*>/ PushIndent:indent ( />\s*((?:[^:\s]+|:(?!\s))+):?/ TrimmedText NestedBody )?:content PopIndent ->
+    if (!content) return $skip
+    let [ env, first, body ] = content
     env = env[1].trim()
     return [
+      indent,
       `\\begin{${env}}`,
       first,
       body,
       "\n",
-      state.currentIndent.token,
+      indent,
       `\\end{${env}}`,
     ]
 
 CommandWithNestedArgument
-  /(\\[^:\s]+):/:command NestedBody:body ->
+  &/[ \t]*\\/ PushIndent:indent ( /(\\[^:\s]+):/ NestedBody )?:content PopIndent ->
+    if (!content) return $skip
+    let [ command, body ] = content
     command = command[1]
     return [
+      indent,
       command,
       "{%",
       body,
       "\n",
-      state.currentIndent.token,
+      indent,
       "}%",
     ]
 
 NestedBody
-  PushIndent NestedItem* PopIndent ->
-    if (!$2.length) return $skip
-    return $2
+  NestedItem*
 
 NestedItem
   Nested Statement
 
-## Indentation management, from Civet's parser.hera
+## Indentation management, inspired by Civet's parser.hera
 
 Indent
   /[ \t]*/ ->
@@ -101,36 +105,21 @@ Indent
     const level = numTabs * 8 + ($0.length - numTabs)
     return { $loc, token: $0, level }
 
-# Used in PushIndent to keep track of the last indent level for nesting
-TrackIndented
+PushIndent
   Indent:indent ->
     const {level} = indent
-    if (level <= state.currentIndent.level) return $skip
+    //if (level < state.currentIndent.level) return $skip
     state.indents.push(indent)
     return $1
-
-# Indents one level deeper,
-# without consuming the indentation so it can be by Nested
-# Must be matched with PopIndent
-PushIndent
-  # TrackIndented pushes the indent level if it is deeper than the current level
-  # it will skip if it is not deeper
-  &( EOL TrackIndented )
 
 PopIndent
   "" ->
     state.indents.pop()
 
-# "Nested" actually means "new line at current or deeper indentation level",
-# where the current indentation level is set by TrackIndented / PushIndent
-# (which require strictly more indentation than previous levels)
-# Consumes and returns the newline and indentation
 Nested
-  EOL Indent:indent ->
-    if (indent.level < state.currentIndent.level) return $skip
-    return $0
+  EOL &IndentedFurther -> $1
 
-NestedStrict
-  EOL Indent:indent ->
-    if (indent.level !== state.currentIndent.level) return $skip
+IndentedFurther
+  Indent:indent ->
+    if (indent.level <= state.currentIndent.level) return $skip
     return $0

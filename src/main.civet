@@ -15,7 +15,6 @@ uncacheable := new Set [
   // though it only calls TrackIndented which does the actual work.
   "PushIndent"
   "PopIndent"
-  "TrackIndented"
 ]
 
 export type CompilerOptions
