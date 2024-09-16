@@ -1,0 +1,28 @@
+```
+export function getStateKey() {
+  return 0
+}
+```
+
+Program
+  ( Statement EOL )*
+
+EOL
+  /\n|\r\n?|$/
+
+Statement
+  Header
+  LaTeX
+
+LaTeX
+  /[^\r\n]*/
+
+Header
+  /(#+)(\*?)\s+([^\r\n]*)/ ->
+    const level = $1.length - 1
+    let command =
+      level === 0 ? '\\chapter' :
+      level <= 3 ? `\\${'sub'.repeat(level)}section` :
+      level === 4 ? '\\paragraph' : '\\subparagraph'
+    if ($2) command += '*'
+    return `${command}{${$3.trimEnd()}}`

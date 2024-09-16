@@ -1,0 +1,98 @@
+import { parse, getStateKey } from "./parser.hera"
+//import * as sourcemap from "./sourcemap.civet"
+//{ SourceMap } := sourcemap
+export { parse }
+
+import StateCache from "./state-cache.civet"
+
+// Need to no-cache any rule that directly modifies parser state
+// indentation stack, jsx stack, etc.
+
+uncacheable := new Set [
+  // Indentation
+  // We need to no-cache the state modifying rules up to the point where they
+  // balance within a parent so PushIndent needs to be marked no-cache even
+  // though it only calls TrackIndented which does the actual work.
+  "PushIndent"
+  "PopIndent"
+  "TrackIndented"
+]
+
+export type CompilerOptions
+  filename?: string
+  ast?: boolean
+
+type AST = string | AST[]
+
+export function generate(ast): string
+  if ast <? "string"
+    ast
+  else
+    ast.map(generate).join ''
+
+export function compile<const T extends CompilerOptions>(src: string, options?: T): string
+  unless options
+    options = {} as T
+  else
+    options = {...options}
+
+  filename := options.filename or "unknown"
+
+  events := makeCache()
+
+  ast := parse(src, {
+    filename
+    events
+  })
+  return ast if options.ast
+
+  generate ast
+
+type CacheKey = [number, number, string]
+
+type ParseState =
+  input: string
+  pos: number
+
+type ParseResult = {
+  pos: number
+  value: unknown
+} | undefined
+
+type CacheEvents
+  meta: MetaData
+  enter: (ruleName: string, state: ParseState) => { cache: ParseResult } | undefined
+  exit: (ruleName: string, state: ParseState, result: ParseResult) => void
+
+function makeCache: CacheEvents
+  meta: MetaData := {}
+
+  let logs: string[]
+
+  stateCache := new StateCache<ParseResult>
+
+  stack: string[] := []
+
+  events := {
+    meta
+    enter(ruleName: string, state: ParseState): void
+      return if uncacheable.has(ruleName)
+
+      stateKey := getStateKey()
+      key: CacheKey := [stateKey, state.pos, ruleName ]
+
+      // We cache `undefined` when a rule fails to match so we need to use `has` here.
+      if stateCache.has(key)
+        result := stateCache.get(key)
+        return {
+          cache: if result then { ...result }
+        }
+
+    exit(ruleName: string, state: ParseState, result: ParseResult): void
+      if !uncacheable.has(ruleName)
+        stateKey := getStateKey()
+        key: CacheKey := [stateKey, state.pos, ruleName ]
+        stateCache.set(key, result)
+  }
+
+  return events

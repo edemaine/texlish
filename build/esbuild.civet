@@ -1,0 +1,81 @@
+esbuild from "esbuild"
+heraPlugin from "@danielx/hera/esbuild-plugin"
+civetPlugin from "@danielx/civet/esbuild"
+
+path from "path"
+{access} from "fs/promises"
+
+watch := process.argv.includes '--watch'
+build :=
+  if watch
+    (opts) => esbuild.context(opts).then .watch()
+  else
+    esbuild.build
+minify := false
+sourcemap := false
+
+exists := (p) ->
+  access(p)
+  .then ->
+    true
+  .catch ->
+    false
+
+// To get proper extension resolution for non-bundled files, we need to use
+// a plugin hack: https://github.com/evanw/esbuild/issues/622#issuecomment-769462611
+// set bundle: true, then rewrite .coffee -> .js and mark as external
+// Also marking everything else as external since we don't want to bundle anything
+rewriteCivetImports := {
+  name: 'rewrite-civet'
+  setup(build)
+    ext := build.initialOptions.format is "esm" ? ".js" : ".cjs"
+    build.onResolve { filter: /.*/ }, (args) =>
+      if args.importer and /\.civet$/.test args.path
+        path: args.path.replace(/\.civet$/, ext)
+        external: true
+}
+
+// Files that need civet imports re-written
+// since they aren't actually bundled
+for name of ["cli"]
+  build({
+    entryPoints: [`src/${name}.civet`]
+    bundle: true
+    platform: 'node'
+    format: 'esm'
+    outfile: `dist/${name}.js`
+    plugins: [
+      rewriteCivetImports
+      civetPlugin js: 'civet'
+    ]
+    external: [
+      '../package.json'
+    ]
+  }).catch -> process.exit 1
+
+for esm of [false, true]
+  build({
+    entryPoints: ['src/main.civet']
+    bundle: true
+    platform: 'node'
+    format: if esm then 'esm' else 'cjs'
+    outfile: `dist/main.${if esm then 'js' else 'cjs'}`
+    plugins: [
+      heraPlugin module: true
+      civetPlugin js: 'civet'
+    ]
+  }).catch -> process.exit 1
+
+build({
+  entryPoints: ['src/main.civet']
+  globalName: "Civet"
+  bundle: true
+  sourcemap
+  platform: 'browser'
+  outfile: 'dist/browser.js'
+  external: ['node:fs']
+  plugins: [
+    heraPlugin module: true
+    civetPlugin()
+  ]
+}).catch -> process.exit 1

@@ -1,0 +1,43 @@
+// based on https://github.com/DanielXMoore/Civet/blob/main/source/state-cache.civet
+
+type RuleName = string
+type Position = number
+type State = number
+
+type Key = [State, Position, RuleName]
+
+/**
+ * A multi-layer cache for the state of the parser.
+ * It uses an array of keys as a single compound key.
+ */
+export default class StateCache<T>
+
+  private cache: Map<RuleName, Map<Position, Map<State, T>>> = new Map()
+
+  get(key: Key): T | undefined
+    @cache.get(key[0])?.get(key[1])?.get(key[2])
+
+  /**
+   * Check if this multi-layer cache has the given key.
+   * Since the intermediate layers are always other maps we only need to check the last layer.
+   */
+  has(key: Key): boolean
+    !!@cache.get(key[0])?.get(key[1])?.get(key[2])
+
+  set(key: Key, value: T): void
+    cache0 := @cache
+    let cache1: Map<Position, Map<State, T>>
+    if !cache0.has key[0]
+      cache1 = new Map
+      @cache.set key[0], cache1
+    else
+      cache1 = cache0.get(key[0])!
+
+    let cache2: Map<State, T>
+    if !cache1?.has key[1]
+      cache2 = new Map
+      cache1.set key[1], cache2
+    else
+      cache2 = cache1.get(key[1])!
+
+    cache2.set key[2], value
