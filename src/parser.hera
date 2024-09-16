@@ -93,8 +93,6 @@ CommandWithNestedArgument
       command,
       "{%",
       body,
-      "\n",
-      indent,
       "}%",
     ]
 
