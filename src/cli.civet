@@ -2,7 +2,10 @@ fs from fs
 { compile } from './main.civet'
 
 export function cli
-  for filename of process.argv[1..]
-    input := fs.readFileSync filename, 'utf8'
-    output := compile input, {filename}
-    fs.writeFileSync filename+'.tex', output
+  for filename of process.argv[2..]
+    if filename.toLowerCase().endsWith '.texlish'
+      input := fs.readFileSync filename, 'utf8'
+      output := compile input, {filename}
+      fs.writeFileSync filename[...-8] + '.tex', output
+    else
+      console.log `Ignoring non-.texlish file ${filename}`
