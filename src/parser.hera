@@ -25,6 +25,7 @@ EOL
 Statement
   Header
   Environment
+  CommandWithNestedArgument
   LaTeX
 
 LaTeX
@@ -52,6 +53,18 @@ Environment
       "\n",
       state.currentIndent.token,
       `\\end{${env}}`,
+    ]
+
+CommandWithNestedArgument
+  /(\\[^:\s]+):/:command NestedBody:body ->
+    command = command[1]
+    return [
+      command,
+      "{%",
+      body,
+      "\n",
+      state.currentIndent.token,
+      "}%",
     ]
 
 NestedBody
