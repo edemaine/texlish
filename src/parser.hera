@@ -26,6 +26,8 @@ Statement
   Header
   Environment
   CommandWithNestedArgument
+  UnorderedList
+  OrderedList
   TextLine
 
 TextLine
@@ -114,6 +116,42 @@ NestedBody
 NestedItem
   Nested Statement
 
+UnorderedList
+  UnorderedBullet PushIndent ( SameLevel UnorderedBullet )* PopIndent ->
+    let indent = $1[0]
+    return [
+      indent,
+      "\\begin{itemize}",
+      "\n",
+      $0,
+      "\n",
+      indent,
+      "\\end{itemize}",
+    ]
+
+UnorderedBullet
+  Indent:indent /[*\-]([ \t]+)/ Text:text NestedBody:body ->
+    let space = $2[1]
+    return [ indent, '\\item', space, text, body ]
+
+OrderedList
+  OrderedBullet PushIndent ( SameLevel OrderedBullet )* PopIndent ->
+    let indent = $1[0]
+    return [
+      indent,
+      "\\begin{enumerate}",
+      "\n",
+      $0,
+      "\n",
+      indent,
+      "\\end{enumerate}",
+    ]
+
+OrderedBullet
+  Indent:indent /\d+\.([ \t]+)/ Text:text NestedBody:body ->
+    let space = $2[1]
+    return [ indent, '\\item', space, text, body ]
+
 ## Indentation management, inspired by Civet's parser.hera
 
 Indentation
@@ -142,6 +180,14 @@ Nested
 IndentedFurther
   Indentation:indent ->
     if (indent.level <= state.currentIndent.level) return $skip
+    return $0
+
+SameLevel
+  EOL &IndentedSame -> $1
+
+IndentedSame
+  Indentation:indent ->
+    if (indent.level !== state.currentIndent.level) return $skip
     return $0
 
 SaveIndent
