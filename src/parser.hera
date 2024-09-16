@@ -1,8 +1,20 @@
 ```
+export const state = {
+  get currentIndent() {
+    return state.indents.at(-1)
+  }
+}
 export function getStateKey() {
   return 0
 }
 ```
+
+Main
+  Init Program
+
+Init
+  "" ->
+    state.indents = [ { token: '', level: 0 } ]
 
 Program
   ( Statement EOL )*
@@ -12,17 +24,77 @@ EOL
 
 Statement
   Header
+  Environment
   LaTeX
 
 LaTeX
   /[^\r\n]*/
 
 Header
-  /(#+)(\*?)\s+([^\r\n]*)/ ->
-    const level = $1.length - 1
+  /(#+)(\*?)\s+/ LaTeX:title ->
+    let [, hash, star] = $1
+    let level = hash.length - 1
     let command =
       level === 0 ? '\\chapter' :
       level <= 3 ? `\\${'sub'.repeat(level)}section` :
       level === 4 ? '\\paragraph' : '\\subparagraph'
-    if ($2) command += '*'
-    return `${command}{${$3.trimEnd()}}`
+    if (star) command += '*'
+    return `${command}{${title.trimEnd()}}`
+
+Environment
+  />\s*((?:[^:\s]+|:(?!\s))+):?/:env LaTeX:first NestedBody:body ->
+    env = env[1].trim()
+    first = first.trimStart()
+    return [
+      `\\begin{${env}}`,
+      first,
+      body,
+      "\n",
+      state.currentIndent.token,
+      `\\end{${env}}`,
+    ]
+
+NestedBody
+  PushIndent NestedItem* PopIndent ->
+    if (!$2.length) return $skip
+    return $2
+
+NestedItem
+  Nested Statement
+
+## Indentation management, from Civet's parser.hera
+
+Indent
+  /[ \t]*/ ->
+    const numTabs = $0.match(/\t/g)?.length ?? 0
+    const level = numTabs * 8 + ($0.length - numTabs)
+    return { $loc, token: $0, level }
+
+# Used in PushIndent to keep track of the last indent level for nesting
+TrackIndented
+  Indent:indent ->
+    const {level} = indent
+    if (level <= state.currentIndent.level) return $skip
+    state.indents.push(indent)
+    return $1
+
+# Indents one level deeper,
+# without consuming the indentation so it can be by Nested
+# Must be matched with PopIndent
+PushIndent
+  # TrackIndented pushes the indent level if it is deeper than the current level
+  # it will skip if it is not deeper
+  &( EOL TrackIndented )
+
+PopIndent
+  "" ->
+    state.indents.pop()
+
+# "Nested" actually means "new line at current indentation level",
+# where the current indentation level is set by TrackIndented / PushIndent
+# (which require strictly more indentation than previous levels)
+# Consumes and returns the newline and indentation
+Nested
+  EOL Indent:indent ->
+    if (indent.level !== state.currentIndent.level) return $skip
+    return $0

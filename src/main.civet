@@ -22,13 +22,19 @@ export type CompilerOptions
   filename?: string
   ast?: boolean
 
-type AST = string | AST[]
+type AST = string | { token: string } | AST[]
 
-export function generate(ast): string
+export function generate(ast: AST): string
   if ast <? "string"
     ast
-  else
+  else if not ast?
+    ''
+  else if Array.isArray ast
     ast.map(generate).join ''
+  else if "token" in ast
+    ast.token
+  else
+    throw new Error `Unrecognized token ${ast}`
 
 export function compile<const T extends CompilerOptions>(src: string, options?: T): string
   unless options

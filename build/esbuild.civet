@@ -76,6 +76,6 @@ build({
   external: ['node:fs']
   plugins: [
     heraPlugin module: true
-    civetPlugin()
+    civetPlugin js: 'civet'
   ]
 }).catch -> process.exit 1
