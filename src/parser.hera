@@ -26,13 +26,32 @@ Statement
   Header
   Environment
   CommandWithNestedArgument
-  LaTeX
+  Text
 
-LaTeX
-  /[^\r\n]*/
+Text
+  TextPart*
+
+TextPart
+  /@=([^\s]+)/ ->
+    return `\\label{${$1}}`
+  /@([^\s=][^\s]*)/ ->
+    return `\\ref{${$1}}`
+  /\[\[(.*?)\]\]/ ->
+    return `\\cite{${$1}}`
+  /[^\r\n][^\r\n@\[]*/
+
+TrimmedText
+  Text:t ->
+    if (!t.length) return t
+    if (t.length === 1) return [ t[0].trim() ]
+    return [
+      t[0].trimStart(),
+      ...t.slice(1, -1),
+      t.at(-1).trimEnd(),
+    ]
 
 Header
-  /(#+)(\*?)\s+/ LaTeX:title ->
+  /(#+)(\*?)\s+/ TrimmedText:title ->
     let [, hash, star] = $1
     let level = hash.length - 1
     let command =
@@ -40,12 +59,11 @@ Header
       level <= 3 ? `\\${'sub'.repeat(level)}section` :
       level === 4 ? '\\paragraph' : '\\subparagraph'
     if (star) command += '*'
-    return `${command}{${title.trimEnd()}}`
+    return `${command}{${title}}`
 
 Environment
-  />\s*((?:[^:\s]+|:(?!\s))+):?/:env LaTeX:first NestedBody:body ->
+  />\s*((?:[^:\s]+|:(?!\s))+):?/:env TrimmedText:first NestedBody:body ->
     env = env[1].trim()
-    first = first.trimStart()
     return [
       `\\begin{${env}}`,
       first,
