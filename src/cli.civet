@@ -1,11 +1,26 @@
-fs from fs
+fs from fs/promises
 { compile } from './main.civet'
 
-export function cli
+function exists(path: string): Promise<boolean>
+  try
+    await fs.stat path
+    return true
+  catch
+    return false
+
+export function transpile(filename: string): Promise<string>
+  input := await fs.readFile filename, 'utf8'
+  output := compile input, {filename}
+  outFilename := filename.replace /\.texlish$|$/, '.tex'
+  await fs.writeFile outFilename, output
+  console.log `${filename} -> ${outFilename}`
+  outFilename
+
+export function cli: Promise<void>
   for filename of process.argv[2..]
-    if filename.toLowerCase().endsWith '.texlish'
-      input := fs.readFileSync filename, 'utf8'
-      output := compile input, {filename}
-      fs.writeFileSync filename[...-8] + '.tex', output
+    if await exists filename + '.texlish'
+      await transpile filename + '.texlish'
+    else if filename.toLowerCase().endsWith '.texlish'
+      await transpile filename
     else
       console.log `Ignoring non-.texlish file ${filename}`
