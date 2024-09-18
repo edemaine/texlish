@@ -63,6 +63,9 @@ export function cli: Promise<void>
     if await exists filename + '.texlish'
       texFile = await transpile filename + '.texlish'
     else if filename.toLowerCase().endsWith '.texlish'
+      unless await exists filename
+        console.log `!! Ignoring missing file: ${filename}`
+        continue
       texFile = await transpile filename
     else if await exists filename + '.tex'
       texFile = filename + '.tex'
@@ -71,15 +74,14 @@ export function cli: Promise<void>
         texFile = await transpile filename[...-4] + '.texlish'
       else
         texFile = filename
+        unless await exists texFile
+          console.log `!! Ignoring missing file: ${texFile}`
+          continue
     else
       console.log `!! Ignoring unknown file: ${filename}`
       continue
 
     unless mode is 'compile'
-      unless await exists texFile
-        console.log `!! Ignoring missing file: ${texFile}`
-        continue
-
       args := [
         ...options
         texFile
