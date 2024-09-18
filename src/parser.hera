@@ -1,4 +1,6 @@
 ```
+import { markdownText } from './markdown.civet'
+
 export const state = {
   get currentIndent() {
     return state.indents.at(-1)
@@ -34,7 +36,8 @@ TextLine
   Indent Text InlineCommandWithNestedArgument?
 
 Text
-  TextPart*
+  TextPart* ->
+    return markdownText($0.join(''))
 
 TextPart
   /@=([^\s]+)/ ->
@@ -48,13 +51,7 @@ TextPart
 
 TrimmedText
   Text:t ->
-    if (!t.length) return t
-    if (t.length === 1) return [ t[0].trim() ]
-    return [
-      t[0].trimStart(),
-      ...t.slice(1, -1),
-      t.at(-1).trimEnd(),
-    ]
+    return t.trim()
 
 Header
   /(#+)(\*?)\s+/ TrimmedText:title ->
@@ -100,7 +97,7 @@ CommandColon
   /(\\[^:\s]+):/ -> $1
 
 InlineCommandWithNestedArgument
-  SaveIndent:indent /(\\[^:\s]+):/:command NonEmptyNestedBody:body ->
+  /(\\[^:\s]+):/:command SaveIndent:indent NonEmptyNestedBody:body ->
     command = command[1]
     return [
       command,
