@@ -1,5 +1,26 @@
 fs from fs/promises
+{ spawn } from child_process
 { compile } from './main.civet'
+
+function usage: void
+  console.log '''
+    Usage: texlish [options] filename
+
+    Transpile from .texlish to .tex, and optionally compile with LaTeX.
+    If you specify 'filename', we'll try 'filename.texlish' first.
+    If you specify 'filename.tex', we'll try 'filename.texlish' first;
+    if it doesn't exist, we can still build 'filename.tex' for you.
+
+    To build with LaTeX, use one of the following options:
+    --pdf / --pdflatex: Run pdflatex
+    --lua / --lualatex: Run lualatex
+    --xe / --xelatex: Run xelatex
+    --latex / --dvi: Run latex
+
+    Other options:
+    -...: Other LaTeX command-line options are passed on as-is
+
+  '''
 
 function exists(path: string): Promise<boolean>
   try
@@ -13,14 +34,66 @@ export function transpile(filename: string): Promise<string>
   output := compile input, {filename}
   outFilename := filename.replace /\.texlish$|$/, '.tex'
   await fs.writeFile outFilename, output
-  console.log `${filename} -> ${outFilename}`
+  console.log `** ${filename} -> ${outFilename}`
   outFilename
 
 export function cli: Promise<void>
-  for filename of process.argv[2..]
+  mode .= 'compile'
+  options .= []
+  filenames .= []
+  for arg of process.argv[2..]
+    switch arg
+      /^--?pdf(latex)?$/
+        mode = 'pdflatex'
+      /^--?(dvi|latex)?$/
+        mode = 'latex'
+      /^--?lua(latex)?$/
+        mode = 'lualatex'
+      /^--?xe((la)?tex)?$/
+        mode = 'xelatex'
+      /^-/  // LaTeX command-line option
+        options.push arg
+      else
+        filenames.push arg
+
+  return usage() unless filenames#
+
+  for each filename of filenames
+    let texFile: string
     if await exists filename + '.texlish'
-      await transpile filename + '.texlish'
+      texFile = await transpile filename + '.texlish'
     else if filename.toLowerCase().endsWith '.texlish'
-      await transpile filename
+      texFile = await transpile filename
+    else if await exists filename + '.tex'
+      texFile = filename + '.tex'
+    else if filename.toLowerCase().endsWith '.tex'
+      if await exists filename[...-4] + '.texlish'
+        texFile = await transpile filename[...-4] + '.texlish'
+      else
+        texFile = filename
     else
-      console.log `Ignoring non-.texlish file ${filename}`
+      console.log `!! Ignoring unknown file: ${filename}`
+      continue
+
+    unless mode is 'compile'
+      unless await exists texFile
+        console.log `!! Ignoring missing file: ${texFile}`
+        continue
+
+      args := [
+        ...options
+        texFile
+      ].map shellQuote
+      console.log `** ${mode} ${args.join ' '}`
+      spawn mode, args,
+        stdio: 'inherit'
+        shell: true
+
+export function shellQuote(arg: string): string
+  return arg if /^[A-Za-z0-9_\/.-]+$/.test arg
+  if process.platform is 'win32'
+    // Double-quote the argument and escape double quotes with doubling
+    `"${arg.replace /"/g, '""'}"`
+  else
+    // Escape single quotes by closing, escaping, and reopening single quotes
+    `'${arg.replace /'/g, "'\\''"}'`
