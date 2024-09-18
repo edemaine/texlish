@@ -1,15 +1,15 @@
-|>styles
+>>styles
   * := \emph
   ** := \textbf
   *** := \defn
   @ := \cref
 
-|>commands
+>>commands
   \NP := \textbf{NP}
--> \def\NP{\textbf{NP}}
-|>spaces \NP
-|>spaces \NP := \textbf{NP}
-|>dumbquotes
+  -> \def\NP{\textbf{NP}}
+>>spaces \NP
+>>spaces \NP := \textbf{NP}
+>>dumbquotes
 
 # Introduction
 
