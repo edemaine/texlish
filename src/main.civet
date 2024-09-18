@@ -22,6 +22,7 @@ uncacheable := new Set [
 export type CompilerOptions
   filename?: string
   ast?: boolean
+  trace?: string
 
 type AST = string | { token: string } | AST[]
 
@@ -45,12 +46,20 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
 
   filename := options.filename or "unknown"
 
-  events := makeCache()
+  events := makeCache options
 
-  ast := parse(src, {
-    filename
-    events
-  })
+  let ast
+  try
+    ast = parse(src, {
+      filename
+      events
+    })
+  finally
+    if options.trace
+      import('node:fs').then ({ writeFileSync }) =>
+        { logs } := events.meta
+        writeFileSync options.trace, logs.join "\n"
+
   return ast if options.ast
 
   generate ast
@@ -71,18 +80,19 @@ type CacheEvents
   enter: (ruleName: string, state: ParseState) => { cache: ParseResult } | undefined
   exit: (ruleName: string, state: ParseState, result: ParseResult) => void
 
-function makeCache: CacheEvents
+function makeCache(options: CompilerOptions): CacheEvents
   meta: MetaData := {}
-
-  let logs: string[]
 
   stateCache := new StateCache<ParseResult>
 
+  { trace } := options
+  logs: string[] := []
+  meta.logs = logs
   stack: string[] := []
 
   events := {
     meta
-    enter(ruleName: string, state: ParseState): void
+    enter(ruleName: string, state: ParseState)
       return if uncacheable.has(ruleName)
 
       stateKey := getStateKey()
@@ -91,15 +101,26 @@ function makeCache: CacheEvents
       // We cache `undefined` when a rule fails to match so we need to use `has` here.
       if stateCache.has(key)
         result := stateCache.get(key)
+        if trace
+          logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + "💰" + (if result then "✅" else "❌")
         return {
           cache: if result then { ...result }
         }
+
+      if trace
+        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + "\u2192"
+        stack.push ruleName
+      return
 
     exit(ruleName: string, state: ParseState, result: ParseResult): void
       return if uncacheable.has(ruleName)
       stateKey := getStateKey()
       key: CacheKey := [stateKey, state.pos, ruleName ]
       stateCache.set(key, result)
+
+      if trace
+        stack.pop()
+        logs.push "".padStart(stack.length * 2, " ") + ruleName + ":" + state.pos + " " + (if result then "✅" else "❌")
   }
 
   return events

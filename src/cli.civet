@@ -1,6 +1,6 @@
 fs from fs/promises
 { spawn } from child_process
-{ compile } from './main.civet'
+{ compile, type CompilerOptions } from './main.civet'
 
 function usage: void
   console.log '''
@@ -18,6 +18,7 @@ function usage: void
     --latex / --dvi: Run latex
 
     Other options:
+    --trace=filename: Debug compilation by writing a trace log
     -...: Other LaTeX command-line options are passed on as-is
 
   '''
@@ -29,9 +30,9 @@ function exists(path: string): Promise<boolean>
   catch
     return false
 
-export function transpile(filename: string): Promise<string>
+export function transpile(filename: string, options: CompilerOptions): Promise<string>
   input := await fs.readFile filename, 'utf8'
-  output := compile input, {filename}
+  output := compile input, {...options, filename}
   outFilename := filename.replace /\.texlish$|$/, '.tex'
   await fs.writeFile outFilename, output
   console.log `** ${filename} -> ${outFilename}`
@@ -39,8 +40,9 @@ export function transpile(filename: string): Promise<string>
 
 export function cli: Promise<void>
   mode .= 'compile'
-  options .= []
+  flags .= []
   filenames .= []
+  options: CompilerOptions .= {}
   for arg of process.argv[2..]
     switch arg
       /^--?pdf(latex)?$/
@@ -51,8 +53,10 @@ export function cli: Promise<void>
         mode = 'lualatex'
       /^--?xe((la)?tex)?$/
         mode = 'xelatex'
+      /^--?trace=/
+        options.trace = arg[arg.indexOf('=')+1..]
       /^-/  // LaTeX command-line option
-        options.push arg
+        flags.push arg
       else
         filenames.push arg
 
@@ -61,17 +65,17 @@ export function cli: Promise<void>
   for each filename of filenames
     let texFile: string
     if await exists filename + '.texlish'
-      texFile = await transpile filename + '.texlish'
+      texFile = await transpile filename + '.texlish', options
     else if filename.toLowerCase().endsWith '.texlish'
       unless await exists filename
         console.log `!! Ignoring missing file: ${filename}`
         continue
-      texFile = await transpile filename
+      texFile = await transpile filename, options
     else if await exists filename + '.tex'
       texFile = filename + '.tex'
     else if filename.toLowerCase().endsWith '.tex'
       if await exists filename[...-4] + '.texlish'
-        texFile = await transpile filename[...-4] + '.texlish'
+        texFile = await transpile filename[...-4] + '.texlish', options
       else
         texFile = filename
         unless await exists texFile
@@ -83,7 +87,7 @@ export function cli: Promise<void>
 
     unless mode is 'compile'
       args := [
-        ...options
+        ...flags
         texFile
       ].map shellQuote
       console.log `** ${mode} ${args.join ' '}`
