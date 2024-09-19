@@ -54,7 +54,9 @@ TextPart
     return `\\pageref{${$1}}`
   /\[\[(.*?)\]\]/ ->
     return `\\cite{${$1}}`
-  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@#\[\\]*/ ->
+  /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
+    return `${$1}{${$2}}`
+  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@#\[\\\^_]*/ ->
     return $2[0]
 
 TrimmedText
