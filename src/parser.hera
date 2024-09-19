@@ -50,9 +50,11 @@ TextPart
     return `\\label{${$1}}`
   /@([^\s=][^\s]*)/ ->
     return `\\ref{${$1}}`
+  /#@([^\s=][^\s]*)/ ->
+    return `\\pageref{${$1}}`
   /\[\[(.*?)\]\]/ ->
     return `\\cite{${$1}}`
-  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@\[\\]*/ ->
+  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@#\[\\]*/ ->
     return $2[0]
 
 TrimmedText

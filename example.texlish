@@ -66,7 +66,7 @@ $$
   ~ Big Theorem
   This is true.
 
-See Theorem @thm:big
+See Theorem @thm:big on page #@thm:big
 
 [[Langerman-2024, Demaine-2024]]
 -> \cite{Langerman-2024,Demaine-2024}
