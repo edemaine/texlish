@@ -1,0 +1,46 @@
+{ testCase } from ./helper.civet
+
+describe '> environments', ->
+  testCase '''
+    empty
+    ---
+    > theorem
+    ---
+    \\begin{theorem}
+    \\end{theorem}
+  '''
+
+  testCase '''
+    indented body
+    ---
+    > theorem
+      Cool!
+    ---
+    \\begin{theorem}
+      Cool!
+    \\end{theorem}
+  '''
+
+  testCase '''
+    same-line argument
+    ---
+    > theorem: Hello
+      Cool!
+    ---
+    \\begin{theorem}{Hello}%
+      Cool!
+    \\end{theorem}
+  '''
+
+  testCase '''
+    optional argument
+    ---
+    > theorem:
+      ~ Hello
+      Cool!
+    ---
+    \\begin{theorem}
+       [Hello]%
+      Cool!
+    \\end{theorem}
+  '''

@@ -94,8 +94,7 @@ Comment
   /%[^\r\n]*/
 
 Command
-  /\\[a-zA-Z@]+/
-  /\\./
+  /\\([a-zA-Z@]+|.)/
 
 ParenthesizedContent
   "(" ParenBalancedContent ")"
@@ -116,7 +115,11 @@ Header
     return [ command, '{', title, '}' ]
 
 Environment
-  &/[ \t]*>/ Indent:indent />[ \t]*([^:\s]+)/:env TrimmedText:first NestedBody:body ->
+  # use NestedItem* instead of NestedBody so that we can PushIndent early
+  # (in case ColonArgument involves multiple lines)
+  &/[ \t]*>/ Indent:indent PushIndent ( />[ \t]*([^:\s]+)/ ( ColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
+    if (!content) return $skip
+    let [ env, first, body ] = content
     env = env[1].trim()
     return [
       indent,
@@ -136,13 +139,16 @@ CommandWithColonArgument
     ]
 
 InlineCommandWithColonArgument
-  CommandColon:command ColonArgument:arg ->
+  Command:command ColonArgument:arg ->
     return [
       command,
       arg,
     ]
 
 ColonArgument
+  ":" ArgumentAfterColon -> $2
+
+ArgumentAfterColon
   NestedArgumentList
   NonEmptyNestedBody:body CommentEOL:comment ->
     return [
@@ -158,9 +164,6 @@ ColonArgument
       "}",
       comment,
     ]
-
-CommandColon
-  /(\\[^:\s]+):/ -> $1
 
 MetaBlock
   &/[ \t]*>>/ Indent:indent ">>" MetaCommand:cmd -> cmd
@@ -186,7 +189,7 @@ NonEmptyNestedBody
     if (!$1.length) return $skip
     return $1
 
-# can be empty
+# can be empty; if not desired, use NonEmptyNestedBody
 NestedBody
   PushIndent NestedItem* PopIndent -> $2
 
