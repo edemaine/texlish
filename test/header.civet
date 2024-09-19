@@ -1,0 +1,32 @@
+{ testCase } from ./helper.civet
+
+describe 'Markdown headers (#/##/...)', ->
+  testCase '''
+    single line
+    ---
+    # Header
+    ---
+    \\chapter{Header}
+  '''
+
+  testCase '''
+    several
+    ---
+    # Chapter
+    ## Section
+    ### Subsection
+    #### Subsubsection
+    ####* Subsubsection
+    ##### Paragraph
+    ###### Subparagraph
+    ### Subsection
+    ---
+    \\chapter{Chapter}
+    \\section{Section}
+    \\subsection{Subsection}
+    \\subsubsection{Subsubsection}
+    \\subsubsection*{Subsubsection}
+    \\paragraph{Paragraph}
+    \\subparagraph{Subparagraph}
+    \\subsection{Subsection}
+  '''

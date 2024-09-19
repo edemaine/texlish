@@ -110,7 +110,7 @@ Header
     let level = hash.length - 1
     let command =
       level === 0 ? '\\chapter' :
-      level <= 3 ? `\\${'sub'.repeat(level)}section` :
+      level <= 3 ? `\\${'sub'.repeat(level-1)}section` :
       level === 4 ? '\\paragraph' : '\\subparagraph'
     if (star) command += '*'
     return [ command, '{', title, '}' ]
