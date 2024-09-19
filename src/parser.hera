@@ -64,7 +64,11 @@ Text
 TextPart
   BracedContent
   Comment
-  /(@=|@|#@)([^\s]+)(?<!\p{Punctuation})/ ->
+  # @'long ref'
+  /(@=|@|#@)('[^']*'|"[^"]*")/ ->
+    return `${state.styles[$1]}{${$2.slice(1, -1)}}`
+  # @ref without spaces and without grabbing trailing punctuation
+  /(@=|@|#@)([^\s'"][^\s]*)(?<!\p{Punctuation})/ ->
     return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.styles['[[']}{${$1}}`

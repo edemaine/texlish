@@ -51,3 +51,13 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     \\cref{thm:big}
     \\pagecref{thm:big}
   '''
+
+  testCase '''
+    spaced
+    ---
+    @='big theorem'
+    @"big theorem"
+    ---
+    \\label{big theorem}
+    \\ref{big theorem}
+  '''
