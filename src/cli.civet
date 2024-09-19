@@ -64,6 +64,7 @@ export function cli: Promise<void>
 
   return usage() unless filenames#
 
+  errors .= 0
   for each filename of filenames
     let texFile: string
     if await exists filename + '.texlish'
@@ -71,6 +72,7 @@ export function cli: Promise<void>
     else if filename.toLowerCase().endsWith '.texlish'
       unless await exists filename
         console.log `!! Ignoring missing file: ${filename}`
+        errors++
         continue
       texFile = await transpile filename, options
     else if await exists filename + '.tex'
@@ -82,9 +84,11 @@ export function cli: Promise<void>
         texFile = filename
         unless await exists texFile
           console.log `!! Ignoring missing file: ${texFile}`
+          errors++
           continue
     else
       console.log `!! Ignoring unknown file: ${filename}`
+      errors++
       continue
 
     unless mode is 'compile'
@@ -96,6 +100,8 @@ export function cli: Promise<void>
       spawn mode, args,
         stdio: 'inherit'
         shell: true
+
+  process.exit Math.min 255, errors
 
 export function shellQuote(arg: string): string
   return arg if /^[A-Za-z0-9_\/.-]+$/.test arg
