@@ -10,6 +10,14 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    ignored in comment
+    ---
+    % \\bibliography: bib
+    ---
+    % \\bibliography: bib
+  '''
+
+  testCase '''
     indented
     ---
     \\sqrt:

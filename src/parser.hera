@@ -63,6 +63,7 @@ Text
 
 TextPart
   BracedContent
+  Comment
   /(@=|@|#@)([^\s]+)/ ->
     return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
@@ -88,6 +89,9 @@ TrimmedText
 
 BracedContent
   "{" Content "}"
+
+Comment
+  /%[^\r\n]*/
 
 Command
   /\\[a-zA-Z@]+/
