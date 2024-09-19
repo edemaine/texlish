@@ -98,6 +98,15 @@ CommandWithNestedArgument
       body,
       "}%",
     ]
+  Indent:indent CommandColon:command TrimmedText:body ->
+    if (!body.length) return $skip
+    return [
+      indent,
+      command,
+      "{",
+      body,
+      "}%",
+    ]
 
 CommandColon
   /(\\[^:\s]+):/ -> $1
@@ -138,7 +147,7 @@ NonEmptyNestedBody
     return $1
 
 NestedBody
-  PushIndent NestedItem* PopIndent
+  PushIndent NestedItem* PopIndent -> $2
 
 NestedItem
   Nested Statement

@@ -11,6 +11,8 @@
 >>spaces \NP := \textbf{NP}
 >>dumbquotes
 
+\title: Example Document
+
 # Introduction
 
 This is *emphasized*.  And **really emphasized**.
