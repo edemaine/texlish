@@ -45,6 +45,8 @@ export function cli: Promise<void>
   options: CompilerOptions .= {}
   for arg of process.argv[2..]
     switch arg
+      /^--?help/
+        return usage()
       /^--?pdf(latex)?$/
         mode = 'pdflatex'
       /^--?(dvi|latex)?$/
