@@ -1,9 +1,4 @@
-starsToCommand :=
-  1: '\\emph'
-  2: '\\textbf'
-  3: '\\defn'
-
-export function markdownText(text: string): string
+export function markdownText(text: string, styles: Record<string, string>): string
   // Partial implementation of CommonMark emphasis and strong emphasis:
   // https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
   // We don't correctly deal with nesting and other prioritizations.
@@ -26,4 +21,4 @@ export function markdownText(text: string): string
     | (?=\s|\p{Punctuation})  // followed by whitespace or punctuation
     )
   ///vg, (_, stars: string & {length: 1 | 2 | 3}, content) =>
-    `${starsToCommand[stars#]}{${content}}`
+    `${styles[stars] ?? "\\unknown"}{${content}}`

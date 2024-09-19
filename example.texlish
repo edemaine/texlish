@@ -1,11 +1,11 @@
 >>styles
-  * := \emph
-  ** := \textbf
-  *** := \defn
-  @ := \cref
+  * = \emph
+  ** = \textbf
+  *** = \defn
+  @ = \cref
 
 >>commands
-  \NP := \textbf{NP}
+  \NP = \textbf{NP}
   -> \def\NP{\textbf{NP}}
 >>spaces \NP
 >>spaces \NP := \textbf{NP}

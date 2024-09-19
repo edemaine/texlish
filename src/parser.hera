@@ -17,6 +17,11 @@ Main
 Init
   "" ->
     state.indents = [ { token: '', level: 0 } ]
+    state.styles = {
+      '*': '\\emph',
+      '**': '\\textbf',
+      '***': '\\defn',
+    }
 
 Program
   ( Statement EOL )*
@@ -26,6 +31,7 @@ EOL
 
 Statement
   Header
+  MetaBlock
   Environment
   CommandWithNestedArgument
   UnorderedList
@@ -37,7 +43,7 @@ TextLine
 
 Text
   TextPart* ->
-    return markdownText($0.join(''))
+    return markdownText($0.join(''), state.styles)
 
 TextPart
   /@=([^\s]+)/ ->
@@ -95,6 +101,24 @@ CommandWithNestedArgument
 
 CommandColon
   /(\\[^:\s]+):/ -> $1
+
+MetaBlock
+  &/[ \t]*>>/ Indent:indent ">>" MetaCommand:cmd -> cmd
+
+MetaCommand
+  "styles" NestedAssignments:body EOL ->
+    for (const [key, value] of body) {
+      state.styles[key] = value
+    }
+
+NestedAssignments
+  PushIndent NestedAssignment*:items PopIndent ->
+    if (!items.length) return $skip
+    return items
+
+NestedAssignment
+  Nested Indent /[^\s=:]+/:key /\s*:?=\s*/ Text:value ->
+    return [ key[0], value ]
 
 InlineCommandWithNestedArgument
   /(\\[^:\s]+):/:command SaveIndent:indent NonEmptyNestedBody:body ->
