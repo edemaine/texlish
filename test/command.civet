@@ -1,0 +1,76 @@
+{ testCase } from ./helper.civet
+
+describe '\\command:', ->
+  testCase '''
+    one line
+    ---
+    \\bibliography: bib
+    ---
+    \\bibliography{bib}%
+  '''
+
+  testCase '''
+    indented
+    ---
+    \\sqrt:
+      a + b
+    ---
+    \\sqrt{%
+      a + b}%
+  '''
+
+  testCase '''
+    bulleted
+    ---
+    \\subcaptionbox:
+    - Caption
+    - Figure
+    ---
+    \\subcaptionbox
+     {Caption}%
+     {Figure}%
+  '''
+
+  testCase '''
+    bulleted with nested \\command:
+    ---
+    \\subcaptionbox:
+    - Caption
+      @=label
+    - \\includegraphics:
+        image.png
+    ---
+    \\subcaptionbox
+     {Caption
+      \\label{label}}%
+     {\\includegraphics{%
+        image.png}}%
+  '''
+
+  testCase '''
+    optional bullet
+    ---
+    \\includegraphics:
+    ~ width=0.5\\textwidth
+    - image.png
+    \\includegraphics:
+      ~ width=0.5\\textwidth
+      - image.png
+    ---
+    \\includegraphics
+     [width=0.5\\textwidth]%
+     {image.png}%
+    \\includegraphics
+       [width=0.5\\textwidth]%
+       {image.png}%
+  '''
+
+  testCase '''
+    in brace
+    ---
+    {\\includegraphics:
+      image.png}
+    ---
+    {\\includegraphics{%
+      image.png}}
+  '''

@@ -1,5 +1,6 @@
 ```
 import { generate } from './main.civet'
+import { trimTrailingPercent } from './util.civet'
 
 export const state = {
   get currentIndent() {
@@ -34,6 +35,11 @@ Content
 EOL
   /[ \t]*(\n|\r\n?|$)/
 
+# Add a comment if we're at EOL (without consuming EOL)
+CommentEOL
+  &EOL -> "%"
+  ""
+
 Statement
   Header
   MetaBlock
@@ -43,15 +49,17 @@ Statement
   OrderedList
   TextLine
 
-# One line of text, with leading indentation and maybe trailing colon argument
-# (can be empty, no newline)
+# One line of text at start of the line
+# (can be empty, no newline consumption)
 TextLine
-  Indent Text InlineCommandWithColonArgument?
+  Indent Text
 
-# One line of text, without leading indentation or trailing nested argument
-# (for inline uses, can be empty, no newline)
+# One line of text, starting in the middle of a line, for inline uses
+# (can be empty, no newline consumption)
 Text
-  TextPart*
+  TextPart* InlineCommandWithColonArgument? ->
+    if (!$2) return $1
+    return [ ...$1, $2 ]
 
 TextPart
   BracedContent
@@ -67,7 +75,7 @@ TextPart
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\][^\r\n@#\[\\\^_{}()]*/
+  /[^\r\n\\{}][^\r\n@#\[\\\^_{}()]*/
 
 TrimmedText
   Text:t ->
@@ -132,17 +140,19 @@ InlineCommandWithColonArgument
 
 ColonArgument
   NestedArgumentList
-  NonEmptyNestedBody:body ->
+  NonEmptyNestedBody:body CommentEOL:comment ->
     return [
       "{%",
-      body,
-      "}%",
+      trimTrailingPercent(body),
+      "}",
+      comment,
     ]
-  TrimmedText:body ->
+  TrimmedText:body CommentEOL:comment ->
     return [
       "{",
-      body,
-      "}%",
+      trimTrailingPercent(body),
+      "}",
+      comment,
     ]
 
 CommandColon
@@ -172,6 +182,7 @@ NonEmptyNestedBody
     if (!$1.length) return $skip
     return $1
 
+# can be empty
 NestedBody
   PushIndent NestedItem* PopIndent -> $2
 
@@ -210,7 +221,7 @@ OrderedList
     ]
 
 OrderedBullet
-  Indent:indent /\d+\.([ \t]+)/ Text:text NestedBody:body ->
+  Indent:indent /\d+\.([ \t]+)/ Text:text NestedBody?:body ->
     let space = $2[1]
     return [ indent, '\\item', space, text, body ]
 
@@ -220,19 +231,21 @@ NestedArgumentList
     return [ nested, list ]
 
 ArgumentList
-  &/\s*[*\-~]/ PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
+  &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
     return content
 
 ArgumentBullet
-  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
+  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body CommentEOL:comment ->
     let [ , bullet, space ] = $2
+    if (!body.length) text = trimTrailingPercent(text)
     return [
       indent,
-      ' '.repeat(space.length),
+      space, // indent the same as the bullet, except 1 for *-~ and {
       bullet === '~' ? '[' : '{',
       text,
       body,
-      bullet === '~' ? ']%' : '}%',
+      bullet === '~' ? ']' : '}',
+      comment,
     ]
 
 ## Indentation management, inspired by Civet's parser.hera
