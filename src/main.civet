@@ -1,3 +1,5 @@
+// based on https://github.com/DanielXMoore/Civet/blob/main/source/main.civet
+
 import { parse, getStateKey, state } from "./parser.hera"
 //import * as sourcemap from "./sourcemap.civet"
 //{ SourceMap } := sourcemap

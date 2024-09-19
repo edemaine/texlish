@@ -1,0 +1,46 @@
+{ testCase } from ./helper.civet
+
+describe 'Markdown emphasis (*/**/***)', ->
+  testCase '''
+    single word at the beginning
+    ---
+    *emphasized* text
+    ---
+    \\emph{emphasized} text
+  '''
+
+  testCase '''
+    single word in the middle
+    ---
+    hello **world**!
+    ---
+    hello \\textbf{world}!
+  '''
+
+  testCase '''
+    single word at the end
+    ---
+    that's ***it***
+    ---
+    that's \\defn{it}
+  '''
+
+  testCase '''
+    multiple words
+    ---
+    *emphasized* and **really emphasized** and ***super emphasized***
+    ---
+    \\emph{emphasized} and \\textbf{really emphasized} and \\defn{super emphasized}
+  '''
+
+  testCase '''
+    multiple lines
+    ---
+    *emphasized* and **really
+    emphasized** and ***super
+    emphasized***
+    ---
+    \\emph{emphasized} and \\textbf{really
+    emphasized} and \\defn{super
+    emphasized}
+  '''

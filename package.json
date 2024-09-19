@@ -25,8 +25,7 @@
     "docs:build": "yarn build && vitepress build civet.dev",
     "docs:preview": "yarn build && vitepress preview civet.dev",
     "prepublishOnly": "yarn build && yarn test && yarn changelog --release",
-    "test": "bash ./build/test.sh",
-    "test:self": "yarn build && mocha --config .mocharc-self.json",
+    "test": "mocha",
     "changelog": "civet build/changelog.civet"
   },
   "author": "Erik Demaine",
@@ -34,8 +33,10 @@
   "devDependencies": {
     "@danielx/civet": "0.7.18",
     "@danielx/hera": "0.8.16",
+    "@types/mocha": "^10.0.8",
     "@types/node": "^22.5.5",
     "esbuild": "^0.23.0",
+    "mocha": "^10.7.3",
     "typescript": "^5.5.2"
   },
   "packageManager": "pnpm@9.10.0+sha512.73a29afa36a0d092ece5271de5177ecbf8318d454ecd701343131b8ebc0c1a91c487da46ab77c8e596d6acf1461e3594ced4becedf8921b074fbd8653ed7051c"

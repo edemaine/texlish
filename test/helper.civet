@@ -1,0 +1,118 @@
+// based on https://github.com/DanielXMoore/Civet/blob/main/test/helper.civet
+
+{ compile, type CompilerOptions } from ../src/main.civet
+assert from assert
+
+export function compare(src: string, result: string, compilerOpts: CompilerOptions)
+  { filename } := compilerOpts
+  compileResult := await compile(src, {
+    ...compilerOpts
+  })
+
+  assert.equal compileResult, result, """
+    #{filename}
+    --- Source   ---
+    #{src}
+
+    --- Expected ---
+    #{result}
+
+    --- Got      ---
+    #{compileResult}
+
+  """
+
+/**
+ * Pass a string with the following format:
+ * ```
+ * description
+ * ---
+ * source
+ * ---
+ * result
+ * ```
+ * The source will be compiled and compared to the result.
+ * The description will be used as the test description.
+ * You can also do testCase.only and testCase.skip to only run or skip this test.
+ */
+export function testCase(text: string, compilerOpts: CompilerOptions = {}, opt?: "only" | "skip")
+  [desc, src, result] := text.split /\n---(?:\n|$)/
+
+  fn := opt ? it[opt] : it
+
+  fn desc, ->
+    await compare src, result, {
+      filename: desc
+      ...compilerOpts
+    }
+
+testCase.only = (text: string, compilerOpts?: CompilerOptions) -> testCase text, compilerOpts, "only"
+testCase.skip = (text: string, compilerOpts?: CompilerOptions) -> testCase text, compilerOpts, "skip"
+
+/**
+ * Pass a string with the following format:
+ * ```
+ * description
+ * ---
+ * source
+ * ---
+ * error
+ * ```
+ * The source will be compiled and checked that it throws an error.
+ * The description will be used as the test description.
+ * The error part is optional, and can specify:
+ *  - just the name of the error (e.g. ParseError)
+ *  - the stringified error (of the form `type: message`),
+ *    sans the Expected/Found part of ParseErrors
+ */
+function throws(text: string, compilerOpts?: CompilerOptions, opt?: "only" | "skip")
+  [desc, src, error] := text.split /\n---(?:\n|$)/
+  throw new Error "Missing code block" unless src
+
+  fn := opt ? it[opt] : it
+
+  fn desc, ->
+    let e: unknown, result: string
+    try
+      result = await compile src, compilerOpts
+    catch caught
+      e = caught
+    // First confirm throw
+    assert.throws
+      => e && throw e
+      undefined as any
+      """
+
+        --- Source   ---
+        #{src}
+
+        --- Got      ---
+        #{result!}
+
+        """
+    // Then check against desired error message
+    if error
+      {name} := e! as {name: string}
+      let s
+      if error.includes ':' // name: message
+        s = e!.toString()
+        { name } := (e! as {name: string})
+        if name is "ParseError"
+          s = s.replace /\nExpected:[^]*$/, ''
+      else // just name
+        s = name
+      assert.equal s, error, """
+
+        --- Source         ---
+        #{src}
+
+        --- Expected Error ---
+        #{error}
+
+        --- Got Error      ---
+        #{e!.toString()}
+
+      """
+
+throws.only = (text: string, compilerOpts?: CompilerOptions) -> throws text, compilerOpts, "only"
+throws.skip = (text: string, compilerOpts?: CompilerOptions) -> throws text, compilerOpts, "skip"

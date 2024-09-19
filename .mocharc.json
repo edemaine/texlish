@@ -1,0 +1,14 @@
+{
+  "extension": [
+    "civet"
+  ],
+  "require": [
+    "@danielx/hera/register",
+    "@danielx/civet/register"
+  ],
+  "reporter": "dot",
+  "recursive": true,
+  "spec": [
+    "test"
+  ]
+}
