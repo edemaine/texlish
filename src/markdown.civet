@@ -9,7 +9,7 @@ export function markdownText(text: string, styles: Record<string, string>): stri
     (?!\s)                    // not followed by whitespace
     (?:
       (?!\p{Punctuation})     // not followed by punctuation, or
-    | (?<=\s\1)               // preceded by whitespace
+    | (?<=(?:^|\s)\1)         // preceded by whitespace
     )
     // content
     ([^]*?)
@@ -18,7 +18,7 @@ export function markdownText(text: string, styles: Record<string, string>): stri
     \1
     (?:
       (?<!\p{Punctuation}\1)  // not preceded by punctuation, or
-    | (?=\s|\p{Punctuation})  // followed by whitespace or punctuation
+    | (?=\s|\p{Punctuation}|$)// followed by whitespace or punctuation
     )
   ///vg, (_, stars: string & {length: 1 | 2 | 3}, content) =>
     `${styles[stars] ?? "\\unknown"}{${content}}`
