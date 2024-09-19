@@ -1,7 +1,9 @@
-import { parse, getStateKey } from "./parser.hera"
+import { parse, getStateKey, state } from "./parser.hera"
 //import * as sourcemap from "./sourcemap.civet"
 //{ SourceMap } := sourcemap
 export { parse }
+
+import { markdownText } from "./markdown.civet"
 
 import StateCache from "./state-cache.civet"
 
@@ -62,7 +64,9 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
 
   return ast if options.ast
 
-  generate ast
+  ast
+  |> generate
+  |> markdownText ., state.styles
 
 type MetaData
   logs: string[]

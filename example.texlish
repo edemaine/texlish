@@ -15,8 +15,8 @@
 
 # Introduction
 
-This is *emphasized*.  And **really emphasized**.
-And ***super emphasized***.
+This is *emphasized*.  And **really
+emphasized**.  And ***super emphasized***.
 
 This is \NP-complete, and in \NP but not \NP-hard.
 -> This is \NP-complete, and in \NP\ but not \NP-hard.

@@ -1,5 +1,4 @@
 ```
-import { markdownText } from './markdown.civet'
 import { generate } from './main.civet'
 
 export const state = {
@@ -44,8 +43,7 @@ TextLine
   Indent Text InlineCommandWithNestedArgument?
 
 Text
-  TextPart* ->
-    return markdownText(generate($0), state.styles)
+  TextPart*
 
 TextPart
   BracedContent
@@ -71,8 +69,9 @@ TrimmedText
   Text:t ->
     if (!Array.isArray(t)) return t.trim()
     t = [...t]
-    t[0] = t[0].trimStart()
-    t[t.length-1] = t[t.length-1].trimEnd()
+    if (typeof t[0] === 'string') t[0] = t[0].trimStart()
+    const last = t.length - 1
+    if (typeof t[last] === 'string') t[last] = t[last].trimEnd()
     return t
 
 BracedContent
@@ -147,7 +146,7 @@ MetaBlock
 MetaCommand
   "styles" NestedAssignments:body EOL ->
     for (const [key, value] of body) {
-      state.styles[key] = value
+      state.styles[key] = generate(value)
     }
 
 NestedAssignments
