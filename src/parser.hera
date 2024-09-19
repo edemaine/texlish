@@ -21,6 +21,10 @@ Init
       '*': '\\emph',
       '**': '\\textbf',
       '***': '\\defn',
+      '@=': '\\label',
+      '@': '\\ref',
+      '#@': '\\pageref',
+      '[[': '\\cite',
     }
 
 Content
@@ -47,14 +51,10 @@ Text
 
 TextPart
   BracedContent
-  /@=([^\s]+)/ ->
-    return `\\label{${$1}}`
-  /@([^\s=][^\s]*)/ ->
-    return `\\ref{${$1}}`
-  /#@([^\s=][^\s]*)/ ->
-    return `\\pageref{${$1}}`
+  /(@=|@|#@)([^\s]+)/ ->
+    return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
-    return `\\cite{${$1}}`
+    return `${state.styles['[[']}{${$1}}`
   /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
     return `${$1}{${$2}}`
   [\^_] ParenthesizedContent ->
