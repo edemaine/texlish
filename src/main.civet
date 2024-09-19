@@ -55,14 +55,17 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
       events
     })
   finally
-    if options.trace
+    if trace := options.trace
       import('node:fs').then ({ writeFileSync }) =>
         { logs } := events.meta
-        writeFileSync options.trace, logs.join "\n"
+        writeFileSync trace, logs.join "\n"
 
   return ast if options.ast
 
   generate ast
+
+type MetaData
+  logs: string[]
 
 type CacheKey = [number, number, string]
 
@@ -81,14 +84,12 @@ type CacheEvents
   exit: (ruleName: string, state: ParseState, result: ParseResult) => void
 
 function makeCache(options: CompilerOptions): CacheEvents
-  meta: MetaData := {}
-
   stateCache := new StateCache<ParseResult>
 
   { trace } := options
   logs: string[] := []
-  meta.logs = logs
   stack: string[] := []
+  meta: MetaData := { logs }
 
   events := {
     meta
