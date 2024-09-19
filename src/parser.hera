@@ -43,9 +43,13 @@ Statement
   OrderedList
   TextLine
 
+# One line of text, with leading indentation and maybe trailing nested argument
+# (can be empty, no newline)
 TextLine
   Indent Text InlineCommandWithNestedArgument?
 
+# One line of text, without leading indentation or trailing nested argument
+# (for inline uses, can be empty, no newline)
 Text
   TextPart*
 
@@ -144,10 +148,11 @@ MetaBlock
   &/[ \t]*>>/ Indent:indent ">>" MetaCommand:cmd -> cmd
 
 MetaCommand
-  "styles" NestedAssignments:body EOL ->
+  "styles" NestedAssignments:body ->
     for (const [key, value] of body) {
       state.styles[key] = generate(value)
     }
+    return '\0'  // eat following newline
 
 NestedAssignments
   PushIndent NestedAssignment*:items PopIndent ->
@@ -155,7 +160,7 @@ NestedAssignments
     return items
 
 NestedAssignment
-  Nested Indent /[^\s=:]+/:key /\s*:?=\s*/ Text:value ->
+  Nested Indent /[^\s:]+/:key /\s+:?=\s*/ Text:value ->
     return [ key[0], value ]
 
 InlineCommandWithNestedArgument

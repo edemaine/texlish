@@ -31,16 +31,19 @@ export type CompilerOptions
 export type AST = undefined | string | { token: string } | AST[]
 
 export function generate(ast: AST): string
-  if ast <? "string"
-    ast
-  else if not ast?
-    ''
-  else if Array.isArray ast
-    ast.map(generate).join ''
-  else if "token" in ast
-    ast.token
-  else
-    throw new Error `Unrecognized token ${ast}`
+  function recurse(ast: AST): string
+    if ast <? "string"
+      ast
+    else if not ast?
+      ''
+    else if Array.isArray ast
+      ast.map(generate).join ''
+    else if "token" in ast
+      ast.token
+    else
+      throw new Error `Unrecognized token ${ast}`
+  recurse ast
+  .replace /\0(\r\n?|\n)/g, ''
 
 export function compile<const T extends CompilerOptions>(src: string, options?: T): string
   unless options

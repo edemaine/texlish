@@ -1,0 +1,53 @@
+{ testCase } from './helper.civet'
+
+describe '@ shorthand for \\ref, \\label, etc.', ->
+  testCase '''
+    ref
+    ---
+    Theorem @thm:main
+    Theorem~@thm:main
+    ---
+    Theorem \\ref{thm:main}
+    Theorem~\\ref{thm:main}
+  '''
+
+  testCase '''
+    pageref
+    ---
+    Theorem @thm:main on page #@thm:main
+    ---
+    Theorem \\ref{thm:main} on page \\pageref{thm:main}
+  '''
+
+  testCase '''
+    label
+    ---
+    @=thm:big
+    ---
+    \\label{thm:big}
+  '''
+
+  testCase '''
+    label in theorem
+    ---
+    > theorem @=thm:big
+    ---
+    \\begin{theorem}\\label{thm:big}
+    \\end{theorem}
+  '''
+
+  testCase '''
+    custom ref/label
+    ---
+    >>styles
+      @ = \\cref
+      #@ = \\pagecref
+      @= = \\clabel
+    @=thm:big
+    @thm:big
+    #@thm:big
+    ---
+    \\clabel{thm:big}
+    \\cref{thm:big}
+    \\pagecref{thm:big}
+  '''
