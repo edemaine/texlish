@@ -39,11 +39,11 @@ Cleveref: @fig:example1 & @fig:example2
 - \centering
   \includegraphics:
     example.png
-  -> \includegraphics{example.png}
+  % -> \includegraphics{example.png}
   \includegraphics:
   ~ width: 0.5\textwidth
   - example.png
-  -> \includegraphics[width=0.5\textwidth]{example.png}
+  % -> \includegraphics[width=0.5\textwidth]{example.png}
 
 $$
   -b \pm \sqrt:
@@ -77,7 +77,7 @@ See Theorem @thm:big on page #@thm:big
 -> \cite[p. 101]{Langerman-2024}, \cite{Demaine-2024}
 
 > table
-  > tabular
+  > tabular: ccc
     a & b & c \\
 
 > quote
@@ -85,5 +85,5 @@ See Theorem @thm:big on page #@thm:big
   "Three Rings for the Elven-kings under the sky, \dots"
   -> ``Three Rings for the Elven-kings under the sky, \dots''
 
-\bibliography{example}
-\bibliographystyle{alpha}
+\bibliography: example
+\bibliographystyle: alpha

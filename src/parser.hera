@@ -38,15 +38,15 @@ Statement
   Header
   MetaBlock
   Environment
-  CommandWithNestedArgument
+  CommandWithColonArgument
   UnorderedList
   OrderedList
   TextLine
 
-# One line of text, with leading indentation and maybe trailing nested argument
+# One line of text, with leading indentation and maybe trailing colon argument
 # (can be empty, no newline)
 TextLine
-  Indent Text InlineCommandWithNestedArgument?
+  Indent Text InlineCommandWithColonArgument?
 
 # One line of text, without leading indentation or trailing nested argument
 # (for inline uses, can be empty, no newline)
@@ -64,10 +64,10 @@ TextPart
   [\^_] ParenthesizedContent ->
     // $2[1] strips the parens
     return [ $1[0], '{', $2[1], '}' ]
-  # Leave trailing InlineCommandWithNestedArgument for TextLine to parse
-  !InlineCommandWithNestedArgument Command -> $2
+  # Leave trailing InlineCommandWithColonArgument for TextLine to parse
+  !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n][^\r\n@#\[\\\^_{}()]*/
+  /[^\r\n\\][^\r\n@#\[\\\^_{}()]*/
 
 TrimmedText
   Text:t ->
@@ -104,7 +104,7 @@ Header
     return [ command, '{', title, '}' ]
 
 Environment
-  &/[ \t]*>/ Indent:indent />\s*((?:[^:\s]+|:(?!\s))+):?/:env TrimmedText:first NestedBody:body ->
+  &/[ \t]*>/ Indent:indent />[ \t]*([^:\s]+)/:env TrimmedText:first NestedBody:body ->
     env = env[1].trim()
     return [
       indent,
@@ -116,26 +116,30 @@ Environment
       `\\end{${env}}`,
     ]
 
-CommandWithNestedArgument
-  Indent:indent CommandColon:command NestedArgumentList:args ->
+CommandWithColonArgument
+  Indent:indent InlineCommandWithColonArgument:rest ->
     return [
       indent,
-      command,
-      args,
+      rest,
     ]
-  Indent:indent CommandColon:command NonEmptyNestedBody:body ->
+
+InlineCommandWithColonArgument
+  CommandColon:command ColonArgument:arg ->
     return [
-      indent,
       command,
+      arg,
+    ]
+
+ColonArgument
+  NestedArgumentList
+  NonEmptyNestedBody:body ->
+    return [
       "{%",
       body,
       "}%",
     ]
-  Indent:indent CommandColon:command TrimmedText:body ->
-    if (!body.length) return $skip
+  TrimmedText:body ->
     return [
-      indent,
-      command,
       "{",
       body,
       "}%",
@@ -162,18 +166,6 @@ NestedAssignments
 NestedAssignment
   Nested Indent /[^\s:]+/:key /\s+:?=\s*/ Text:value ->
     return [ key[0], value ]
-
-InlineCommandWithNestedArgument
-  /(\\[^:\s]+):/:command SaveIndent:indent NonEmptyNestedBody:body ->
-    command = command[1]
-    return [
-      command,
-      "{%",
-      body,
-      "\n",
-      indent,
-      "}%",
-    ]
 
 NonEmptyNestedBody
   NestedBody ->
