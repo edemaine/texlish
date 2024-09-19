@@ -14,9 +14,9 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
   testCase '''
     pageref
     ---
-    Theorem @thm:main on page #@thm:main
+    Theorem @thm:main on page #@thm:main.
     ---
-    Theorem \\ref{thm:main} on page \\pageref{thm:main}
+    Theorem \\ref{thm:main} on page \\pageref{thm:main}.
   '''
 
   testCase '''
