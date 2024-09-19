@@ -24,7 +24,7 @@ export type CompilerOptions
   ast?: boolean
   trace?: string
 
-type AST = string | { token: string } | AST[]
+export type AST = undefined | string | { token: string } | AST[]
 
 export function generate(ast: AST): string
   if ast <? "string"

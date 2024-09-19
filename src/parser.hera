@@ -1,5 +1,6 @@
 ```
 import { markdownText } from './markdown.civet'
+import { generate } from './main.civet'
 
 export const state = {
   get currentIndent() {
@@ -12,7 +13,7 @@ export function getStateKey() {
 ```
 
 Main
-  Init Program
+  Init Content
 
 Init
   "" ->
@@ -23,8 +24,9 @@ Init
       '***': '\\defn',
     }
 
-Program
-  ( Statement EOL )*
+Content
+  Statement ( EOL Statement )*
+  "" -> []
 
 EOL
   /[ \t]*(\n|\r\n?|$)/
@@ -43,9 +45,10 @@ TextLine
 
 Text
   TextPart* ->
-    return markdownText($0.join(''), state.styles)
+    return markdownText(generate($0), state.styles)
 
 TextPart
+  BracedContent
   /@=([^\s]+)/ ->
     return `\\label{${$1}}`
   /@([^\s=][^\s]*)/ ->
@@ -56,12 +59,35 @@ TextPart
     return `\\cite{${$1}}`
   /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
     return `${$1}{${$2}}`
-  !InlineCommandWithNestedArgument /[^\r\n][^\r\n@#\[\\\^_]*/ ->
-    return $2[0]
+  [\^_] ParenthesizedContent ->
+    // $2[1] strips the parens
+    return [ $1[0], '{', $2[1], '}' ]
+  # Leave trailing InlineCommandWithNestedArgument for TextLine to parse
+  !InlineCommandWithNestedArgument Command -> $2
+  # Skip to next interesting character
+  /[^\r\n][^\r\n@#\[\\\^_{}()]*/
 
 TrimmedText
   Text:t ->
-    return t.trim()
+    if (!Array.isArray(t)) return t.trim()
+    t = [...t]
+    t[0] = t[0].trimStart()
+    t[t.length-1] = t[t.length-1].trimEnd()
+    return t
+
+BracedContent
+  "{" Content "}"
+
+Command
+  /\\[a-zA-Z@]+/
+  /\\./
+
+ParenthesizedContent
+  "(" ParenBalancedContent ")"
+
+ParenBalancedContent
+  ParenthesizedContent
+  TextPart
 
 Header
   /(#+)(\*?)\s+/ TrimmedText:title ->
@@ -72,7 +98,7 @@ Header
       level <= 3 ? `\\${'sub'.repeat(level)}section` :
       level === 4 ? '\\paragraph' : '\\subparagraph'
     if (star) command += '*'
-    return `${command}{${title}}`
+    return [ command, '{', title, '}' ]
 
 Environment
   &/[ \t]*>/ Indent:indent />\s*((?:[^:\s]+|:(?!\s))+):?/:env TrimmedText:first NestedBody:body ->
