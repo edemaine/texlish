@@ -28,6 +28,16 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    mixed
+    ---
+    \\sqrt: a +
+      b + c
+    ---
+    \\sqrt{a +
+      b + c}%
+  '''
+
+  testCase '''
     bulleted
     ---
     \\subcaptionbox:
@@ -71,6 +81,20 @@ describe '\\command:', ->
     \\includegraphics
        [width=0.5\\textwidth]%
        {image.png}%
+  '''
+
+  testCase '''
+    inline
+    ---
+    $$
+      -b \\pm \\sqrt:
+        b^2 - 4 a c
+    $$
+    ---
+    $$
+      -b \\pm \\sqrt{%
+        b^2 - 4 a c}%
+    $$
   '''
 
   testCase '''

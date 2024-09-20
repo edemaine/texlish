@@ -122,7 +122,7 @@ Header
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
   # (in case ColonArgument involves multiple lines)
-  &/[ \t]*>/ Indent:indent PushIndent ( />[ \t]*([^:\s]+)/ ( ColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
+  &/[ \t]*>/ Indent:indent PushIndent ( />[ \t]*([^:\s]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
     if (!content) return $skip
     let [ env, first, body ] = content
     env = env[1].trim()
@@ -137,23 +137,31 @@ Environment
     ]
 
 CommandWithColonArgument
-  Indent:indent InlineCommandWithColonArgument:rest ->
-    return [
-      indent,
-      rest,
-    ]
+  Indent:indent Command:command ColonArgument:arg
 
+# Inline version prevents combining same-line and indented content
 InlineCommandWithColonArgument
-  Command:command ColonArgument:arg ->
-    return [
-      command,
-      arg,
-    ]
+  Command InlineColonArgument
 
 ColonArgument
   ":" ArgumentAfterColon -> $2
 
+InlineColonArgument
+  ":" InlineArgumentAfterColon -> $2
+
 ArgumentAfterColon
+  NestedArgumentList
+  TrimmedText:text NestedBody:body CommentEOL:comment ->
+    if (text.length === 0) text = "%"
+    return [
+      "{",
+      text,
+      trimTrailingPercent(body),
+      "}",
+      comment,
+    ]
+
+InlineArgumentAfterColon
   NestedArgumentList
   NonEmptyNestedBody:body CommentEOL:comment ->
     return [
