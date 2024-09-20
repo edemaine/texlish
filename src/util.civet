@@ -1,0 +1,14 @@
+import { type AST } from ./main.civet
+
+export function trimTrailingPercent(node: AST): AST
+  if node <? "string"
+    node.replace /%$/, ''
+  else if Array.isArray node
+    last := node.-1
+    trimmed := trimTrailingPercent last
+    if last is trimmed
+      node
+    else
+      [...node[...-1], trimmed]
+  else
+    node
