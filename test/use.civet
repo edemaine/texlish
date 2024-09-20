@@ -1,0 +1,96 @@
+{ testCase } from ./helper.civet
+
+describe '>>use', ->
+  testCase '''
+    single package on one line
+    ---
+    >>use amsmath
+    ---
+    \\usepackage{amsmath}
+  '''
+
+  testCase '''
+    multiple packages on one line
+    ---
+    >>use amsmath, latexsym
+    ---
+    \\usepackage{amsmath, latexsym}
+  '''
+
+  testCase '''
+    single package with argument on one line
+    ---
+    >>use geometry: margin = 1in
+    ---
+    \\usepackage[margin = 1in]{geometry}
+  '''
+
+  testCase '''
+    single package on one line with nested argument
+    ---
+    >>use geometry:
+      margin = 1in
+    ---
+    \\usepackage[
+      margin = 1in]{geometry}
+  '''
+
+  testCase '''
+    multiple nested packages
+    ---
+    >>use
+      amsmath
+      colortbl
+      cleveref
+    ---
+
+      \\usepackage{amsmath}
+      \\usepackage{colortbl}
+      \\usepackage{cleveref}
+  '''
+
+  testCase '''
+    multiple nested packages with bullets
+    ---
+    >>use
+      * amsmath
+      - colortbl
+      ~ cleveref
+    ---
+
+      \\usepackage{amsmath}
+      \\usepackage{colortbl}
+      \\usepackage{cleveref}
+  '''
+
+  testCase '''
+    same-line package with arguments
+    ---
+    >>use hyperref:
+      - pdftitle = Hello World
+      - pdfauthor = Me
+    ---
+    \\usepackage[
+        pdftitle = Hello World,
+        pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    nested packages with arguments
+    ---
+    >>use
+      amsmath
+      colortbl
+      cleveref
+      geometry:
+        - margin = 1in
+        - letterpaper
+    ---
+
+      \\usepackage{amsmath}
+      \\usepackage{colortbl}
+      \\usepackage{cleveref}
+      \\usepackage[
+          margin = 1in,
+          letterpaper]{geometry}
+  '''

@@ -173,6 +173,10 @@ MetaBlock
   &/[ \t]*>>/ Indent:indent ">>" MetaCommand:cmd -> cmd
 
 MetaCommand
+  MetaStyles
+  MetaUse
+
+MetaStyles
   "styles" NestedAssignments:body ->
     for (const [key, value] of body) {
       state.styles[key] = generate(value)
@@ -187,6 +191,64 @@ NestedAssignments
 NestedAssignment
   Nested Indent /[^\s:]+/:key /\s+:?=\s*/ Text:value ->
     return [ key[0], value ]
+
+MetaUse
+  "use" [ \t]+ UseItem:item -> item
+  "use" NestedUseList:list -> list
+
+UseItem
+  Bullet? /[^:\r\n]+/:name UseColonArgument?:arg ->
+    name = name[0]
+    return [
+      '\\usepackage',
+      arg,
+      `{${name}}`
+    ]
+
+NestedUseList
+  PushIndent NestedUseItem*:items PopIndent ->
+    if (!items.length) return $skip
+    return items
+
+NestedUseItem
+  Nested Indent UseItem ->
+    return $0
+
+UseColonArgument
+  ":" UseArgument ->
+    return [
+      "[",
+      $2,
+      "]",
+    ]
+
+UseArgument
+  NestedUseArgumentList
+  NonEmptyNestedBody
+  TrimmedText
+
+NestedUseArgumentList
+  PushIndent NonstrictlyNested:nested UseArgumentList?:list PopIndent ->
+    if (!list) return $skip
+    return [ nested, list ]
+
+UseArgumentList
+  &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet ( SameLevel UseArgumentBullet )* )?:content PopIndent ->
+    if (!content) return $skip
+    // Add commas between bullets
+    let [ first, rest ] = content
+    rest = rest.map(([ eol, bullet ]) => [ ",", eol, bullet ])
+    return [ first, rest ]
+
+UseArgumentBullet
+  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
+    let [ , bullet, space ] = $2
+    return [
+      indent,
+      space, " ", // indent the same as the bullet
+      text,
+      body,
+    ]
 
 NonEmptyNestedBody
   NestedBody ->
@@ -214,9 +276,12 @@ UnorderedList
     ]
 
 UnorderedBullet
-  Indent:indent /[*\-~]([ \t]+)/ Text:text NestedBody:body ->
-    let space = $2[1]
+  Indent:indent Bullet:bullet Text:text NestedBody:body ->
+    let space = bullet[1]
     return [ indent, '\\item', space, text, body ]
+
+Bullet
+  /([*\-~])([ \t]+)/ -> [ $1, $2 ]
 
 OrderedList
   OrderedBullet PushIndent ( SameLevel OrderedBullet )* PopIndent ->
@@ -243,19 +308,20 @@ NestedArgumentList
 
 ArgumentList
   &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
+    if (!content) return $skip
     return content
 
 ArgumentBullet
-  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body CommentEOL:comment ->
-    let [ , bullet, space ] = $2
+  Indent:indent Bullet:bullet Text:text NestedBody:body CommentEOL:comment ->
+    let [ symbol, space ] = bullet
     if (!body.length) text = trimTrailingPercent(text)
     return [
       indent,
       space, // indent the same as the bullet, except 1 for *-~ and {
-      bullet === '~' ? '[' : '{',
+      symbol === '~' ? '[' : '{',
       text,
       body,
-      bullet === '~' ? ']' : '}',
+      symbol === '~' ? ']' : '}',
       comment,
     ]
 

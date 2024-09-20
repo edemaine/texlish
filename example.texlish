@@ -4,6 +4,17 @@
   *** = \defn
   @ = \cref
 
+>>use
+  amsmath
+  colortbl
+  cleveref
+  geometry:
+    - margin = 1in
+    - letterpaper
+>>use hyperref:
+  - pdftitle = Hello World
+  - pdfauthor = Me
+
 >>commands
   \NP = \textbf{NP}
   -> \def\NP{\textbf{NP}}
