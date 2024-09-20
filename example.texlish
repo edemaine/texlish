@@ -64,8 +64,9 @@ $ x^2 + y^10 - z^(a+b) $
       1. One
       2. Two
 
-> theorem: @=thm:big
+> theorem
   ~ Big Theorem
+  @=thm:big
   This is true.
 
 See Theorem @thm:big on page #@thm:big
