@@ -103,7 +103,7 @@ function makeCache(options: CompilerOptions): CacheEvents
   events := {
     meta
     enter(ruleName: string, state: ParseState)
-      return if uncacheable.has(ruleName)
+      return if uncacheable.has ruleName
 
       stateKey := getStateKey()
       key: CacheKey := [stateKey, state.pos, ruleName ]
@@ -112,25 +112,28 @@ function makeCache(options: CompilerOptions): CacheEvents
       if stateCache.has(key)
         result := stateCache.get(key)
         if trace
-          logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + "💰" + (if result then "✅" else "❌")
+          logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "💰" + (if result then "✅" else "❌")
         return {
           cache: if result then { ...result }
         }
 
       if trace
-        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + "\u2192"
+        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "\u2192"
         stack.push ruleName
       return
 
     exit(ruleName: string, state: ParseState, result: ParseResult): void
-      return if uncacheable.has(ruleName)
+      if uncacheable.has ruleName
+        logs.push "".padStart(stack.length * 2, " ") + ruleName + `[${getStateKey()}]` + ":" + state.pos + " " + (if result then "✅" else "❌")
+        return
+
       stateKey := getStateKey()
       key: CacheKey := [stateKey, state.pos, ruleName ]
       stateCache.set(key, result)
 
       if trace
         stack.pop()
-        logs.push "".padStart(stack.length * 2, " ") + ruleName + ":" + state.pos + " " + (if result then "✅" else "❌")
+        logs.push "".padStart(stack.length * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + " " + (if result then "✅" else "❌")
   }
 
   return events

@@ -3,12 +3,13 @@ import { generate } from './main.civet'
 import { trimTrailingPercent } from './util.civet'
 
 export const state = {
+  indents: [ { token: '', level: 0 } ],
   get currentIndent() {
     return state.indents.at(-1)
   }
 }
 export function getStateKey() {
-  return 0
+  return state.currentIndent.level
 }
 ```
 
@@ -263,43 +264,45 @@ NestedItem
   Nested Statement
 
 UnorderedList
-  UnorderedBullet PushIndent ( SameLevel UnorderedBullet )* PopIndent ->
-    let indent = $1[0]
+  &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
+    if (!items) return $skip
     return [
       indent,
       "\\begin{itemize}",
       "\n",
-      $0,
+      indent,
+      items,
       "\n",
       indent,
       "\\end{itemize}",
     ]
 
 UnorderedBullet
-  Indent:indent Bullet:bullet Text:text NestedBody:body ->
+  Bullet:bullet Text:text NestedBody:body ->
     let space = bullet[1]
-    return [ indent, '\\item', space, text, body ]
+    return [ '\\item', space, text, body ]
 
 Bullet
-  /([*\-~])([ \t]+)/ -> [ $1, $2 ]
+  /([*\-~])([ \t]+|(?=[\r\n]))/ -> [ $1, $2 ]
 
 OrderedList
-  OrderedBullet PushIndent ( SameLevel OrderedBullet )* PopIndent ->
-    let indent = $1[0]
+  &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet ( SameLevel Indent OrderedBullet )* )?:items PopIndent ->
+    if (!items) return $skip
     return [
       indent,
       "\\begin{enumerate}",
       "\n",
-      $0,
+      indent,
+      items,
       "\n",
       indent,
       "\\end{enumerate}",
     ]
 
 OrderedBullet
-  Indent:indent /\d+\.([ \t]+)/ Text:text NestedBody?:body ->
-    let space = $2[1]
-    return [ indent, '\\item', space, text, body ]
+  /\d+\.([ \t]+|(?=[\r\n]))/ Text:text NestedBody:body ->
+    let space = $1[1]
+    return [ '\\item', space, text, body ]
 
 NestedArgumentList
   PushIndent NonstrictlyNested:nested ArgumentList?:list PopIndent ->

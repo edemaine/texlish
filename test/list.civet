@@ -1,0 +1,119 @@
+{ testCase } from ./helper.civet
+
+describe 'unordered lists', ->
+  testCase '''
+    single-line bullets
+    ---
+    - one
+    * two
+    ~ three
+    ---
+    \\begin{itemize}
+    \\item one
+    \\item two
+    \\item three
+    \\end{itemize}
+  '''
+
+  testCase '''
+    bullets with indentation
+    ---
+    - hello
+      world
+      !
+    *
+      goodbye
+    ---
+    \\begin{itemize}
+    \\item hello
+      world
+      !
+    \\item
+      goodbye
+    \\end{itemize}
+  '''
+
+  testCase '''
+    nested bullets
+    ---
+    - hello
+      - world
+      - you
+    * goodbye
+      - cruel
+        - world
+    ---
+    \\begin{itemize}
+    \\item hello
+      \\begin{itemize}
+      \\item world
+      \\item you
+      \\end{itemize}
+    \\item goodbye
+      \\begin{itemize}
+      \\item cruel
+        \\begin{itemize}
+        \\item world
+        \\end{itemize}
+      \\end{itemize}
+    \\end{itemize}
+  '''
+
+describe 'ordered lists', ->
+  testCase '''
+    single-line bullets
+    ---
+    1. one
+    2. two
+    1. three
+    ---
+    \\begin{enumerate}
+    \\item one
+    \\item two
+    \\item three
+    \\end{enumerate}
+  '''
+
+  testCase '''
+    bullets with indentation
+    ---
+    1. hello
+      world
+      !
+    2.
+      goodbye
+    ---
+    \\begin{enumerate}
+    \\item hello
+      world
+      !
+    \\item
+      goodbye
+    \\end{enumerate}
+  '''
+
+  testCase '''
+    nested bullets
+    ---
+    1. hello
+      2. world
+      3. you
+    4. goodbye
+      5. cruel
+        - world
+    ---
+    \\begin{enumerate}
+    \\item hello
+      \\begin{enumerate}
+      \\item world
+      \\item you
+      \\end{enumerate}
+    \\item goodbye
+      \\begin{enumerate}
+      \\item cruel
+        \\begin{itemize}
+        \\item world
+        \\end{itemize}
+      \\end{enumerate}
+    \\end{enumerate}
+  '''
