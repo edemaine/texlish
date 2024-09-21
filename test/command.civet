@@ -2,6 +2,16 @@
 
 describe '\\command:', ->
   testCase '''
+    empty
+    ---
+    \\emph:
+    \\emph: 
+    ---
+    \\emph{}%
+    \\emph{}%
+  '''
+
+  testCase '''
     one line
     ---
     \\bibliography: bib
