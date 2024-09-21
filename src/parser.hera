@@ -237,9 +237,9 @@ UseArgument
   TrimmedText
 
 NestedUseArgumentList
-  PushIndent NonstrictlyNested:nested UseArgumentList?:list PopIndent ->
-    if (!list) return $skip
-    return [ nested, list ]
+  PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
+    if (!content) return $skip
+    return content
 
 UseArgumentList
   &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet ( SameLevel UseArgumentBullet )* )?:content PopIndent ->

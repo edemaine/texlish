@@ -94,3 +94,19 @@ describe '>>use', ->
           margin = 1in,
           letterpaper]{geometry}
   '''
+
+  testCase '''
+    more nested packages with arguments
+    ---
+    >>use
+      geometry: margin=1in
+      hyperref:
+        - pdftitle = Hello World
+        - pdfauthor = Me
+    ---
+
+      \\usepackage[margin=1in]{geometry}
+      \\usepackage[
+          pdftitle = Hello World,
+          pdfauthor = Me]{hyperref}
+  '''
