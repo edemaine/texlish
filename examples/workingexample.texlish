@@ -1,0 +1,26 @@
+\documentclass: article
+
+\title: Example Document
+
+\author: Bob
+
+\begin: document
+\maketitle
+
+> abstract
+    This is a minimal example of a fully working texlish document.
+
+
+## Introduction
+This is an Introduction.
+
+### Something else @=subs
+This is a subsection of the Introduction.
+
+### Something more
+Here I am showing how you could reference Subsection~@subs.
+
+## Main section
+And here we are doing more stuff.
+
+\end: document
