@@ -9,13 +9,18 @@ import Example from '../../components/example.astro'
 Similar to Markdown headers, plus `*` for unnumbered sections.
 
 <Example src={`
-  # Related Work
-  ## Introduction
-  ### Background
-  #### Aside
-  ##### Main Result
-  ###### Sub Result
-  ##* Acknowledgments
+  # Introduction
+  ## Background
+  ### Aside
+  #* Acknowledgments
+`}/>
+
+Special notation for `\chapter`, `\paragraph`, and `\subparagraph`:
+
+<Example src={`
+  !# Introduction
+  .# Results.
+  .## Part 1.
 `}/>
 
 ## Emphasis
@@ -166,8 +171,8 @@ You can use many packages at once as an indented block:
 <Example src={`
   >>use
     amsmath
-    geometry: margin=1in
+    geometry: margin = 1in
     hyperref:
-      pdftitle = Hello World
-      pdfauthor = Me
+      - pdftitle = Hello World
+      - pdfauthor = Me
 `}/>
