@@ -44,3 +44,14 @@ describe '> environments', ->
       Cool!
     \\end{theorem}
   '''
+
+  testCase '''
+    optional argument via square brackets
+    ---
+    > proof[sketch]
+      By example.
+    ---
+    \\begin{proof}[sketch]
+      By example.
+    \\end{proof}
+  '''
