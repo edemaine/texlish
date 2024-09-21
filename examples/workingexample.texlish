@@ -23,4 +23,7 @@ Here I am showing how you could reference Subsection~@subs.
 ## Main section
 And here we are doing more stuff.
 
+##* Acknowledgements
+This work was started after eating sushi, the authors thank the sushi chef.
+
 \end: document
