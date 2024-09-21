@@ -76,3 +76,19 @@ describe '> environments', ->
          {\\includegraphics{example2}}%
     \\end{figure}
   '''
+
+  testCase '''
+    with comment
+    ---
+    > theorem% Big Theorem
+      Cool!
+    > theorem % Big Theorem
+      Cool!
+    ---
+    \\begin{theorem}% Big Theorem
+      Cool!
+    \\end{theorem}
+    \\begin{theorem}% Big Theorem
+      Cool!
+    \\end{theorem}
+  '''

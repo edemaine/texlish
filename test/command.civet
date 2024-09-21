@@ -116,3 +116,39 @@ describe '\\command:', ->
     {\\includegraphics{%
       image.png}}
   '''
+
+  testCase '''
+    one line with comment
+    ---
+    \\bibliography: bib % give to BibTeX
+    ---
+    \\bibliography{bib}% give to BibTeX
+  '''
+
+  testCase '''
+    indented with first-line comment
+    ---
+    \\bibliography:% give to BibTeX
+      bib
+    \\bibliography: % give to BibTeX
+      bib
+    ---
+    \\bibliography{% give to BibTeX
+      bib}%
+    \\bibliography{% give to BibTeX
+      bib}%
+  '''
+
+  testCase '''
+    indented with trailing comment
+    ---
+    \\bibliography:
+      bib% give to BibTeX
+    \\bibliography:
+      bib % give to BibTeX
+    ---
+    \\bibliography{%
+      bib}% give to BibTeX
+    \\bibliography{%
+      bib}% give to BibTeX
+  '''

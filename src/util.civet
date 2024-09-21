@@ -1,14 +1,85 @@
 import { type AST } from ./main.civet
 
-export function trimTrailingPercent(node: AST): AST
-  if node <? "string"
-    node.replace /%$/, ''
-  else if Array.isArray node
-    last := node.-1
-    trimmed := trimTrailingPercent last
-    if last is trimmed
-      node
-    else
-      [...node[...-1], trimmed]
-  else
+// Find an "end" node (some step down the path of last nonempties)
+// that matches a given condition, or undefined if not found.
+export function getEnd(node: AST, match: (candidate: AST) => boolean): AST
+  if match node
     node
+  else
+    return unless node <? "object"
+    if Array.isArray node
+      // Ignore trailing undefined and empty string
+      i .= node.length - 1
+      while i >= 0 and not node[i]
+        i--
+      if i >= 0
+        getEnd node[i], match
+    else if "children" in node
+      getEnd node.children, match
+
+// Modify an "end" node (some step down the path of last nonempties)
+// where the modify function returns something different.
+export function modifyEnd(node: AST, modify: (candidate: AST) => AST): AST
+  mod := modify node
+  if mod is not node
+    mod
+  else
+    return node unless node <? "object"
+    if Array.isArray node
+      node = [ ...node ]
+      // Remove trailing undefined and empty string
+      while node# and not node.-1
+        node.pop()
+      node.-1 = modifyEnd node.-1, modify
+      node
+    else if "children" in node
+      {
+        ...node
+        children: modifyEnd(node.children, modify) as AST[]
+      }
+    else
+      node
+
+// Trim end whitespace
+export function trimEnd(node: AST): AST
+  modifyEnd node, (node) =>
+    if node <? "string"
+      node.trimEnd()
+    else
+      node
+
+export function getEndComment(node: AST): AST
+  getEnd node, (is like { type: "Comment" })
+
+export function trimEndComment(node: AST): AST
+  modifyEnd node, (node) =>
+    if node is like { type: "Comment" }
+      undefined
+    else
+      node
+
+// Extract comment at end of [text, body] pair to replace comment
+export function commentForTextBody(text: AST, body: AST[]): [AST, AST, AST]
+  let comment: AST
+  if body#
+    if bodyComment := getEndComment body
+      body = body |> trimEndComment |> trimEnd |> as AST[]
+      comment = bodyComment
+  else
+    if textComment := getEndComment text
+      text = text |> trimEndComment |> trimEnd
+      comment = textComment
+  comment ?=
+    type: "Comment"
+    children: ["%"]
+  [text, body, comment]
+
+export function commentForBody(body: AST): [AST, AST]
+  let comment: AST
+  if bodyComment := getEndComment body
+    body = body |> trimEndComment |> trimEnd
+    comment = bodyComment
+  comment ?=
+    type: "Comment"
+    children: ["%"]
+  [body, comment]

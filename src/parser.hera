@@ -1,6 +1,12 @@
 ```
 import { generate } from './main.civet'
-import { trimTrailingPercent } from './util.civet'
+import {
+  commentForBody,
+  commentForTextBody,
+  getEndComment,
+  trimEnd,
+  trimEndComment,
+} from './util.civet'
 
 export const state = {
   indents: [ { token: '', level: 0 } ],
@@ -30,16 +36,12 @@ Init
     }
 
 Content
-  Statement ( EOL Statement )*
+  Statement ( EOL Statement )* ->
+    return [ $1, ...$2.flat() ]
   "" -> []
 
 EOL
   /[ \t]*(\n|\r\n?|$)/
-
-# Add a comment if we're at EOL (without consuming EOL)
-CommentEOL
-  &EOL -> "%"
-  ""
 
 Statement
   Header
@@ -81,7 +83,7 @@ TextPart
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\{}][^\r\n@#\[\\\^_{}()]*/
+  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%]*/
 
 TrimmedText
   Text:t ->
@@ -93,10 +95,26 @@ TrimmedText
     return t
 
 BracedContent
-  "{" Content "}"
+  "{":open Content:body "}":close ->
+    let comment
+    [body, comment] = commentForBody(body)
+    // Drop single %
+    if (comment?.children?.length === 1 && comment.children[0] === "%" ) {
+      comment = undefined
+    }
+    return [
+      open,
+      body,
+      close,
+      comment,
+    ]
 
 Comment
-  /%[^\r\n]*/
+  /%[^\r\n]*/ ->
+    return {
+      type: "Comment",
+      children: [ $0 ],
+    }
 
 Command
   /\\([a-zA-Z@]+|.)/
@@ -123,7 +141,7 @@ Header
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
   # (in case ColonArgument involves multiple lines)
-  &/[ \t]*>/ Indent:indent PushIndent ( />[ \t]*([^:\s\[]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
+  &/[ \t]*>/ Indent:indent PushIndent ( />[ \t]*([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
     if (!content) return $skip
     let [ env, first, body ] = content
     env = env[1].trim()
@@ -152,29 +170,36 @@ InlineColonArgument
 
 ArgumentAfterColon
   NestedArgumentList
-  TrimmedText:text NestedBody:body CommentEOL:comment ->
-    if (text.length === 0 && body.length) text = "%"
+  TrimmedText:text NestedBody:body ->
+    // If nothing on first line, comment out the newline
+    if (!text.length && body.length) text = "%"
+    let comment
+    [text, body, comment] = commentForTextBody(text, body)
     return [
       "{",
       text,
-      trimTrailingPercent(body),
+      body,
       "}",
       comment,
     ]
 
 InlineArgumentAfterColon
   NestedArgumentList
-  NonEmptyNestedBody:body CommentEOL:comment ->
+  NonEmptyNestedBody:body ->
+    let comment
+    [body, comment] = commentForBody(body)
     return [
       "{%",
-      trimTrailingPercent(body),
+      body,
       "}",
       comment,
     ]
-  TrimmedText:body CommentEOL:comment ->
+  TrimmedText:body ->
+    let comment
+    [body, comment] = commentForBody(body)
     return [
       "{",
-      trimTrailingPercent(body),
+      body,
       "}",
       comment,
     ]
@@ -324,9 +349,10 @@ ArgumentList
     return content
 
 ArgumentBullet
-  Indent:indent Bullet:bullet Text:text NestedBody:body CommentEOL:comment ->
+  Indent:indent Bullet:bullet Text:text NestedBody:body ->
     let [ symbol, space ] = bullet
-    if (!body.length) text = trimTrailingPercent(text)
+    let comment
+    [text, body, comment] = commentForTextBody(text, body)
     return [
       indent,
       space, // indent the same as the bullet, except 1 for *-~ and {

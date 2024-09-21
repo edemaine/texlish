@@ -28,7 +28,13 @@ export type CompilerOptions
   ast?: boolean
   trace?: string
 
-export type AST = undefined | string | { token: string } | AST[]
+export type ASTType = "Comment"
+export type AST =
+  | undefined
+  | string
+  | { token: string }
+  | { type: ASTType, children: AST[] }
+  | AST[]
 
 export function generate(ast: AST): string
   function recurse(ast: AST): string
@@ -38,6 +44,8 @@ export function generate(ast: AST): string
       ''
     else if Array.isArray ast
       ast.map(generate).join ''
+    else if "children" in ast
+      ast.children.map(generate).join ''
     else if "token" in ast
       ast.token
     else
