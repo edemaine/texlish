@@ -1,4 +1,5 @@
 // @ts-check
+import type { AstroIntegration } from 'astro'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import mdx from '@astrojs/mdx'
@@ -34,6 +35,6 @@ export default defineConfig({
     }),
     mdx(),
     solid(),
-    civet({ts: 'preserve'}),
+    civet({ts: 'preserve'}) as AstroIntegration,
   ],
 })
