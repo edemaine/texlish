@@ -7,6 +7,7 @@ import civet from '@danielx/civet/astro'
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://texlish.org',
   integrations: [
     starlight({
       title: 'Texlish',
