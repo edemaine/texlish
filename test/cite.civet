@@ -1,0 +1,12 @@
+{ testCase } from ./helper.civet
+
+describe '[[...]] citations', ->
+  testCase '''
+    basic
+    ---
+    [[citation]]
+    [[citation1, citation2]]
+    ---
+    \\cite{citation}
+    \\cite{citation1, citation2}
+  '''
