@@ -8,22 +8,21 @@
 \maketitle
 
 > abstract
-    This is a minimal example of a fully working texlish document.
+    This is a minimal example of a fully working Texlish document.
 
-
-## Introduction
+# Introduction
 This is an Introduction.
 
-### Something else @=subs
+## Something else @=subs
 This is a subsection of the Introduction.
 
-### Something more
+## Something more
 Here I am showing how you could reference Subsection~@subs.
 
-## Main section
+# Main section
 And here we are doing more stuff.
 
-##* Acknowledgements
+#* Acknowledgements
 This work was started after eating sushi, the authors thank the sushi chef.
 
 \end: document

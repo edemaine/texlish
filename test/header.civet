@@ -6,20 +6,21 @@ describe 'Markdown headers (#/##/...)', ->
     ---
     # Header
     ---
-    \\chapter{Header}
+    \\section{Header}
   '''
 
   testCase '''
     several
     ---
-    # Chapter
-    ## Section
-    ### Subsection
-    #### Subsubsection
-    ####* Subsubsection
-    ##### Paragraph
-    ###### Subparagraph
-    ### Subsection
+    !# Chapter
+    # Section
+    ## Subsection
+    ### Subsubsection
+    ###* Subsubsection
+    .# Paragraph
+    ..# Subparagraph
+    .## Subparagraph
+    ## Subsection
     ---
     \\chapter{Chapter}
     \\section{Section}
@@ -27,6 +28,7 @@ describe 'Markdown headers (#/##/...)', ->
     \\subsubsection{Subsubsection}
     \\subsubsection*{Subsubsection}
     \\paragraph{Paragraph}
+    \\subparagraph{Subparagraph}
     \\subparagraph{Subparagraph}
     \\subsection{Subsection}
   '''
