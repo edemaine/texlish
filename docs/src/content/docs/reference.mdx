@@ -34,6 +34,18 @@ Similar to Markdown emphasis.
   ***bold italic***
 `}/>
 
+You can also redefine the meaning of these symbols:
+
+<Example src={`
+  >>styles
+    * = \\textit
+    ** = \\textsf
+    *** = \\texttt
+  *italic*
+  **sans-serif**
+  ***teletype***
+`}/>
+
 ## Lists
 
 Similar to Markdown lists, but with less strict requirements on indentation.
@@ -71,6 +83,27 @@ Similar to Markdown lists, but with less strict requirements on indentation.
   @thm:main
   #@thm:main
 `}/>
+
+If your label needs spaces or trailing punctation, put it in quotes:
+
+<Example src={`
+  @='thm main'
+  @"thm main"
+  #@'thm main'
+`}/>
+
+If you want to use a custom `\ref` system, such as `cleveref`, you can
+override the meaning of these symbols:
+
+<Example src={`
+  >>styles
+    @ = \\cref
+    #@ = \\cpageref
+  @thm:main
+  #@thm:main
+  @thm:main,thm:other
+`}/>
+
 
 ## Cite
 

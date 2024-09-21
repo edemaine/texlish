@@ -44,3 +44,19 @@ describe 'Markdown emphasis (*/**/***)', ->
     emphasized} and \\defn{super
     emphasized}
   '''
+
+  testCase '''
+    custom style
+    ---
+    >> styles
+      * = \\textit
+      ** = \\textsf
+      *** = \\texttt
+    *italic*
+    **sans-serif**
+    ***teletype***
+    ---
+    \\textit{italic}
+    \\textsf{sans-serif}
+    \\texttt{teletype}
+  '''

@@ -205,7 +205,7 @@ InlineArgumentAfterColon
     ]
 
 MetaBlock
-  &/[ \t]*>>/ Indent:indent ">>" MetaCommand:cmd -> cmd
+  &/[ \t]*>>/ Indent:indent ">>" /\s*/ MetaCommand:cmd -> cmd
 
 MetaCommand
   MetaStyles
