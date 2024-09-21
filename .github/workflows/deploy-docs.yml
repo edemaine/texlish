@@ -26,9 +26,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           cache: pnpm
-      - name: Build Texlish and Docs
+          node-version: 22
+      - name: Install Dependencies
         run: |
           pnpm install
+      - name: Build Texlish and Docs
+        run: |
           pnpm docs:build
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
