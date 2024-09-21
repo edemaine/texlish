@@ -12,6 +12,8 @@ describe 'Markdown headers (#/##/...)', ->
   testCase '''
     several
     ---
+    !!# Part
+    !## Part
     !# Chapter
     # Section
     ## Subsection
@@ -22,6 +24,8 @@ describe 'Markdown headers (#/##/...)', ->
     .## Subparagraph
     ## Subsection
     ---
+    \\part{Part}
+    \\part{Part}
     \\chapter{Chapter}
     \\section{Section}
     \\subsection{Subsection}

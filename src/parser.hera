@@ -109,12 +109,12 @@ ParenBalancedContent
   TextPart
 
 Header
-  /(!|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
+  /(!+|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
     let [, dot, hash, star] = $1
     let dots = dot.length
     let hashes = hash.length
     let command =
-      dot === "!" ? '\\chapter' :
+      dot[0] === "!" ? ( dots > 1 || hashes > 1 ? '\\part' : '\\chapter' ) :
       dots ? ( dots > 1 || hashes > 1 ? '\\subparagraph' : '\\paragraph' ) :
       `\\${'sub'.repeat(hashes-1)}section`
     if (star) command += '*'
