@@ -313,9 +313,9 @@ OrderedBullet
     return [ '\\item', space, text, body ]
 
 NestedArgumentList
-  PushIndent NonstrictlyNested:nested ArgumentList?:list PopIndent ->
-    if (!list) return $skip
-    return [ nested, list ]
+  PushIndent ( NonstrictlyNested ArgumentList )?:content PopIndent ->
+    if (!content) return $skip
+    return content
 
 ArgumentList
   &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->

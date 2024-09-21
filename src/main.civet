@@ -118,7 +118,7 @@ function makeCache(options: CompilerOptions): CacheEvents
         }
 
       if trace
-        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "\u2192"
+        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "{"
         stack.push ruleName
       return
 
@@ -133,7 +133,7 @@ function makeCache(options: CompilerOptions): CacheEvents
 
       if trace
         stack.pop()
-        logs.push "".padStart(stack.length * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + " " + (if result then "✅" else "❌")
+        logs.push "".padStart(stack.length * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "} " + (if result then "✅" else "❌")
   }
 
   return events

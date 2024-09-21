@@ -55,3 +55,24 @@ describe '> environments', ->
       By example.
     \\end{proof}
   '''
+
+  testCase '''
+    with nested commands
+    ---
+    > figure
+      \\subcaptionbox:
+        - Subfigure 1
+        - \\includegraphics: example1
+      \\subcaptionbox:
+        - Subfigure 2
+        - \\includegraphics: example2
+    ---
+    \\begin{figure}
+      \\subcaptionbox
+         {Subfigure 1}%
+         {\\includegraphics{example1}}%
+      \\subcaptionbox
+         {Subfigure 2}%
+         {\\includegraphics{example2}}%
+    \\end{figure}
+  '''
