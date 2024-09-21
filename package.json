@@ -21,12 +21,9 @@
   },
   "scripts": {
     "build": "bash ./build/build.sh",
-    "docs:dev": "yarn build && vitepress dev civet.dev",
-    "docs:build": "yarn build && vitepress build civet.dev",
-    "docs:preview": "yarn build && vitepress preview civet.dev",
-    "prepublishOnly": "yarn build && yarn test && yarn changelog --release",
-    "test": "mocha",
-    "changelog": "civet build/changelog.civet"
+    "docs:dev": "pnpm build && pnpm --dir docs dev",
+    "docs:build": "pnpm build && pnpm --dir docs build",
+    "test": "mocha"
   },
   "author": "Erik Demaine",
   "license": "MIT",

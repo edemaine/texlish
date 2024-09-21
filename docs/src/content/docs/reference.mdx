@@ -1,0 +1,173 @@
+---
+title: Reference
+description: Description and examples of all features
+---
+import Example from '../../components/example.astro'
+
+## Sections
+
+Similar to Markdown headers, plus `*` for unnumbered sections.
+
+<Example src={`
+  # Related Work
+  ## Introduction
+  ### Background
+  #### Aside
+  ##### Main Result
+  ###### Sub Result
+  ##* Acknowledgments
+`}/>
+
+## Emphasis
+
+Similar to Markdown emphasis.
+
+<Example src={`
+  *italic*
+  **bold**
+  ***bold italic***
+`}/>
+
+## Lists
+
+Similar to Markdown lists, but with less strict requirements on indentation.
+
+<Example src={`
+  - This is an item.
+  - This is a longer item that
+    continues on the next line.
+`}/>
+
+<Example src={`
+  * This is an item.
+  * This is a longer item that
+    continues on the next line.
+`}/>
+
+<Example src={`
+  1. This is an item.
+  2. This is a longer item that
+    continues on the next line.
+`}/>
+
+<Example src={`
+  The algorithm works as follows:
+  1. Initialize
+  2. For each step:
+    * Do the step
+    * Continue
+`}/>
+
+## Label/Ref
+
+<Example src={`
+  @=thm:main
+  @thm:main
+  #@thm:main
+`}/>
+
+## Cite
+
+<Example src={`
+  [[paper1, paper2]]
+`}/>
+
+## Commands
+
+`\command:` makes it easier to specify commands with arguments.
+The argument can be on the same line and/or on indented lines.
+
+<Example src={`
+  \\title: The Paper \\\\
+    Subtitle
+`}/>
+
+<Example src={`
+  \\footnote:
+    This is a footnote.
+`}/>
+
+If the command is in the middle of a line, the argument needs to be
+either on the same line or indented:
+
+<Example src={`
+  $$
+    \\text: Quadratic formula:
+    \\quad
+    -b \\pm \\sqrt:
+      b^2 - 4 a c
+  $$
+`}/>
+
+Multiple arguments can be specified like a list:
+
+<Example src={`
+  \\subcaptionbox:
+  - This is a caption.
+    @=fig:example
+  - \\centering
+    \\includegraphics: example
+`}/>
+
+`~` items get treated as optional arguments:
+
+<Example src={`
+  \\includegraphics:
+  ~ width: 0.5\\textwidth
+  - example
+`}/>
+
+## Environments
+
+`>env` is shorthand for `\begin{env} ... \end{env}`.
+Indent the contents.
+
+<Example src={`
+  > theorem
+    $p$ is prime.
+`}/>
+
+Required arguments can be specified with a colon:
+
+<Example src={`
+  > tabular: ccc
+    1 & 2 & 3
+`}/>
+
+If indented, they must use a bullet (to separate the environment
+from the content):
+
+<Example src={`
+  > tabular:
+    - ccc
+    1 & 2 & 3
+`}/>
+
+<Example src={`
+  > theorem:
+    ~ Main Result
+    $p$ is prime.
+`}/>
+
+## Use Packages
+
+`>>use` is shorthand for `\usepackage{...}`.
+
+<Example src={`
+  >>use amsmath
+  >>use geometry: margin=1in, letterpaper
+  >>use hyperref:
+    pdftitle = Hello World
+    pdfauthor = Me
+`}/>
+
+You can use many packages at once as an indented block:
+
+<Example src={`
+  >>use
+    amsmath
+    geometry: margin=1in
+    hyperref:
+      pdftitle = Hello World
+      pdfauthor = Me
+`}/>

@@ -1,4 +1,4 @@
-# texlish
+# Texlish
 
 ## Development
 

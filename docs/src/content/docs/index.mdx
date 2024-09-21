@@ -1,0 +1,65 @@
+---
+title: "Texlish: Better LaTeX"
+description: Homepage
+template: splash
+hero:
+  tagline: Clean syntax that compiles to LaTeX
+  image:
+    file: ../../assets/logo.svg
+    alt: "Logo which reads >tex: - lish"
+  actions:
+    - text: Reference Documentation
+      link: /reference
+      icon: right-arrow
+---
+import Example from '../../components/example.astro'
+
+<b><i>Texlish</i></b> combines the best of
+<b>LaTeX</b>, <b>Markdown</b>, and <b>indentation sensitivity</b>
+to offer a clean, easy-to-read, easy-to-write syntax.
+
+Texlish <b>compiles to LaTeX</b>, so it's compatible with
+all existing packages, and you can submit to journals, arXiv, etc. as usual.
+
+Texlish also aims to be <b>99% LaTeX compatible</b>:
+you can write/import regular LaTeX,
+and gradually transition to Texlish's cleaner syntax at your own pace.
+
+Try Texlish for your next document, paper, or presentation!
+
+## Examples
+
+<Example src={`
+  \\title: Texlish Demo
+  \\author: Me
+    \\and Myself
+
+  >>use
+    amsthm
+    geometry: margin=1in
+  \\newtheorem: theorem
+
+  ## Introduction
+  *This* is an **example** of ***Texlish***.
+  See [[texlish.org]] for more documentation.
+
+  > theorem @=thm:main
+    This is a theorem.
+  > proof[sketch]
+    By example.
+`}/>
+
+<Example src={`
+  > figure
+    \\subcaptionbox:
+      - Subfigure 1
+      - \\includegraphics: example1.png
+    \\subcaptionbox:
+      - Subfigure 2
+        @=subfig2
+      - \\centering
+        \\includegraphics:
+          ~ width = 0.5 \\textwidth
+          - example2.pdf
+    \\caption: A figure with two subfigures.
+`}/>

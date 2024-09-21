@@ -1,0 +1,31 @@
+---
+import { Code } from '@astrojs/starlight/components'
+import { compile } from '../../../dist/main.js'
+
+interface Props {
+  src: string,
+}
+const { src } = Astro.props
+
+const compiled = compile(src)
+---
+<div class="example">
+  <Code code={src} lang="tex"/>
+  <Code code={compiled} lang="tex"/>
+</div>
+
+<style lang="stylus" is:global>
+  .example
+    display: grid
+    grid-template-columns: 1fr 1fr
+    gap: 1rem
+    align-items: stretch
+    > .expressive-code
+      // Remove margin added by <Code>
+      margin-top: 0 !important
+      // Stretch <Code>s to have the same height
+      display: grid
+      align-items: stretch
+      > figure
+        display: grid
+</style>
