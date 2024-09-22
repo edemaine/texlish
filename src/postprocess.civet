@@ -3,30 +3,35 @@ type { AST, CompilerOptions } from ./types.civet
 
 // Root node is always an array of statements
 export function process(root: AST[], options: CompilerOptions): AST
-  processDocumentDelimiters root unless options.fragment
+  processDocument root unless options.fragment
   root
 
-function processDocumentDelimiters(root: AST[]): void
+// Automatic `\begin{document}`, `\end{document}`, `\maketitle`
+function processDocument(root: AST[]): void
   document: Record<string, AST> .= {}
   for parent of iterate root
     continue unless Array.isArray parent
     for each child, let i of parent
       if child is like { type: "Environment", env: "document" }
         return  // entire document environment exists
-      if child is like { type: "Command" } and
-         child.token is like "\\begin", "\\end"
-        while parent[++i] is like /^\s*$/
-        next := parent[i]
-        if next is like { type: "Braced" } and
-           next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
-          document[child.token] ?= parent
+      if child is like { type: "Command" }
+        if child.token is like "\\begin", "\\end"
+          while parent[++i] is like /^\s*$/
+          next := parent[i]
+          if next is like { type: "Braced" } and
+            next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
+            document[child.token] ?= parent
+        else if child.token is "\\maketitle"
+          document["\\maketitle"] ?= parent
+        else if child.token is "\\title"
+          document["\\title"] ?= parent
 
   // Add \end{document} as a final line if it doesn't exist
   unless document["\\end"]
     root.push "\n\\end{document}\n"
 
   // Add \begin{document} if it doesn't exist, before first environment,
-  // header, unbraced text, etc.
+  // header, unbraced text, etc.  Also add \maketitle if \title.
   unless document["\\begin"]
     :line for line, var i of root
       switch line
@@ -39,8 +44,12 @@ function processDocumentDelimiters(root: AST[]): void
         [ { type: "Indent" }, { type: "Braced" } ]
         ^document["\\end"]  // \begin{document} before \end{document}
           break :line
+        ^document["\\maketitle"]  // \begin{document} before \maketitle
+          break :line
         [ { type: "Indent" }, { type: "Command" }, ... ]
         else
           break :line
     i ??= 0
     root.splice i, 0, "\n\\begin{document}\n"
+    if document["\\title"] and not document["\\maketitle"]
+      root[i] += "\\maketitle\n"

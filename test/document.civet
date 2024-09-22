@@ -97,7 +97,7 @@ describe '\\begin/\\end{document}', ->
   ''', fragment: false
 
   testCase '''
-    begin placement with environment
+    begin placement before environment
     ---
     > theorem
     ---
@@ -110,7 +110,7 @@ describe '\\begin/\\end{document}', ->
   ''', fragment: false
 
   testCase '''
-    begin placement with list
+    begin placement before list
     ---
     * hi
     ---
@@ -121,4 +121,63 @@ describe '\\begin/\\end{document}', ->
     \\end{itemize}
     \\end{document}
 
+  ''', fragment: false
+
+  testCase '''
+    begin placement before \\maketitle
+    ---
+    \\maketitle
+    Hello
+    ---
+
+    \\begin{document}
+    \\maketitle
+    Hello
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    existing \\title and \\maketitle
+    ---
+    \\title{Title}
+    \\maketitle
+    Hello
+    ---
+    \\title{Title}
+
+    \\begin{document}
+    \\maketitle
+    Hello
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    \\title and no \\maketitle
+    ---
+    \\title{Title}
+    Hello
+    ---
+    \\title{Title}
+
+    \\begin{document}
+    \\maketitle
+    Hello
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    \\title and existing document
+    ---
+    \\title{Title}
+    \\begin{document}
+    Hello
+    \\end{document}
+    ---
+    \\title{Title}
+    \\begin{document}
+    Hello
+    \\end{document}
   ''', fragment: false
