@@ -28,7 +28,7 @@
   "author": "Erik Demaine",
   "license": "MIT",
   "devDependencies": {
-    "@danielx/civet": "0.7.18",
+    "@danielx/civet": "0.7.31",
     "@danielx/hera": "0.8.16",
     "@types/mocha": "^10.0.8",
     "@types/node": "^22.5.5",

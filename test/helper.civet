@@ -43,6 +43,7 @@ export function testCase(text: string, compilerOpts: CompilerOptions = {}, opt?:
   fn desc, ->
     await compare src, result, {
       filename: desc
+      fragment: true
       ...compilerOpts
     }
 

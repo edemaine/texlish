@@ -1,5 +1,6 @@
 ```
 import { generate } from './main.civet'
+import { process } from './postprocess.civet'
 import {
   commentForBody,
   commentForTextBody,
@@ -20,7 +21,7 @@ export function getStateKey() {
 ```
 
 Main
-  Init Content
+  Init Content -> $2
 
 Init
   "" ->
@@ -40,8 +41,20 @@ Content
     return [ $1, ...$2.flat() ]
   "" -> []
 
+# First line starts mid-line, so uses Text; following lines assume start of line
+# No Nested requirement; used in BracedContent where indentation doesn't matter
+TextAndContent
+  Text ( EOL Statement )* ->
+    return [ $1, ...$2.flat() ]
+  "" -> []
+
 EOL
-  /[ \t]*(\n|\r\n?|$)/
+  /[ \t]*(\n|\r\n?|$)/ ->
+    return {
+      type: "EOL",
+      token: $0,
+      $loc,
+    }
 
 Statement
   Header
@@ -55,7 +68,8 @@ Statement
 # One line of text at start of the line
 # (can be empty, no newline consumption)
 TextLine
-  Indent Text
+  Indent Text ->
+    return [ $1, ...$2 ]
 
 # One line of text, starting in the middle of a line, for inline uses
 # (can be empty, no newline consumption)
@@ -95,25 +109,30 @@ TrimmedText
     return t
 
 BracedContent
-  "{":open Content:body "}":close ->
+  "{":open TextAndContent:body "}":close ->
     let comment
     [body, comment] = commentForBody(body)
     // Drop single %
     if (comment?.token === "%" ) {
       comment = undefined
     }
-    return [
-      open,
+    return {
+      type: "Braced",
       body,
-      close,
-      comment,
-    ]
+      children: [
+        open,
+        body,
+        close,
+        comment,
+      ]
+    }
 
 Comment
   /%[^\r\n]*/ ->
     return {
       type: "Comment",
       token: $0,
+      $loc,
     }
 
 Command
@@ -149,15 +168,19 @@ Environment
     if (!content) return $skip
     let [ env, first, body ] = content
     env = env[1].trim()
-    return [
-      indent,
-      `\\begin{${env}}`,
-      first,
-      body,
-      "\n",
-      indent,
-      `\\end{${env}}`,
-    ]
+    return {
+      type: "Environment",
+      env,
+      children: [
+        indent,
+        `\\begin{${env}}`,
+        first,
+        body,
+        "\n",
+        indent,
+        `\\end{${env}}`,
+      ]
+    }
 
 CommandWithColonArgument
   Indent:indent Command:command ColonArgument:arg
@@ -179,34 +202,46 @@ ArgumentAfterColon
     if (!text.length && body.length) text = "%"
     let comment
     [text, body, comment] = commentForTextBody(text, body)
-    return [
-      "{",
-      text,
-      body,
-      "}",
-      comment,
-    ]
+    const textBody = [ text, body ]
+    return {
+      type: "Braced",
+      body: textBody,
+      children: [
+        "{",
+        textBody,
+        "}",
+        comment,
+      ]
+    }
 
 InlineArgumentAfterColon
   NestedArgumentList
   NonEmptyNestedBody:body ->
     let comment
     [body, comment] = commentForBody(body)
-    return [
-      "{%",
+    return {
+      type: "Braced",
       body,
-      "}",
-      comment,
-    ]
+      children: [
+        "{%",
+        body,
+        "}",
+        comment,
+      ]
+    }
   TrimmedText:body ->
     let comment
     [body, comment] = commentForBody(body)
-    return [
-      "{",
+    return {
+      type: "Braced",
       body,
-      "}",
-      comment,
-    ]
+      children: [
+        "{",
+        body,
+        "}",
+        comment,
+      ]
+    }
 
 MetaBlock
   &/[ \t]*>>/ Indent:indent ">>" /\s*/ MetaCommand:cmd -> cmd

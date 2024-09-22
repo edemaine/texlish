@@ -5,8 +5,11 @@ import { parse, getStateKey, state } from ./parser.hera
 //{ SourceMap } := sourcemap
 export { parse }
 
-import type { AST } from ./types.civet
-export type { AST }
+import { process } from ./postprocess.civet
+export { process }
+
+import type { AST, CompilerOptions } from ./types.civet
+export type { AST, CompilerOptions }
 
 import { markdownText } from ./markdown.civet
 
@@ -26,11 +29,6 @@ uncacheable := new Set [
   "SaveIndent"
 ]
 
-export type CompilerOptions
-  filename?: string
-  ast?: boolean
-  trace?: string
-
 export function generate(ast: AST): string
   function recurse(ast: AST): string
     if ast <? "string"
@@ -48,7 +46,10 @@ export function generate(ast: AST): string
   recurse ast
   .replace /\0(\r\n?|\n)/g, ''
 
-export function compile<const T extends CompilerOptions>(src: string, options?: T): string
+type CompileOutput<T extends CompilerOptions> =
+  T extends { ast: true } ? AST[] : string
+
+export function compile<const T extends CompilerOptions>(src: string, options?: T?): CompileOutput<T>
   unless options
     options = {} as T
   else
@@ -58,7 +59,7 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
 
   events := makeCache options
 
-  let ast
+  let ast: AST[]
   try
     ast = parse(src, {
       filename
@@ -70,11 +71,15 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
         { logs } := events.meta
         writeFileSync trace, logs.join "\n"
 
-  return ast if options.ast
+  process ast, options
+
+  if options.ast
+    return ast as CompileOutput<T>
 
   ast
   |> generate
   |> markdownText ., state.styles
+  |> as CompileOutput<T>
 
 type MetaData
   logs: string[]

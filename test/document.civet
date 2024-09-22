@@ -1,0 +1,53 @@
+{ testCase } from ./helper.civet
+
+describe '\\begin/\\end{document}', ->
+  testCase '''
+    Add end
+    ---
+    Hello, world!
+    ---
+    Hello, world!
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    Don't add end if existing braced
+    ---
+    \\end{document}
+    Hello, world!
+    ---
+    \\end{document}
+    Hello, world!
+  ''', fragment: false
+
+  testCase '''
+    Don't add end if existing braced with space
+    ---
+    \\end {document}
+    Hello, world!
+    ---
+    \\end {document}
+    Hello, world!
+  ''', fragment: false
+
+  testCase '''
+    Don't add end if existing colon
+    ---
+    \\end: document
+    Hello, world!
+    ---
+    \\end{document}%
+    Hello, world!
+  ''', fragment: false
+
+  testCase '''
+    Don't add end if existing environment
+    ---
+    > document
+      Hello, world!
+    ---
+    \\begin{document}
+      Hello, world!
+    \\end{document}
+  ''', fragment: false

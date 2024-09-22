@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@danielx/civet':
-        specifier: 0.7.18
-        version: 0.7.18(typescript@5.6.2)(yaml@2.5.1)
+        specifier: 0.7.31
+        version: 0.7.31(typescript@5.6.2)(yaml@2.5.1)
       '@danielx/hera':
         specifier: 0.8.16
         version: 0.8.16
@@ -240,17 +240,6 @@ packages:
   '@ctrl/tinycolor@4.1.0':
     resolution: {integrity: sha512-WyOx8cJQ+FQus4Mm4uPIZA64gbk3Wxh0so5Lcii0aJifqwoVOlfFtorjLE0Hen4OYyHZMXDWqMmaQemBhgxFRQ==}
     engines: {node: '>=14'}
-
-  '@danielx/civet@0.7.18':
-    resolution: {integrity: sha512-ku2Y3kFkmuUHKjqqNXmUE7uZCblcrul0fwdtWuzY7M2gRMHwyY/dgpY/OEA0OrbC1rA2mJpT8GffPI9Gb/WZzg==}
-    engines: {node: '>=19 || ^18.6.0 || ^16.17.0'}
-    hasBin: true
-    peerDependencies:
-      typescript: ^4.5 || ^5.0
-      yaml: ^2.4.5
-    peerDependenciesMeta:
-      yaml:
-        optional: true
 
   '@danielx/civet@0.7.31':
     resolution: {integrity: sha512-Fyj4UadXPmJdIwdgPfr3g7phWhjg/R5txDijFJNmnuFw/Vk0OFFMxenZMLrCdw93fMsmFnaXewa3MaWM9yM2CQ==}
@@ -3117,18 +3106,6 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.9
 
   '@ctrl/tinycolor@4.1.0': {}
-
-  '@danielx/civet@0.7.18(typescript@5.6.2)(yaml@2.5.1)':
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      '@typescript/vfs': 1.6.0(typescript@5.6.2)
-      typescript: 5.6.2
-      unplugin: 1.14.1
-    optionalDependencies:
-      yaml: 2.5.1
-    transitivePeerDependencies:
-      - supports-color
-      - webpack-sources
 
   '@danielx/civet@0.7.31(typescript@5.6.2)(yaml@2.5.1)':
     dependencies:

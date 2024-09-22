@@ -1,4 +1,22 @@
-import { type AST } from ./types.civet
+type { AST } from ./types.civet
+
+// Generate all nodes in the tree in prefix order.
+export function iterate(node: AST, parent?: AST): Generator<AST>
+  yield node
+  return unless node <? "object"
+  if Array.isArray node
+    for each child of node
+      yield* iterate child
+  else if "children" in node
+    for each child of node.children
+      yield* iterate child
+
+// Find any node that matches a given condition, or undefined if not found.
+export function find(node: AST, match: (candidate: AST) => boolean): AST
+  for subnode of iterate node
+    if match subnode
+      return subnode
+  return
 
 // Find an "end" node (some step down the path of last nonempties)
 // that matches a given condition, or undefined if not found.

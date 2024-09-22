@@ -1,0 +1,25 @@
+type { AST, CompilerOptions } from ./types.civet
+{ iterate } from ./util.civet
+
+// Root node is always an array of statements
+export function process(root: AST[], options: CompilerOptions): AST
+  processDocumentDelimiters root unless options.fragment
+  root
+
+function processDocumentDelimiters(root: AST[]): void
+  delimiters: Record<string, AST> .= {}
+  for parent of iterate root
+    continue unless Array.isArray parent
+    for each child, let i of parent
+      if child is like { type: "Environment", env: "document" }
+        return  // entire document environment exists
+      if child is like { type: "Command" } and
+         child.token is like "\\begin", "\\end"
+        while parent[++i] is like /^\s*$/
+        next := parent[i]
+        if next is like { type: "Braced" } and
+           next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
+          delimiters[child.token] = next
+
+  unless delimiters["\\end"]
+    root.push "\n\\end{document}\n"

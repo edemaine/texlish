@@ -4,10 +4,10 @@ import { compile } from '../../../dist/main.js'
 
 interface Props {
   src: string,
+  complete?: boolean,
 }
-const { src } = Astro.props
-
-const compiled = compile(src)
+let { src, complete } = Astro.props
+const compiled = compile(src, { fragment: !complete })
 ---
 <div class="example">
   <Code code={src} lang="tex"/>

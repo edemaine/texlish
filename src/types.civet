@@ -1,19 +1,45 @@
+export type CompilerOptions
+  filename?: string
+  ast?: boolean
+  trace?: string
+  fragment?: boolean
+
 export type AST
   | undefined
   | string
-  | { token: string }
-  | { children: AST[] }
+  | ASTParent
+  | ASTToken
   | AST[]
   | ASTNode
 
+export interface ASTParent
+  children: AST[]
+
+export interface ASTToken
+  token: string
+  $loc?: Loc
+type Loc = ???
+
 export type ASTNode
+  | Braced
   | Comment
   | Command
+  | Environment
+  | EOL
 
-export type Comment
+export interface Braced extends ASTParent
+  type: "Braced"
+  body: AST
+
+export interface Comment extends ASTToken
   type: "Comment"
-  token: string
 
-export type Command
+export interface Command extends ASTToken
   type: "Command"
-  token: string
+
+export interface Environment extends ASTParent
+  type: "Environment"
+  env: string
+
+export interface EOL extends ASTToken
+  type: "EOL"
