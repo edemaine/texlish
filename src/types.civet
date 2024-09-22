@@ -1,0 +1,19 @@
+export type AST
+  | undefined
+  | string
+  | { token: string }
+  | { children: AST[] }
+  | AST[]
+  | ASTNode
+
+export type ASTNode
+  | Comment
+  | Command
+
+export type Comment
+  type: "Comment"
+  token: string
+
+export type Command
+  type: "Command"
+  token: string

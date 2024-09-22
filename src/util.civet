@@ -1,4 +1,4 @@
-import { type AST } from ./main.civet
+import { type AST } from ./types.civet
 
 // Find an "end" node (some step down the path of last nonempties)
 // that matches a given condition, or undefined if not found.
@@ -71,7 +71,7 @@ export function commentForTextBody(text: AST, body: AST[]): [AST, AST, AST]
       comment = textComment
   comment ?=
     type: "Comment"
-    children: ["%"]
+    token: "%"
   [text, body, comment]
 
 export function commentForBody(body: AST): [AST, AST]
@@ -81,5 +81,5 @@ export function commentForBody(body: AST): [AST, AST]
     comment = bodyComment
   comment ?=
     type: "Comment"
-    children: ["%"]
+    token: "%"
   [body, comment]

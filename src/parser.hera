@@ -99,7 +99,7 @@ BracedContent
     let comment
     [body, comment] = commentForBody(body)
     // Drop single %
-    if (comment?.children?.length === 1 && comment.children[0] === "%" ) {
+    if (comment?.token === "%" ) {
       comment = undefined
     }
     return [
@@ -113,11 +113,15 @@ Comment
   /%[^\r\n]*/ ->
     return {
       type: "Comment",
-      children: [ $0 ],
+      token: $0,
     }
 
 Command
-  /\\([a-zA-Z@]+|.)/
+  /\\([a-zA-Z@]+|.)/ ->
+    return {
+      type: "Command",
+      token: $0,
+    }
 
 ParenthesizedContent
   "(" ParenBalancedContent ")"
