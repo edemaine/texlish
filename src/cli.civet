@@ -97,9 +97,19 @@ export function cli: Promise<void>
         texFile
       ].map shellQuote
       console.log `** ${mode} ${args.join ' '}`
-      spawn mode, args,
-        stdio: 'inherit'
-        shell: true
+      await new Promise<void> (resolve): void =>
+        spawn mode, args,
+          stdio: 'inherit'
+          shell: true
+        ||> .on 'error', (error) =>
+          console.log "** FAILED:", error
+          errors++
+          resolve()
+        ||> .on 'close', (code) =>
+          if code
+            console.log "** ERROR CODE:", code
+            errors++
+          resolve()
 
   process.exit Math.min 255, errors
 
