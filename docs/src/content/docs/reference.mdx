@@ -210,3 +210,47 @@ You can use many packages at once as an indented block:
       - pdftitle = Hello World
       - pdfauthor = Me
 `}/>
+
+## Automatic Document Boilerplate
+
+Texlish automatically adds the following LaTeX boilerplate if needed:
+
+* `\begin{document}` before the first line starting with apparent text content.
+  Commands and braced text are considered valid preamble,
+  while environments (in particular `abstract`) are considered text content.
+* `\maketitle` after an added `\begin{document}`, if the document uses `\title`.
+  Won't be added if you manually specify `\begin{document}`,
+  so you can use this to override the automatic insertion of `\maketitle`.
+* `\end{document}` as the last line.
+  If you want uncompiled notes at the end of the file,
+  feel free to specify `\end{document}` yourself to delimit them.
+
+If Texlish gets the placement wrong, add the boilerplate manually,
+and/or report a bug.
+
+<Example complete src={`
+  \\title: Texlish Demo
+`}/>
+
+<Example complete src={`
+  % Comment
+  >>use amsthm
+  \\newtheorem{theorem}{Theorem}
+  > theorem
+`}/>
+
+<Example complete src={`
+  \\newtheorem:
+    - theorem
+    - Theorem
+  - content
+`}/>
+
+<Example complete src={`
+  Inside document
+  \\end {document} % manual separator
+  Outside document
+`}/>
+
+For clarity, examples outside this section disable this feature
+(via the `fragment: true` compiler option).
