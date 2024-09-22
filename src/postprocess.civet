@@ -7,7 +7,7 @@ export function process(root: AST[], options: CompilerOptions): AST
   root
 
 function processDocumentDelimiters(root: AST[]): void
-  delimiters: Record<string, AST> .= {}
+  document: Record<string, AST> .= {}
   for parent of iterate root
     continue unless Array.isArray parent
     for each child, let i of parent
@@ -19,7 +19,28 @@ function processDocumentDelimiters(root: AST[]): void
         next := parent[i]
         if next is like { type: "Braced" } and
            next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
-          delimiters[child.token] = next
+          document[child.token] ?= parent
 
-  unless delimiters["\\end"]
+  // Add \end{document} as a final line if it doesn't exist
+  unless document["\\end"]
     root.push "\n\\end{document}\n"
+
+  // Add \begin{document} if it doesn't exist, before first environment,
+  // header, unbraced text, etc.
+  unless document["\\begin"]
+    :line for line, var i of root
+      switch line
+        { type: "EOL" }
+        [ { type: "Indent" } ]
+        [ { type: "Indent" }, "\0" ]  // >>styles
+        [ { type: "Indent" }, { type: "Comment" } ]
+        [ { type: "Indent" }, { type: "Use" } ]
+        [ { type: "Indent" }, { type: "Uses" } ]
+        [ { type: "Indent" }, { type: "Braced" } ]
+        ^document["\\end"]  // \begin{document} before \end{document}
+          break :line
+        [ { type: "Indent" }, { type: "Command" }, ... ]
+        else
+          break :line
+    i ??= 0
+    root.splice i, 0, "\n\\begin{document}\n"

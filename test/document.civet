@@ -2,47 +2,67 @@
 
 describe '\\begin/\\end{document}', ->
   testCase '''
-    Add end
+    add around text
     ---
     Hello, world!
     ---
+
+    \\begin{document}
     Hello, world!
     \\end{document}
 
   ''', fragment: false
 
   testCase '''
-    Don't add end if existing braced
+    existing braced end
     ---
     \\end{document}
     Hello, world!
     ---
+
+    \\begin{document}
     \\end{document}
     Hello, world!
   ''', fragment: false
 
   testCase '''
-    Don't add end if existing braced with space
+    existing braced end with space
     ---
     \\end {document}
     Hello, world!
     ---
+
+    \\begin{document}
     \\end {document}
     Hello, world!
   ''', fragment: false
 
   testCase '''
-    Don't add end if existing colon
+    existing begin colon
+    ---
+    \\begin: document
+    Hello, world!
+    ---
+    \\begin{document}%
+    Hello, world!
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    existing end colon
     ---
     \\end: document
     Hello, world!
     ---
+
+    \\begin{document}
     \\end{document}%
     Hello, world!
   ''', fragment: false
 
   testCase '''
-    Don't add end if existing environment
+    existing environment
     ---
     > document
       Hello, world!
@@ -50,4 +70,55 @@ describe '\\begin/\\end{document}', ->
     \\begin{document}
       Hello, world!
     \\end{document}
+  ''', fragment: false
+
+  testCase '''
+    begin placement
+    ---
+    % comment
+      % comment
+    \\usepackage{foo}
+    >> use foo
+    \\foo
+      {bar}
+    # Hello
+    ---
+    % comment
+      % comment
+    \\usepackage{foo}
+    \\usepackage{foo}
+    \\foo
+      {bar}
+
+    \\begin{document}
+    \\section{Hello}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    begin placement with environment
+    ---
+    > theorem
+    ---
+
+    \\begin{document}
+    \\begin{theorem}
+    \\end{theorem}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    begin placement with list
+    ---
+    * hi
+    ---
+
+    \\begin{document}
+    \\begin{itemize}
+    \\item hi
+    \\end{itemize}
+    \\end{document}
+
   ''', fragment: false

@@ -11,6 +11,7 @@ import {
 
 export const state = {
   indents: [ { token: '', level: 0 } ],
+  styles: {},
   get currentIndent() {
     return state.indents.at(-1)
   }
@@ -159,7 +160,11 @@ Header
       dots ? ( dots > 1 || hashes > 1 ? '\\subparagraph' : '\\paragraph' ) :
       `\\${'sub'.repeat(hashes-1)}section`
     if (star) command += '*'
-    return [ command, '{', title, '}' ]
+    return {
+      type: "Header",
+      subtype: command,
+      children: [ command, '{', title, '}' ],
+    }
 
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
@@ -244,7 +249,7 @@ InlineArgumentAfterColon
     }
 
 MetaBlock
-  &/[ \t]*>>/ Indent:indent ">>" /\s*/ MetaCommand:cmd -> cmd
+  &/[ \t]*>>/ Indent:indent ">>" /\s*/ MetaCommand:cmd -> [indent, cmd]
 
 MetaCommand
   MetaStyles
@@ -273,16 +278,22 @@ MetaUse
 UseItem
   Bullet? /[^:\r\n]+/:name UseColonArgument?:arg ->
     name = name[0]
-    return [
-      '\\usepackage',
-      arg,
-      `{${name}}`
-    ]
+    return {
+      type: "Use",
+      children: [
+        '\\usepackage',
+        arg,
+        `{${name}}`
+      ]
+    }
 
 NestedUseList
   PushIndent NestedUseItem*:items PopIndent ->
     if (!items.length) return $skip
-    return items
+    return {
+      type: "Uses",
+      children: items
+    }
 
 NestedUseItem
   Nested Indent UseItem ->
@@ -339,16 +350,20 @@ NestedItem
 UnorderedList
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
     if (!items) return $skip
-    return [
-      indent,
-      "\\begin{itemize}",
-      "\n",
-      indent,
-      items,
-      "\n",
-      indent,
-      "\\end{itemize}",
-    ]
+    return {
+      type: "List",
+      subtype: "itemize",
+      children: [
+        indent,
+        "\\begin{itemize}",
+        "\n",
+        indent,
+        items,
+        "\n",
+        indent,
+        "\\end{itemize}",
+      ]
+    }
 
 UnorderedBullet
   Bullet:bullet Text:text NestedBody:body ->
@@ -361,16 +376,20 @@ Bullet
 OrderedList
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet ( SameLevel Indent OrderedBullet )* )?:items PopIndent ->
     if (!items) return $skip
-    return [
-      indent,
-      "\\begin{enumerate}",
-      "\n",
-      indent,
-      items,
-      "\n",
-      indent,
-      "\\end{enumerate}",
-    ]
+    return {
+      type: "List",
+      subtype: "enumerate",
+      children: [
+        indent,
+        "\\begin{enumerate}",
+        "\n",
+        indent,
+        items,
+        "\n",
+        indent,
+        "\\end{enumerate}",
+      ]
+    }
 
 OrderedBullet
   /\d+\.([ \t]+|(?=[\r\n]))/ Text:text NestedBody:body ->
@@ -408,7 +427,12 @@ Indentation
   /[ \t]*/ ->
     const numTabs = $0.match(/\t/g)?.length ?? 0
     const level = numTabs * 8 + ($0.length - numTabs)
-    return { $loc, token: $0, level }
+    return {
+      type: "Indent",
+      token: $0,
+      level,
+      $loc,
+    }
 
 Indent
   Indentation ->

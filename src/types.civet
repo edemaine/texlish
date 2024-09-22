@@ -26,6 +26,11 @@ export type ASTNode
   | Command
   | Environment
   | EOL
+  | Header
+  | Indent
+  | List
+  | Use
+  | Uses
 
 export interface Braced extends ASTParent
   type: "Braced"
@@ -43,3 +48,21 @@ export interface Environment extends ASTParent
 
 export interface EOL extends ASTToken
   type: "EOL"
+
+export interface Header extends ASTParent
+  type: "Header"
+  subtype: "\\part" | "\\chapter" | "\\section" | "\\subsection" | "\\subsubsection" | "\\paragraph" | "\\subparagraph"
+
+export interface Indent extends ASTToken
+  type: "Indent"
+  level: number
+
+export interface List extends ASTParent
+  type: "List"
+  subtype: "itemize" | "enumerate"
+
+export interface Use extends ASTParent
+  type: "Use"
+
+export interface Uses extends ASTParent
+  type: "Uses"
