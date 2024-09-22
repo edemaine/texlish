@@ -79,6 +79,7 @@ describe '\\begin/\\end{document}', ->
       % comment
     \\usepackage{foo}
     >> use foo
+    >> preamble cheating
     \\foo
       {bar}
     # Hello
@@ -87,6 +88,7 @@ describe '\\begin/\\end{document}', ->
       % comment
     \\usepackage{foo}
     \\usepackage{foo}
+    cheating
     \\foo
       {bar}
 
@@ -123,6 +125,7 @@ describe '\\begin/\\end{document}', ->
 
   ''', fragment: false
 
+describe '\\maketitle', ->
   testCase '''
     begin placement before \\maketitle
     ---
@@ -179,5 +182,93 @@ describe '\\begin/\\end{document}', ->
     \\title{Title}
     \\begin{document}
     Hello
+    \\end{document}
+  ''', fragment: false
+
+describe '>>preamble', ->
+  testCase '''
+    preamble after text
+    ---
+    Hello
+    >> preamble \\newtheorem{thm}{Theorem}
+    > thm
+    >>preamble \\newtheorem{lem}{Lemma}
+    > lem
+    >>preamble
+      %more text
+    >>use foo
+    ---
+    \\newtheorem{thm}{Theorem}
+    \\newtheorem{lem}{Lemma}
+
+      %more text
+    \\usepackage{foo}
+
+    \\begin{document}
+    Hello
+    \\begin{thm}
+    \\end{thm}
+    \\begin{lem}
+    \\end{lem}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    preamble before text
+    ---
+    >> preamble \\newtheorem{thm}{Theorem}
+    >>preamble
+      %more text
+    >>use foo
+    Hello
+    ---
+    \\newtheorem{thm}{Theorem}
+
+      %more text
+    \\usepackage{foo}
+
+    \\begin{document}
+    Hello
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    preamble before explicit begin
+    ---
+    Hello
+    >> preamble \\newtheorem{thm}{Theorem}
+    >>preamble
+      %more text
+    >>use foo
+    \\begin{document}
+    ---
+    Hello
+    \\newtheorem{thm}{Theorem}
+
+      %more text
+    \\usepackage{foo}
+    \\begin{document}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    preamble inside >document
+    ---
+    > document
+      >> preamble \\newtheorem{thm}{Theorem}
+      >>preamble
+        %more text
+      >>use foo
+      Hello
+    ---
+      \\newtheorem{thm}{Theorem}
+      
+        %more text
+      \\usepackage{foo}
+    \\begin{document}
+      Hello
     \\end{document}
   ''', fragment: false

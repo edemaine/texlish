@@ -29,6 +29,7 @@ export type ASTNode
   | Header
   | Indent
   | List
+  | Preamble
   | Use
   | Uses
 
@@ -60,6 +61,9 @@ export interface Indent extends ASTToken
 export interface List extends ASTParent
   type: "List"
   subtype: "itemize" | "enumerate"
+
+export interface Preamble extends ASTParent
+  type: "Preamble"
 
 export interface Use extends ASTParent
   type: "Use"

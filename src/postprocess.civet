@@ -9,12 +9,13 @@ export function process(root: AST[], options: CompilerOptions): AST
 // Automatic `\begin{document}`, `\end{document}`, `\maketitle`
 function processDocument(root: AST[]): void
   document: Record<string, AST> .= {}
+  preamble: AST[][] .= []
   for parent of iterate root
     continue unless Array.isArray parent
     for each child, let i of parent
       if child is like { type: "Environment", env: "document" }
-        return  // entire document environment exists
-      if child is like { type: "Command" }
+        document["\\begin"] = document["\\end"] = parent
+      else if child is like { type: "Command" }
         if child.token is like "\\begin", "\\end"
           while parent[++i] is like /^\s*$/
           next := parent[i]
@@ -25,6 +26,8 @@ function processDocument(root: AST[]): void
           document["\\maketitle"] ?= parent
         else if child.token is "\\title"
           document["\\title"] ?= parent
+      else if child is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
+        preamble.push parent
 
   // Add \end{document} as a final line if it doesn't exist
   unless document["\\end"]
@@ -33,14 +36,18 @@ function processDocument(root: AST[]): void
   // Add \begin{document} if it doesn't exist, before first environment,
   // header, unbraced text, etc.  Also add \maketitle if \title.
   unless document["\\begin"]
+    var i = 0
     :line for line, var i of root
       switch line
         { type: "EOL" }
         [ { type: "Indent" } ]
         [ { type: "Indent" }, "\0" ]  // >>styles
         [ { type: "Indent" }, { type: "Comment" } ]
-        [ { type: "Indent" }, { type: "Use" } ]
-        [ { type: "Indent" }, { type: "Uses" } ]
+        [ { type: "Indent" }, { type: "Use" } ],
+        [ { type: "Indent" }, { type: "Uses" } ],
+        [ { type: "Indent" }, { type: "Preamble" } ]
+          i := preamble.indexOf line
+          preamble.splice i, 1 if i >= 0
         [ { type: "Indent" }, { type: "Braced" } ]
         ^document["\\end"]  // \begin{document} before \end{document}
           break :line
@@ -49,7 +56,15 @@ function processDocument(root: AST[]): void
         [ { type: "Indent" }, { type: "Command" }, ... ]
         else
           break :line
-    i ??= 0
-    root.splice i, 0, "\n\\begin{document}\n"
+    root.splice i, 0, document["\\begin"] = ["\n\\begin{document}\n"]
     if document["\\title"] and not document["\\maketitle"]
-      root[i] += "\\maketitle\n"
+      document["\\begin"][0] += "\\maketitle\n"
+
+  if preamble#
+    copy :=
+      for each line of preamble
+        [ line[..], '\n' ]
+      .flat()
+    (document["\\begin"] as AST[]).splice 0, 0, ...copy
+    for each line of preamble
+      line.splice 0, line.length, "\0"

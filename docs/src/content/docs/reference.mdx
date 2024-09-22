@@ -190,7 +190,7 @@ from the content):
 
 ## Use Packages
 
-`>>use` is shorthand for `\usepackage{...}`.
+`>>use` is shorthand for putting `\usepackage{...}` in the preamble.
 
 <Example src={`
   >>use amsmath
@@ -211,11 +211,35 @@ You can use many packages at once as an indented block:
       - pdfauthor = Me
 `}/>
 
+If you put `>>use` after `\begin{document}`, it gets hoisted up to the preamble.
+
+<Example complete src={`
+  \\begin{document}
+  Here is the proof:
+  >>use amsthm
+  > proof
+  \\end{document}
+`}/>
+
+## Preamble
+
+`>>preamble` puts LaTeX code in the preamble.
+If it appears after `\begin{document}`, it gets hoisted up.
+
+<Example complete src={`
+  \\begin{document}
+  Here is the theorem:
+  >>preamble \\newtheorem{theorem}{Theorem}
+  >theorem
+  \\end{document}
+`}/>
+
 ## Automatic Document Boilerplate
 
 Texlish automatically adds the following LaTeX boilerplate if needed:
 
-* `\begin{document}` before the first line starting with apparent text content.
+* `\begin{document}` before the first top-level line
+  starting with apparent text content.
   Commands and braced text are considered valid preamble,
   while environments (in particular `abstract`) are considered text content.
 * `\maketitle` after an added `\begin{document}`, if the document uses `\title`.
@@ -252,5 +276,5 @@ and/or report a bug.
   Outside document
 `}/>
 
-For clarity, examples outside this section disable this feature
+For clarity, most examples in this documentation disable this feature
 (via the `fragment: true` compiler option).

@@ -254,6 +254,7 @@ MetaBlock
 MetaCommand
   MetaStyles
   MetaUse
+  MetaPreamble
 
 MetaStyles
   "styles" NestedAssignments:body ->
@@ -346,6 +347,16 @@ NestedBody
 
 NestedItem
   Nested Statement
+
+MetaPreamble
+  "preamble" ( /[ \t]+/ Text )?:text NestedBody:body ->
+    if (text) text = text[1]
+    const textBody = [ text, body ]
+    return {
+      type: "Preamble",
+      textBody,
+      children: [ textBody ],
+    }
 
 UnorderedList
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
