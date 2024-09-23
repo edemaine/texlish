@@ -60,3 +60,12 @@ describe 'Markdown emphasis (*/**/***)', ->
     \\textsf{sans-serif}
     \\texttt{teletype}
   '''
+
+  testCase '''
+    empty styles
+    ---
+    >>styles
+    *italic*
+    ---
+    \\emph{italic}
+  '''

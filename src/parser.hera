@@ -264,9 +264,7 @@ MetaStyles
     return '\0'  // eat following newline
 
 NestedAssignments
-  PushIndent NestedAssignment*:items PopIndent ->
-    if (!items.length) return $skip
-    return items
+  PushIndent NestedAssignment*:items PopIndent -> items
 
 NestedAssignment
   Nested Indent /[^\s:]+/:key /\s+:?=\s*/ Text:value ->
