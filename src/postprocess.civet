@@ -1,6 +1,8 @@
 type { AST, CompilerOptions } from ./types.civet
 { iterate } from ./util.civet
 
+defaultDocumentClass := "\\documentclass[11pt]{article}"
+
 // Root node is always an array of statements
 export function process(root: AST[], options: CompilerOptions): AST
   processDocument root unless options.fragment
@@ -16,16 +18,15 @@ function processDocument(root: AST[]): void
       if child is like { type: "Environment", env: "document" }
         document["\\begin"] = document["\\end"] = parent
       else if child is like { type: "Command" }
-        if child.token is like "\\begin", "\\end"
-          while parent[++i] is like /^\s*$/
-          next := parent[i]
-          if next is like { type: "Braced" } and
-            next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
+        switch child.token
+          when "\\begin", "\\end"
+            while parent[++i] is like /^\s*$/
+            next := parent[i]
+            if next is like { type: "Braced" } and
+              next.body is like [ "document" ], [ [ "document" ] ], [ [ "document" ], [] ], [ [], [ "document" ] ]
+              document[child.token] ?= parent
+          when "\\maketitle", "\\title", "\\documentclass"
             document[child.token] ?= parent
-        else if child.token is "\\maketitle"
-          document["\\maketitle"] ?= parent
-        else if child.token is "\\title"
-          document["\\title"] ?= parent
       else if child is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
         preamble.push parent
 
@@ -68,3 +69,7 @@ function processDocument(root: AST[]): void
     (document["\\begin"] as AST[]).splice 0, 0, ...copy
     for each line of preamble
       line.splice 0, line.length, "\0"
+
+  // Add \documentclass as first line if it doesn't exist
+  unless document["\\documentclass"]
+    root.unshift document["\\documentclass"] = defaultDocumentClass + "\n"

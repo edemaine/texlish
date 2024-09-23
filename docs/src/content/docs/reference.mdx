@@ -214,6 +214,7 @@ You can use many packages at once as an indented block:
 If you put `>>use` after `\begin{document}`, it gets hoisted up to the preamble.
 
 <Example complete src={`
+  \\documentclass{article}
   \\begin{document}
   Here is the proof:
   >>use amsthm
@@ -227,6 +228,7 @@ If you put `>>use` after `\begin{document}`, it gets hoisted up to the preamble.
 If it appears after `\begin{document}`, it gets hoisted up.
 
 <Example complete src={`
+  \\documentclass{article}
   \\begin{document}
   Here is the theorem:
   >>preamble \\newtheorem{theorem}{Theorem}
@@ -238,6 +240,8 @@ If it appears after `\begin{document}`, it gets hoisted up.
 
 Texlish automatically adds the following LaTeX boilerplate if needed:
 
+* `\documentclass[11pt]{article}` as the first line.
+  To use a different document class or option, specify it manually.
 * `\begin{document}` before the first top-level line
   starting with apparent text content.
   Commands and braced text are considered valid preamble,

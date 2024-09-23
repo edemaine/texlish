@@ -6,6 +6,7 @@ describe '\\begin/\\end{document}', ->
     ---
     Hello, world!
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     Hello, world!
@@ -19,6 +20,7 @@ describe '\\begin/\\end{document}', ->
     \\end{document}
     Hello, world!
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\end{document}
@@ -31,6 +33,7 @@ describe '\\begin/\\end{document}', ->
     \\end {document}
     Hello, world!
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\end {document}
@@ -43,6 +46,7 @@ describe '\\begin/\\end{document}', ->
     \\begin: document
     Hello, world!
     ---
+    \\documentclass[11pt]{article}
     \\begin{document}%
     Hello, world!
     \\end{document}
@@ -55,6 +59,7 @@ describe '\\begin/\\end{document}', ->
     \\end: document
     Hello, world!
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\end{document}%
@@ -67,6 +72,7 @@ describe '\\begin/\\end{document}', ->
     > document
       Hello, world!
     ---
+    \\documentclass[11pt]{article}
     \\begin{document}
       Hello, world!
     \\end{document}
@@ -84,6 +90,7 @@ describe '\\begin/\\end{document}', ->
       {bar}
     # Hello
     ---
+    \\documentclass[11pt]{article}
     % comment
       % comment
     \\usepackage{foo}
@@ -103,6 +110,7 @@ describe '\\begin/\\end{document}', ->
     ---
     > theorem
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\begin{theorem}
@@ -116,6 +124,7 @@ describe '\\begin/\\end{document}', ->
     ---
     * hi
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\begin{itemize}
@@ -132,6 +141,7 @@ describe '\\maketitle', ->
     \\maketitle
     Hello
     ---
+    \\documentclass[11pt]{article}
 
     \\begin{document}
     \\maketitle
@@ -147,6 +157,7 @@ describe '\\maketitle', ->
     \\maketitle
     Hello
     ---
+    \\documentclass[11pt]{article}
     \\title{Title}
 
     \\begin{document}
@@ -162,6 +173,7 @@ describe '\\maketitle', ->
     \\title{Title}
     Hello
     ---
+    \\documentclass[11pt]{article}
     \\title{Title}
 
     \\begin{document}
@@ -179,6 +191,7 @@ describe '\\maketitle', ->
     Hello
     \\end{document}
     ---
+    \\documentclass[11pt]{article}
     \\title{Title}
     \\begin{document}
     Hello
@@ -198,6 +211,7 @@ describe '>>preamble', ->
       %more text
     >>use foo
     ---
+    \\documentclass[11pt]{article}
     \\newtheorem{thm}{Theorem}
     \\newtheorem{lem}{Lemma}
 
@@ -223,6 +237,7 @@ describe '>>preamble', ->
     >>use foo
     Hello
     ---
+    \\documentclass[11pt]{article}
     \\newtheorem{thm}{Theorem}
 
       %more text
@@ -244,6 +259,7 @@ describe '>>preamble', ->
     >>use foo
     \\begin{document}
     ---
+    \\documentclass[11pt]{article}
     Hello
     \\newtheorem{thm}{Theorem}
 
@@ -264,6 +280,7 @@ describe '>>preamble', ->
       >>use foo
       Hello
     ---
+    \\documentclass[11pt]{article}
       \\newtheorem{thm}{Theorem}
       
         %more text
@@ -272,3 +289,12 @@ describe '>>preamble', ->
       Hello
     \\end{document}
   ''', fragment: false
+
+describe '\\documentclass', ->
+  testCase '''
+    existing
+    ---
+    \\documentclass[12pt,letterpaper]{article}
+    ---
+    \\documentclass[12pt,letterpaper]{article}
+  '''
