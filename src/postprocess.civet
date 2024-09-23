@@ -1,5 +1,5 @@
 type { AST, CompilerOptions } from ./types.civet
-{ iterate } from ./util.civet
+{ iteratePrePost } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 
@@ -8,11 +8,26 @@ export function process(root: AST[], options: CompilerOptions): AST
   processDocument root unless options.fragment
   root
 
+function liftsToPreamble(node: AST): boolean
+  node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
+
 // Automatic `\begin{document}`, `\end{document}`, `\maketitle`
 function processDocument(root: AST[]): void
+  // Find any existing \begin{document}, \end{document}, \maketitle, \title,
+  // \documentclass in the document, and put them in `document`.
+  // Collect any >>preamble and >>use blocks for possibly moving to preamble.
   document: Record<string, AST> .= {}
   preamble: AST[][] .= []
-  for parent of iterate root
+  preambleDepth .= 0
+  for {node: parent, post} of iteratePrePost root
+    // Keep track of "preamble depth" so we don't add descandants too
+    if liftsToPreamble parent
+      if post
+        preambleDepth--
+      else
+        preambleDepth++
+    continue if post
+    // We process array parents of actual content so we can find siblings
     continue unless Array.isArray parent
     for each child, let i of parent
       if child is like { type: "Environment", env: "document" }
@@ -27,7 +42,7 @@ function processDocument(root: AST[]): void
               document[child.token] ?= parent
           when "\\maketitle", "\\title", "\\documentclass"
             document[child.token] ?= parent
-      else if child is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
+      else if preambleDepth is 0 and liftsToPreamble child
         preamble.push parent
 
   // Add \end{document} as a final line if it doesn't exist

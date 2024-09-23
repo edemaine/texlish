@@ -290,6 +290,52 @@ describe '>>preamble', ->
     \\end{document}
   ''', fragment: false
 
+  testCase '''
+    >>preamble and >>uses
+    ---
+    >>preamble \\newtheorem{thm}{Theorem}
+    >> use
+      amsthm
+    >>preamble \\newtheorem{lem}{Lemma}
+    \\newtheorem:
+      - theorem
+      - Theorem
+    ---
+    \\documentclass[11pt]{article}
+    \\newtheorem{thm}{Theorem}
+
+      \\usepackage{amsthm}
+    \\newtheorem{lem}{Lemma}
+    \\newtheorem
+       {theorem}%
+       {Theorem}%
+    \\begin{document}
+
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    nested >>preamble
+    ---
+    Hello
+    >>preamble
+      before
+      >>preamble nested
+      after
+    ---
+    \\documentclass[11pt]{article}
+
+      before
+      nested
+      after
+
+    \\begin{document}
+    Hello
+    \\end{document}
+
+  ''', fragment: false
+
 describe '\\documentclass', ->
   testCase '''
     existing
