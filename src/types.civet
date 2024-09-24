@@ -53,6 +53,9 @@ export interface Delimiter
   // Starts with just token and, if actual delimiter, evolves to just children
   token?: string
   children?: AST[]
+  // Index into children where the delimiter started considered opening,
+  // if already some children for closing.
+  openIndex?: number
 
 export interface Environment extends ASTParent
   type: "Environment"

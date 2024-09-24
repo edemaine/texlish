@@ -619,7 +619,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       foo******bar*********baz
       ---
-      foo\\emph{bar}***baz
+      foo{bar}***baz
     '''
 
     testCase '''
@@ -778,12 +778,15 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo ***
     '''
 
+    // Markdown allows \* to precede a delimiter block.
+    // This isn't useful in LaTeX (\* is a line-breakable multiplication).
+    // Instead, {*} is how we write an escaped asterisk.
     testCase '''
       437
       ---
-      foo *\**
+      foo *{*}*
       ---
-      foo \\emph{\*}
+      foo \\emph{{*}}
     '''
 
     testCase '''
@@ -805,9 +808,9 @@ describe 'Markdown emphasis (*/**/***)', ->
     testCase '''
       440
       ---
-      foo **\***
+      foo **{*}**
       ---
-      foo \\textbf{\*}
+      foo \\textbf{{*}}
     '''
 
     testCase '''

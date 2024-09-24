@@ -11,6 +11,14 @@ export function process(root: AST[], options: CompilerOptions): AST
 
 // Based on CommonMark spec:
 // https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+// Deviations:
+// * We treat ***, ****, etc. as their own styles which can be defined.
+//   By contrast, CommonMark only defines * and ** and defines how they nest.
+// * If one of the delimiters is both left and right delimiting, CommonMark
+//   requires forbids the delimiters from having total size a multiple of 3.
+//   Instead, we forbid one delimiter from being exactly half the size of the
+//   other, which forbids the useless cases of either immediately closing and
+//   opening the same level of emphasis, or nesting two identical emphases.
 function processMarkdown(root: AST[]): void
   for parent of iterateFlat root
     continue unless Array.isArray parent
@@ -28,31 +36,39 @@ function processMarkdown(root: AST[]): void
             (opens[i].styles[delim] ?? "") + '{'
           open .= opens[i].token!
           if close.startsWith open  // open finished
-            (opens[i].children ?= []).unshift opener open
-            delete opens[i].token
-            // Remove opens[i] and any following opens,
-            // because they are now nested inside this open/close pair.
-            opens.splice i, opens# - i
-            ((child as Delimiter).children ??= []).push '}'
-            if close# > open#  // some close remains
-              close = child.token = close[open.length..]
-            else  // close finished too
+            // Open+close delimiter: Forbid double nested identical emphasis
+            unless close is open+open and (opens[i].close or child.open)
+              (opens[i].children ?= []).unshift opener open
+              delete opens[i].token
+              // Remove opens[i] and any following opens,
+              // because they are now nested inside this open/close pair.
+              opens.splice i, opens# - i
+              (child.children ??= []).push '}'
+              if close# > open#  // some close remains
+                close = child.token = close[open.length..]
+              else  // close finished too
+                delete child.token
+                break
+          else if open.endsWith close  // close finished
+            // Open+close delimiter: Forbid double nested identical emphasis
+            unless open is close+close and (opens[i].close or child.open)
+              (opens[i].children ?= []).unshift opener close
+              opens[i].token = open[...-close.length]
+              (child.children ??= []).push '}'
               delete child.token
               break
-          else if open.endsWith close  // close finished
-            (opens[i].children ?= []).unshift opener close
-            opens[i].token = open[...-close.length]
-            (child.children ??= []).push '}'
-            delete child.token
-            break
         // Don't pursue open case if fully closed
         continue unless child.token?
       if child.open
         opens.push child
+        child.openIndex = child.children# if child.children?
+      else if child.token and child.children?  // remaining text after close
+        child.children.push child.token
+        delete child.token
     // Unmatched opens remain text
     for each open of opens
       if open.token and open.children?
-        open.children.unshift open.token
+        open.children.splice open.openIndex ?? 0, 0, open.token
         delete open.token
 
 function liftsToPreamble(node: AST): boolean
