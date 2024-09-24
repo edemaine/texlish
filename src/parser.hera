@@ -95,10 +95,45 @@ TextPart
   [\^_] ParenthesizedContent ->
     // $2[1] strips the parens
     return [ $1[0], '{', $2[1], '}' ]
+  # Left- *and* right-flanking delimiter according to below definitions.
+  /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
+    return {
+      type: "Delimiter",
+      open: true,
+      close: true,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
+  # https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+  # defines "left-flanking delimiter run" as (1) not followed by a space, and
+  # (2a) not followed by punctuation, or (2b) [followed by punctuation and]
+  # preceded by whitespace or punctuation.
+  /(?<!\*)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])|(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}])\1))/ ->
+    return {
+      type: "Delimiter",
+      open: true,
+      close: false,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
+  # "Right-flanking delimiter run" is (1) not preceded by a space, and
+  # (2a) not preceded by punctuation, or (2b) [preceded by punctuation and]
+  # followed by whitespace or punctuation.
+  /(?<![\*\s]|^)(\*+)(?!\*)(?:(?<![\p{Punctuation}\p{Symbol}]\1)|(?=$|\s|[\p{Punctuation}\p{Symbol}]))/ ->
+    return {
+      type: "Delimiter",
+      open: false,
+      close: true,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%]*/
+  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
 
 TrimmedText
   Text:t ->
@@ -258,6 +293,8 @@ MetaCommand
 
 MetaStyles
   "styles" NestedAssignments:body ->
+    // Avoid aliasing so that we can copy by reference in Delimiters
+    state.styles = {...state.styles}
     for (const [key, value] of body) {
       state.styles[key] = generate(value)
     }

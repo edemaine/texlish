@@ -1,12 +1,59 @@
-type { AST, CompilerOptions } from ./types.civet
-{ iteratePrePost } from ./util.civet
+type { AST, CompilerOptions, Delimiter } from ./types.civet
+{ iteratePrePost, iterateFlat } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 
 // Root node is always an array of statements
 export function process(root: AST[], options: CompilerOptions): AST
+  processMarkdown root
   processDocument root unless options.fragment
   root
+
+// Based on CommonMark spec:
+// https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+function processMarkdown(root: AST[]): void
+  for parent of iterateFlat root
+    continue unless Array.isArray parent
+    opens: Delimiter[] .= []
+    for each child of parent
+      continue unless child is like { type: "Delimiter" }
+      // Prefer closing over opening, for Rule 15:
+      // When two potential emphasis or strong emphasis spans overlap,
+      // so that the second begins before the first ends and
+      // ends after the first ends, the first takes precedence.
+      if child.close and opens#
+        close .= child.token!
+        for i of [opens#-1..0]
+          function opener(delim: string): string
+            (opens[i].styles[delim] ?? "") + '{'
+          open .= opens[i].token!
+          if close.startsWith open  // open finished
+            (opens[i].children ?= []).unshift opener open
+            delete opens[i].token
+            // Remove opens[i] and any following opens,
+            // because they are now nested inside this open/close pair.
+            opens.splice i, opens# - i
+            ((child as Delimiter).children ??= []).push '}'
+            if close# > open#  // some close remains
+              close = child.token = close[open.length..]
+            else  // close finished too
+              delete child.token
+              break
+          else if open.endsWith close  // close finished
+            (opens[i].children ?= []).unshift opener close
+            opens[i].token = open[...-close.length]
+            (child.children ??= []).push '}'
+            delete child.token
+            break
+        // Don't pursue open case if fully closed
+        continue unless child.token?
+      if child.open
+        opens.push child
+    // Unmatched opens remain text
+    for each open of opens
+      if open.token and open.children?
+        open.children.unshift open.token
+        delete open.token
 
 function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }

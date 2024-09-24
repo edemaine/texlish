@@ -11,6 +11,20 @@ export function iterate(node: AST): Generator<AST>
     for each child of node.children
       yield* iterate child
 
+// Generate all nodes in the tree in prefix order.
+export function iterateFlat(node: AST): Generator<AST>
+  if Array.isArray node
+    //@ts-ignore deep type recursion
+    node = node.flat Infinity
+  yield node
+  return unless node <? "object"
+  if Array.isArray node
+    for each child of node
+      yield* iterate child
+  else if "children" in node
+    for each child of node.children
+      yield* iterate child
+
 // Generate every node twice, once before and once after recursion.
 export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
   yield {node, post: false}

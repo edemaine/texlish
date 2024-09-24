@@ -1,6 +1,6 @@
 // based on https://github.com/DanielXMoore/Civet/blob/main/source/main.civet
 
-import { parse, getStateKey, state } from ./parser.hera
+import { parse, getStateKey } from ./parser.hera
 //import * as sourcemap from "./sourcemap.civet"
 //{ SourceMap } := sourcemap
 export { parse }
@@ -10,8 +10,6 @@ export { process }
 
 import type { AST, CompilerOptions } from ./types.civet
 export type { AST, CompilerOptions }
-
-import { markdownText } from ./markdown.civet
 
 import StateCache from ./state-cache.civet
 
@@ -78,7 +76,6 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
 
   ast
   |> generate
-  |> markdownText ., state.styles
   |> as CompileOutput<T>
 
 type MetaData

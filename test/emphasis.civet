@@ -69,3 +69,1071 @@ describe 'Markdown emphasis (*/**/***)', ->
     ---
     \\emph{italic}
   '''
+
+  // https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+  describe 'commonmark spec examples', ->
+    testCase '''
+      350
+      ---
+      *foo bar*
+      ---
+      \\emph{foo bar}
+    '''
+
+    testCase '''
+      351
+      ---
+      a * foo bar*
+      ---
+      a * foo bar*
+    '''
+
+    testCase '''
+      352
+      ---
+      a*"foo"*
+      ---
+      a*"foo"*
+    '''
+
+    testCase '''
+      353
+      ---
+      a * a *
+      ---
+      a * a *
+    '''
+
+    testCase '''
+      354
+      ---
+      *£*bravo.
+      ---
+      *£*bravo.
+    '''
+
+    testCase '''
+      355
+      ---
+      foo*bar*
+      ---
+      foo\\emph{bar}
+    '''
+
+    testCase '''
+      356
+      ---
+      5*6*78
+      ---
+      5\\emph{6}78
+    '''
+
+    testCase.skip '''
+      357
+      ---
+      _foo bar_
+      ---
+      \\emph{foo bar}
+    '''
+
+    testCase '''
+      358
+      ---
+      _ foo bar_
+      ---
+      _ foo bar_
+    '''
+
+    testCase '''
+      359
+      ---
+      a_"foo"_
+      ---
+      a_"foo"_
+    '''
+
+    testCase '''
+      360
+      ---
+      foo_bar_
+      ---
+      foo_{bar}_
+    '''
+
+    testCase '''
+      361
+      ---
+      5_6_78
+      ---
+      5_6_{78}
+    '''
+
+    testCase '''
+      362
+      ---
+      пристаням_стремятся_
+      ---
+      пристаням_стремятся_
+    '''
+
+    testCase '''
+      363
+      ---
+      aa_"bb"_cc
+      ---
+      aa_"bb"_{cc}
+    '''
+
+    testCase.skip '''
+      364
+      ---
+      foo-_(bar)_
+      ---
+      foo-\\emph{bar}
+    '''
+
+    testCase '''
+      365
+      ---
+      _foo*
+      ---
+      _{foo}*
+    '''
+
+    testCase '''
+      366
+      ---
+      *foo bar *
+      ---
+      *foo bar *
+    '''
+
+    testCase '''
+      367
+      ---
+      *foo bar
+      *
+      ---
+      *foo bar
+      *
+    '''
+
+    testCase '''
+      368
+      ---
+      *(*foo)
+      ---
+      *(*foo)
+    '''
+
+    testCase '''
+      369
+      ---
+      *(*foo*)*
+      ---
+      \\emph{(\\emph{foo})}
+    '''
+
+    testCase '''
+      370
+      ---
+      *foo*bar
+      ---
+      \\emph{foo}bar
+    '''
+
+    testCase '''
+      371
+      ---
+      _foo bar _
+      ---
+      _{foo} bar _
+    '''
+
+    testCase '''
+      372
+      ---
+      _(_{foo})
+      ---
+      _(_{foo})
+    '''
+
+    testCase.skip '''
+      373
+      ---
+      _(_foo_)_
+      ---
+      \\emph{(\\emph{foo})}
+    '''
+
+    testCase '''
+      374
+      ---
+      _foo_bar
+      ---
+      _{foo}_{bar}
+    '''
+
+    testCase '''
+      375
+      ---
+      _пристаням_стремятся
+      ---
+      _пристаням_стремятся
+    '''
+
+    testCase.skip '''
+      376
+      ---
+      _foo_bar_baz_
+      ---
+      \\emph{foo_bar_baz}
+    '''
+
+    testCase.skip '''
+      377
+      ---
+      _(bar)_
+      ---
+      \\emph{(bar)}
+    '''
+
+    testCase '''
+      378
+      ---
+      **foo bar**
+      ---
+      \\textbf{foo bar}
+    '''
+
+    testCase '''
+      379
+      ---
+      ** foo bar**
+      ---
+      ** foo bar**
+    '''
+
+    testCase '''
+      380
+      ---
+      a**"foo"**
+      ---
+      a**"foo"**
+    '''
+
+    testCase '''
+      381
+      ---
+      foo**bar**
+      ---
+      foo\\textbf{bar}
+    '''
+
+    testCase.skip '''
+      382
+      ---
+      __foo bar__
+      ---
+      \\textbf{foo bar}
+    '''
+
+    testCase '''
+      383
+      ---
+      __ foo bar__
+      ---
+      __ foo bar__
+    '''
+
+    testCase '''
+      384
+      ---
+      __
+      foo bar__
+      ---
+      __
+      foo bar__
+    '''
+
+    testCase '''
+      385
+      ---
+      a__"foo"__
+      ---
+      a__"foo"__
+    '''
+
+    testCase '''
+      386
+      ---
+      foo__bar__
+      ---
+      foo__{bar}__
+    '''
+
+    testCase '''
+      387
+      ---
+      5__6__78
+      ---
+      5__6__{78}
+    '''
+
+    testCase '''
+      388
+      ---
+      пристаням__стремятся__
+      ---
+      пристаням__стремятся__
+    '''
+
+    testCase.skip '''
+      389
+      ---
+      __foo, __bar__, baz__
+      ---
+      \\textbf{foo, \\textbf{bar}, baz}
+    '''
+
+    testCase.skip '''
+      390
+      ---
+      foo-__(bar)__
+      ---
+      foo-\\textbf{(bar)}
+    '''
+
+    testCase '''
+      391
+      ---
+      **foo bar **
+      ---
+      **foo bar **
+    '''
+
+    testCase '''
+      392
+      ---
+      **(**foo)
+      ---
+      **(**foo)
+    '''
+
+    testCase '''
+      393
+      ---
+      *(**foo**)*
+      ---
+      \\emph{(\\textbf{foo})}
+    '''
+
+    testCase '''
+      394
+      ---
+      **Gomphocarpus (*Gomphocarpus physocarpus*, syn. *Asclepias physocarpa*)**
+      ---
+      \\textbf{Gomphocarpus (\\emph{Gomphocarpus physocarpus}, syn. \\emph{Asclepias physocarpa})}
+    '''
+
+    testCase '''
+      395
+      ---
+      **foo "*bar*" foo**
+      ---
+      \\textbf{foo "\\emph{bar}" foo}
+    '''
+
+    testCase '''
+      396
+      ---
+      **foo**bar
+      ---
+      \\textbf{foo}bar
+    '''
+
+    testCase '''
+      397
+      ---
+      __foo bar __
+      ---
+      __{foo} bar __
+    '''
+
+    testCase '''
+      398
+      ---
+      __(__foo)
+      ---
+      __(__{foo})
+    '''
+
+    testCase.skip '''
+      399
+      ---
+      _(__foo__)_
+      ---
+      \\emph{(\\textbf{foo})}
+    '''
+
+    testCase '''
+      400
+      ---
+      __foo__bar
+      ---
+      __{foo}__{bar}
+    '''
+
+    testCase '''
+      401
+      ---
+      __пристаням__стремятся
+      ---
+      __пристаням__стремятся
+    '''
+
+    testCase.skip '''
+      402
+      ---
+      __foo__bar__baz__
+      ---
+      \\textbf{foo__bar__baz}
+    '''
+
+    testCase.skip '''
+      403
+      ---
+      __(bar)__.
+      ---
+      \\textbf{(bar)}.
+    '''
+
+    testCase '''
+      404
+      ---
+      *foo \\href{/url}{bar}*
+      ---
+      \\emph{foo \\href{/url}{bar}}
+    '''
+
+    testCase '''
+      405
+      ---
+      *foo
+      bar*
+      ---
+      \\emph{foo
+      bar}
+    '''
+
+    testCase.skip '''
+      406
+      ---
+      _foo __bar__ baz_
+      ---
+      \\emph{foo \\textbf{bar} baz}
+    '''
+
+    testCase.skip '''
+      407
+      ---
+      _foo _bar_ baz_
+      ---
+      \\emph{foo \\emph{bar} baz}
+    '''
+
+    testCase.skip '''
+      408
+      ---
+      __foo_ bar_
+      ---
+      \\emph{\\emph{foo} bar}
+    '''
+
+    testCase '''
+      409
+      ---
+      *foo *bar**
+      ---
+      \\emph{foo \\emph{bar}}
+    '''
+
+    testCase '''
+      410
+      ---
+      *foo **bar** baz*
+      ---
+      \\emph{foo \\textbf{bar} baz}
+    '''
+
+    testCase '''
+      411
+      ---
+      *foo**bar**baz*
+      ---
+      \\emph{foo\\textbf{bar}baz}
+    '''
+
+    testCase '''
+      412
+      ---
+      *foo**bar*
+      ---
+      \\emph{foo**bar}
+    '''
+
+    testCase '''
+      413
+      ---
+      ***foo** bar*
+      ---
+      \\emph{\\textbf{foo} bar}
+    '''
+
+    testCase '''
+      414
+      ---
+      *foo **bar***
+      ---
+      \\emph{foo \\textbf{bar}}
+    '''
+
+    testCase '''
+      415
+      ---
+      *foo**bar***
+      ---
+      \\emph{foo\\textbf{bar}}
+    '''
+
+    testCase '''
+      416
+      ---
+      foo***bar***baz
+      ---
+      foo\\defn{bar}baz
+    '''
+
+    testCase '''
+      417
+      ---
+      foo******bar*********baz
+      ---
+      foo\\emph{bar}***baz
+    '''
+
+    testCase '''
+      418
+      ---
+      *foo **bar *baz* bim** bop*
+      ---
+      \\emph{foo \\textbf{bar \\emph{baz} bim} bop}
+    '''
+
+    testCase '''
+      419
+      ---
+      *foo \\href{/url}{*bar*}*
+      ---
+      \\emph{foo \\href{/url}{\\emph{bar}}}
+    '''
+
+    testCase '''
+      420
+      ---
+      ** is not an empty emphasis
+      ---
+      ** is not an empty emphasis
+    '''
+
+    testCase '''
+      421
+      ---
+      **** is not an empty strong emphasis
+      ---
+      **** is not an empty strong emphasis
+    '''
+
+    testCase '''
+      422
+      ---
+      **foo \\href{/url}{bar}**
+      ---
+      \\textbf{foo \\href{/url}{bar}}
+    '''
+
+    testCase '''
+      423
+      ---
+      **foo
+      bar**
+      ---
+      \\textbf{foo
+      bar}
+    '''
+
+    testCase.skip '''
+      424
+      ---
+      __foo _bar_ baz__
+      ---
+      \\textbf{foo \\emph{bar} baz}
+    '''
+
+    testCase.skip '''
+      425
+      ---
+      __foo __bar__ baz__
+      ---
+      \\textbf{foo \\textbf{bar} baz}
+    '''
+
+    testCase.skip '''
+      426
+      ---
+      ____foo__ bar__
+      ---
+      \\textbf{\\textbf{foo} bar}
+    '''
+
+    testCase '''
+      427
+      ---
+      **foo **bar****
+      ---
+      \\textbf{foo \\textbf{bar}}
+    '''
+
+    testCase '''
+      428
+      ---
+      **foo *bar* baz**
+      ---
+      \\textbf{foo \\emph{bar} baz}
+    '''
+
+    testCase '''
+      429
+      ---
+      **foo*bar*baz**
+      ---
+      \\textbf{foo\\emph{bar}baz}
+    '''
+
+    testCase '''
+      430
+      ---
+      ***foo* bar**
+      ---
+      \\textbf{\\emph{foo} bar}
+    '''
+
+    testCase '''
+      431
+      ---
+      **foo *bar***
+      ---
+      \\textbf{foo \\emph{bar}}
+    '''
+
+    testCase '''
+      432
+      ---
+      **foo *bar **baz**
+      bim* bop**
+      ---
+      \\textbf{foo \\emph{bar \\textbf{baz}
+      bim} bop}
+    '''
+
+    testCase '''
+      433
+      ---
+      **foo \\href{/url}{*bar*}**
+      ---
+      \\textbf{foo \\href{/url}{\\emph{bar}}}
+    '''
+
+    testCase '''
+      434
+      ---
+      __ is not an empty emphasis
+      ---
+      __ is not an empty emphasis
+    '''
+
+    testCase '''
+      435
+      ---
+      ____ is not an empty strong emphasis
+      ---
+      ____ is not an empty strong emphasis
+    '''
+
+    testCase '''
+      436
+      ---
+      foo ***
+      ---
+      foo ***
+    '''
+
+    testCase '''
+      437
+      ---
+      foo *\**
+      ---
+      foo \\emph{\*}
+    '''
+
+    testCase '''
+      438
+      ---
+      foo *_*
+      ---
+      foo \\emph{_}
+    '''
+
+    testCase '''
+      439
+      ---
+      foo *****
+      ---
+      foo *****
+    '''
+
+    testCase '''
+      440
+      ---
+      foo **\***
+      ---
+      foo \\textbf{\*}
+    '''
+
+    testCase '''
+      441
+      ---
+      foo **_**
+      ---
+      foo \\textbf{_}
+    '''
+
+    testCase '''
+      442
+      ---
+      **foo*
+      ---
+      *\\emph{foo}
+    '''
+
+    testCase '''
+      443
+      ---
+      *foo**
+      ---
+      \\emph{foo}*
+    '''
+
+    testCase '''
+      444
+      ---
+      ***foo**
+      ---
+      *\\textbf{foo}
+    '''
+
+    testCase '''
+      445
+      ---
+      ****foo*
+      ---
+      ***\\emph{foo}
+    '''
+
+    testCase '''
+      446
+      ---
+      **foo***
+      ---
+      \\textbf{foo}*
+    '''
+
+    testCase '''
+      447
+      ---
+      *foo****
+      ---
+      \\emph{foo}***
+    '''
+
+    testCase '''
+      448
+      ---
+      foo ___
+      ---
+      foo ___
+    '''
+
+    testCase.skip '''
+      449
+      ---
+      foo _\__
+      ---
+      foo \\emph{\_}
+    '''
+
+    testCase.skip '''
+      450
+      ---
+      foo _*_
+      ---
+      foo \\emph{*}
+    '''
+
+    testCase '''
+      451
+      ---
+      foo _____
+      ---
+      foo _____
+    '''
+
+    testCase.skip '''
+      452
+      ---
+      foo __\___
+      ---
+      foo \\textbf{_}
+    '''
+
+    testCase.skip '''
+      453
+      ---
+      foo __*__
+      ---
+      foo \\textbf{*}
+    '''
+
+    testCase.skip '''
+      454
+      ---
+      __foo_
+      ---
+      _\\emph{foo}
+    '''
+
+    testCase.skip '''
+      455
+      ---
+      _foo__
+      ---
+      \\emph{foo}_
+    '''
+
+    testCase.skip '''
+      456
+      ---
+      ___foo__
+      ---
+      _\\textbf{foo}
+    '''
+
+    testCase.skip '''
+      457
+      ---
+      ____foo_
+      ---
+      ___\\emph{foo}
+    '''
+
+    testCase.skip '''
+      458
+      ---
+      __foo___
+      ---
+      \\textbf{foo}_
+    '''
+
+    testCase.skip '''
+      459
+      ---
+      _foo____
+      ---
+      \\emph{foo}___
+    '''
+
+    testCase '''
+      460
+      ---
+      **foo**
+      ---
+      \\textbf{foo}
+    '''
+
+    testCase.skip '''
+      461
+      ---
+      *_foo_*
+      ---
+      \\emph{\\emph{foo}}
+    '''
+
+    testCase.skip '''
+      462
+      ---
+      __foo__
+      ---
+      \\textbf{foo}
+    '''
+
+    testCase.skip '''
+      463
+      ---
+      _*foo*_
+      ---
+      \\emph{\\emph{foo}}
+    '''
+
+    testCase '''
+      464
+      ---
+      ****foo****
+      ---
+      {foo}
+    '''
+
+    testCase.skip '''
+      465
+      ---
+      ____foo____
+      ---
+      {foo}
+    '''
+
+    testCase '''
+      466
+      ---
+      ******foo******
+      ---
+      {foo}
+    '''
+
+    testCase '''
+      467
+      ---
+      ***foo***
+      ---
+      \\defn{foo}
+    '''
+
+    testCase.skip '''
+      468
+      ---
+      _____foo_____
+      ---
+      {foo}
+    '''
+
+    testCase '''
+      469
+      ---
+      *foo _bar* baz_
+      ---
+      \\emph{foo _{bar}} baz_
+    '''
+
+    testCase.skip '''
+      470
+      ---
+      *foo __bar *baz bim__ bam*
+      ---
+      \\emph{foo \\textbf{bar *baz bim} bam}
+    '''
+
+    testCase '''
+      471
+      ---
+      **foo **bar baz**
+      ---
+      **foo \\textbf{bar baz}
+    '''
+
+    testCase '''
+      472
+      ---
+      *foo *bar baz*
+      ---
+      *foo \\emph{bar baz}
+    '''
+
+    testCase '''
+      473
+      ---
+      *\\href{/url}{bar*}
+      ---
+      *\\href{/url}{bar*}
+    '''
+
+    testCase '''
+      474
+      ---
+      _foo \\href{/url}{bar*}
+      ---
+      _{foo} \\href{/url}{bar*}
+    '''
+
+    testCase '''
+      475
+      ---
+      *\\includegraphics{*}
+      ---
+      *\\includegraphics{*}
+    '''
+
+    testCase '''
+      476
+      ---
+      **\\url{**}
+      ---
+      **\\url{**}
+    '''
+
+    testCase '''
+      477
+      ---
+      __\\url{__}
+      ---
+      __\\url{__}
+    '''
+
+    testCase.skip '''
+      478
+      ---
+      *a \\verb|*|*
+      ---
+      \\emph{a \\verb|*|}
+    '''
+
+    testCase.skip '''
+      479
+      ---
+      _a \\verb|_|_
+      ---
+      \\emph{a \\verb|_|}
+    '''
+
+    testCase.skip '''
+      480
+      ---
+      **a\\url{https://foo.bar/?q=**}
+      ---
+      **a\\url{https://foo.bar/?q=**}
+    '''
+
+    testCase.skip '''
+      481
+      ---
+      __a\\url{https://foo.bar/?q=__}
+      ---
+      __a\\url{https://foo.bar/?q=__}
+    '''
