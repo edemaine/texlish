@@ -1,18 +1,96 @@
-type { AST, CompilerOptions } from ./types.civet
-{ iterate } from ./util.civet
+type { AST, CompilerOptions, Delimiter } from ./types.civet
+{ iteratePrePost, iterateFlat } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 
 // Root node is always an array of statements
 export function process(root: AST[], options: CompilerOptions): AST
+  processMarkdown root
   processDocument root unless options.fragment
   root
 
+// Based on CommonMark spec:
+// https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+// Deviations:
+// * We treat ***, ****, etc. as their own styles which can be defined.
+//   By contrast, CommonMark only defines * and ** and defines how they nest.
+// * If one of the delimiters is both left and right delimiting, CommonMark
+//   requires forbids the delimiters from having total size a multiple of 3.
+//   Instead, we forbid one delimiter from being exactly half the size of the
+//   other, which forbids the useless cases of either immediately closing and
+//   opening the same level of emphasis, or nesting two identical emphases.
+function processMarkdown(root: AST[]): void
+  for parent of iterateFlat root
+    continue unless Array.isArray parent
+    opens: Delimiter[] .= []
+    for each child of parent
+      continue unless child is like { type: "Delimiter" }
+      // Prefer closing over opening, for Rule 15:
+      // When two potential emphasis or strong emphasis spans overlap,
+      // so that the second begins before the first ends and
+      // ends after the first ends, the first takes precedence.
+      if child.close and opens#
+        close .= child.token!
+        for i of [opens#-1..0]
+          function opener(delim: string): string
+            (opens[i].styles[delim] ?? "") + '{'
+          open .= opens[i].token!
+          if close.startsWith open  // open finished
+            // Open+close delimiter: Forbid double nested identical emphasis
+            unless close is open+open and (opens[i].close or child.open)
+              (opens[i].children ?= []).unshift opener open
+              delete opens[i].token
+              // Remove opens[i] and any following opens,
+              // because they are now nested inside this open/close pair.
+              opens.splice i, opens# - i
+              (child.children ??= []).push '}'
+              if close# > open#  // some close remains
+                close = child.token = close[open.length..]
+              else  // close finished too
+                delete child.token
+                break
+          else if open.endsWith close  // close finished
+            // Open+close delimiter: Forbid double nested identical emphasis
+            unless open is close+close and (opens[i].close or child.open)
+              (opens[i].children ?= []).unshift opener close
+              opens[i].token = open[...-close.length]
+              (child.children ??= []).push '}'
+              delete child.token
+              break
+        // Don't pursue open case if fully closed
+        continue unless child.token?
+      if child.open
+        opens.push child
+        child.openIndex = child.children# if child.children?
+      else if child.token and child.children?  // remaining text after close
+        child.children.push child.token
+        delete child.token
+    // Unmatched opens remain text
+    for each open of opens
+      if open.token and open.children?
+        open.children.splice open.openIndex ?? 0, 0, open.token
+        delete open.token
+
+function liftsToPreamble(node: AST): boolean
+  node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
+
 // Automatic `\begin{document}`, `\end{document}`, `\maketitle`
 function processDocument(root: AST[]): void
+  // Find any existing \begin{document}, \end{document}, \maketitle, \title,
+  // \documentclass in the document, and put them in `document`.
+  // Collect any >>preamble and >>use blocks for possibly moving to preamble.
   document: Record<string, AST> .= {}
   preamble: AST[][] .= []
-  for parent of iterate root
+  preambleDepth .= 0
+  for {node: parent, post} of iteratePrePost root
+    // Keep track of "preamble depth" so we don't add descandants too
+    if liftsToPreamble parent
+      if post
+        preambleDepth--
+      else
+        preambleDepth++
+    continue if post
+    // We process array parents of actual content so we can find siblings
     continue unless Array.isArray parent
     for each child, let i of parent
       if child is like { type: "Environment", env: "document" }
@@ -27,7 +105,7 @@ function processDocument(root: AST[]): void
               document[child.token] ?= parent
           when "\\maketitle", "\\title", "\\documentclass"
             document[child.token] ?= parent
-      else if child is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
+      else if preambleDepth is 0 and liftsToPreamble child
         preamble.push parent
 
   // Add \end{document} as a final line if it doesn't exist

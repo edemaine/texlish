@@ -24,6 +24,7 @@ export type ASTNode
   | Braced
   | Comment
   | Command
+  | Delimiter
   | Environment
   | EOL
   | Header
@@ -42,6 +43,19 @@ export interface Comment extends ASTToken
 
 export interface Command extends ASTToken
   type: "Command"
+
+export interface Delimiter
+  type: "Delimiter"
+  open: boolean
+  close: boolean
+  styles: Record<string, string>
+  symbol: string  // "*", "**", "***", etc. (also initial value of token)
+  // Starts with just token and, if actual delimiter, evolves to just children
+  token?: string
+  children?: AST[]
+  // Index into children where the delimiter started considered opening,
+  // if already some children for closing.
+  openIndex?: number
 
 export interface Environment extends ASTParent
   type: "Environment"

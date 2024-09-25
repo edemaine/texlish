@@ -8,6 +8,8 @@ interface Props {
 }
 let { src, complete } = Astro.props
 const compiled = compile(src, { fragment: !complete })
+// Clean up output a bit for better alignment
+.replace(/\n{3,}/g, '\n\n')
 ---
 <div class="example">
   <Code code={src} lang="tex"/>

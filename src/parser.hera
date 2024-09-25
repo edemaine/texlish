@@ -90,15 +90,51 @@ TextPart
     return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.styles['[[']}{${$1}}`
+  Autolink
   /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
     return `${$1}{${$2}}`
   [\^_] ParenthesizedContent ->
     // $2[1] strips the parens
     return [ $1[0], '{', $2[1], '}' ]
+  # Left- *and* right-flanking delimiter according to below definitions.
+  /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
+    return {
+      type: "Delimiter",
+      open: true,
+      close: true,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
+  # https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+  # defines "left-flanking delimiter run" as (1) not followed by a space, and
+  # (2a) not followed by punctuation, or (2b) [followed by punctuation and]
+  # preceded by whitespace or punctuation.
+  /(?<!\*)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])|(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}])\1))/ ->
+    return {
+      type: "Delimiter",
+      open: true,
+      close: false,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
+  # "Right-flanking delimiter run" is (1) not preceded by a space, and
+  # (2a) not preceded by punctuation, or (2b) [preceded by punctuation and]
+  # followed by whitespace or punctuation.
+  /(?<![\*\s]|^)(\*+)(?!\*)(?:(?<![\p{Punctuation}\p{Symbol}]\1)|(?=$|\s|[\p{Punctuation}\p{Symbol}]))/ ->
+    return {
+      type: "Delimiter",
+      open: false,
+      close: true,
+      styles: state.styles,
+      symbol: $1,
+      token: $1,
+    }
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%]*/
+  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
 
 TrimmedText
   Text:t ->
@@ -165,6 +201,22 @@ Header
       subtype: command,
       children: [ command, '{', title, '}' ],
     }
+
+# https://spec.commonmark.org/0.31.2/#autolinks
+Autolink
+  # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
+  /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
+    return `\\url{${$1}}`
+  # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
+  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
+    let email = $1
+    // https://tex.stackexchange.com/a/34586/245104
+    let escaped = email
+    .replace(/\\/g, "\\textbackslash ")
+    .replace(/[&%$#_{}]/g, "\\$&")
+    .replace(/~/g, "\\textasciitilde ")
+    .replace(/\^/g, "\\textasciicircum ")
+    return `\\href{mailto:${email}}{${escaped}}`
 
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
@@ -258,6 +310,8 @@ MetaCommand
 
 MetaStyles
   "styles" NestedAssignments:body ->
+    // Avoid aliasing so that we can copy by reference in Delimiters
+    state.styles = {...state.styles}
     for (const [key, value] of body) {
       state.styles[key] = generate(value)
     }

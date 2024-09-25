@@ -39,7 +39,13 @@ Try Texlish for your next document, paper, or presentation!
   >>use
     amsthm
     geometry: margin=1in
-  \\newtheorem: theorem
+  \\newtheorem:
+    - theorem
+    - Theorem
+    ~ section
+
+
+
 
   # Introduction
   *This* is an **example** of ***Texlish***.
@@ -49,6 +55,12 @@ Try Texlish for your next document, paper, or presentation!
     This is a theorem.
   > proof[sketch]
     By recursion; see @thm:main.
+
+
+
+  .# Features.
+  1. Markdown syntax
+  2. Better LaTeX syntax
 `}/>
 
 ### Figure with Subfigures

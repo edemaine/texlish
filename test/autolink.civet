@@ -1,0 +1,164 @@
+{ testCase } from ./helper.civet
+
+describe '<autolink>', ->
+  // examples from https://spec.commonmark.org/0.31.2/#autolinks
+
+  testCase '''
+    594
+    ---
+    <http://foo.bar.baz>
+    ---
+    \\url{http://foo.bar.baz}
+  '''
+
+  testCase '''
+    595
+    ---
+    <https://foo.bar.baz/test?q=hello&id=22&boolean>
+    ---
+    \\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
+  '''
+
+  testCase '''
+    596
+    ---
+    <irc://foo.bar:2233/baz>
+    ---
+    \\url{irc://foo.bar:2233/baz}
+  '''
+
+  testCase '''
+    597
+    ---
+    <MAILTO:FOO@BAR.BAZ>
+    ---
+    \\url{MAILTO:FOO@BAR.BAZ}
+  '''
+
+  testCase '''
+    598
+    ---
+    <a+b+c:d>
+    ---
+    \\url{a+b+c:d}
+  '''
+
+  testCase '''
+    599
+    ---
+    <made-up-scheme://foo,bar>
+    ---
+    \\url{made-up-scheme://foo,bar}
+  '''
+
+  testCase '''
+    600
+    ---
+    <https://../>
+    ---
+    \\url{https://../}
+  '''
+
+  testCase '''
+    601
+    ---
+    <localhost:5001/foo>
+    ---
+    \\url{localhost:5001/foo}
+  '''
+
+  testCase '''
+    602
+    ---
+    <https://foo.bar/baz bim>
+    ---
+    <https://foo.bar/baz bim>
+  '''
+
+  testCase '''
+    603
+    ---
+    <https://example.com/\\[\\>
+    ---
+    \\url{https://example.com/\\[\\}
+  '''
+
+  testCase '''
+    604
+    ---
+    <foo@bar.example.com>
+    ---
+    \\href{mailto:foo@bar.example.com}{foo@bar.example.com}
+  '''
+
+  testCase '''
+    605
+    ---
+    <foo+special@Bar.baz-bar0.com>
+    ---
+    \\href{mailto:foo+special@Bar.baz-bar0.com}{foo+special@Bar.baz-bar0.com}
+  '''
+
+  testCase '''
+    606
+    ---
+    <foo\\+@bar.example.com>
+    ---
+    <foo\\+\\ref{bar.example.com>}
+  '''
+
+  testCase '''
+    607
+    ---
+    <>
+    ---
+    <>
+  '''
+
+  testCase '''
+    608
+    ---
+    < https://foo.bar >
+    ---
+    < https://foo.bar >
+  '''
+
+  testCase '''
+    609
+    ---
+    <m:abc>
+    ---
+    <m:abc>
+  '''
+
+  testCase '''
+    610
+    ---
+    <foo.bar.baz>
+    ---
+    <foo.bar.baz>
+  '''
+
+  testCase '''
+    610
+    ---
+    https://example.com
+    ---
+    https://example.com
+  '''
+
+  testCase '''
+    611
+    ---
+    foo@bar.example.com
+    ---
+    foo\\ref{bar.example.com}
+  '''
+
+  testCase '''
+    escaping email
+    ---
+    <!#$%&'\*\+\/=\?\^_`{\|}~\-@example.com>
+    ---
+    \\href{mailto:!#$%&'*+/=?^_`{|}~-@example.com}{!\\#\\$\\%\\&'*+/=?\\textasciicircum \\_`\\{|\\}\\textasciitilde -@example.com}
+  '''

@@ -1,7 +1,7 @@
 type { AST } from ./types.civet
 
 // Generate all nodes in the tree in prefix order.
-export function iterate(node: AST, parent?: AST): Generator<AST>
+export function iterate(node: AST): Generator<AST>
   yield node
   return unless node <? "object"
   if Array.isArray node
@@ -10,6 +10,32 @@ export function iterate(node: AST, parent?: AST): Generator<AST>
   else if "children" in node
     for each child of node.children
       yield* iterate child
+
+// Generate all nodes in the tree in prefix order.
+export function iterateFlat(node: AST): Generator<AST>
+  if Array.isArray node
+    //@ts-ignore deep type recursion
+    node = node.flat Infinity
+  yield node
+  return unless node <? "object"
+  if Array.isArray node
+    for each child of node
+      yield* iterate child
+  else if "children" in node
+    for each child of node.children
+      yield* iterate child
+
+// Generate every node twice, once before and once after recursion.
+export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
+  yield {node, post: false}
+  return unless node <? "object"
+  if Array.isArray node
+    for each child of node
+      yield* iteratePrePost child
+  else if "children" in node
+    for each child of node.children
+      yield* iteratePrePost child
+  yield {node, post: true}
 
 // Find any node that matches a given condition, or undefined if not found.
 export function find(node: AST, match: (candidate: AST) => boolean): AST
