@@ -90,6 +90,7 @@ TextPart
     return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.styles['[[']}{${$1}}`
+  Autolink
   /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
     return `${$1}{${$2}}`
   [\^_] ParenthesizedContent ->
@@ -200,6 +201,22 @@ Header
       subtype: command,
       children: [ command, '{', title, '}' ],
     }
+
+# https://spec.commonmark.org/0.31.2/#autolinks
+Autolink
+  # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
+  /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
+    return `\\url{${$1}}`
+  # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
+  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
+    let email = $1
+    // https://tex.stackexchange.com/a/34586/245104
+    let escaped = email
+    .replace(/\\/g, "\\textbackslash ")
+    .replace(/[&%$#_{}]/g, "\\$&")
+    .replace(/~/g, "\\textasciitilde ")
+    .replace(/\^/g, "\\textasciicircum ")
+    return `\\href{mailto:${email}}{${escaped}}`
 
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
