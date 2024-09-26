@@ -1,0 +1,23 @@
+"civet jsxCode"
+{ createMemo, createSignal } from solid-js
+{ compile } from ../../../dist/main.js
+
+export function Playground({
+  src: initialSrc:: string
+  complete?:: boolean
+})
+  [src, setSrc] := createSignal initialSrc
+  compiled := createMemo =>
+    compile src(), fragment: !complete
+    // Clean up output a bit for better alignment
+    .replace /\n{3,}/g, '\n\n'
+  function rows
+    (src().match(/\n/g)?# ?? 0) + 2
+
+  <.example>
+    <h5>'Enter Texlish code here:'
+    <h5>'Resulting LaTeX output:'
+    <pre><textarea rows() onInput=
+      (e) => setSrc e.currentTarget.value
+    >initialSrc
+    <pre>compiled()

@@ -31,6 +31,10 @@ export default defineConfig({
           label: 'Reference',
           slug: 'reference',
         },
+        {
+          label: 'Playground',
+          slug: 'playground',
+        },
       ],
     }),
     mdx(),

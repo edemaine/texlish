@@ -1,0 +1,27 @@
+---
+import { Playground } from './playground.civet'
+---
+<Playground client:load src="# Hello, Texlish!" complete />
+
+<style lang="stylus" is:global>
+  .example
+    display: grid
+    grid-template-columns: 1fr 1fr
+    gap: 1rem
+    align-items: stretch
+    > *
+      margin-top: 0 !important
+  textarea
+    width: 100%
+    height: 100%
+    resize: none
+    background-color: inherit
+    color: inherit
+    border: none
+    &:focus
+      border: none
+      outline: none
+  pre
+    white-space: pre-wrap
+    overflow-wrap: anywhere
+</style>
