@@ -46,6 +46,14 @@ You can also redefine the meaning of these symbols:
   ***teletype***
 `}/>
 
+To use the LaTeX character `*`, wrap it in braces
+(so that pairs of emphasis characters aren't in the same group):
+
+<Example src={`
+  {*}not italic{*}
+  {**}not bold{**}
+`}/>
+
 ## Lists
 
 Similar to Markdown lists, but with less strict requirements on indentation.
@@ -84,11 +92,12 @@ Similar to Markdown lists, but with less strict requirements on indentation.
   #@thm:main
 `}/>
 
-If your label needs spaces or trailing punctation, put it in quotes:
+If your label needs spaces or trailing punctation, put it in quotes or braces:
 
 <Example src={`
   @='thm main'
   @"thm main"
+  @{thm main}
   #@'thm main'
 `}/>
 
@@ -104,6 +113,12 @@ override the meaning of these symbols:
   @thm:main,thm:other
 `}/>
 
+To use the LaTeX character `@` (that aren't part of an [email link](#links)),
+wrap it in braces:
+
+<Example src={`
+  To give feedback, {@}me
+`}/>
 
 ## Cite
 

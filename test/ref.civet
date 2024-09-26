@@ -57,7 +57,21 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     @='big theorem'
     @"big theorem"
+    #@{big theorem}
     ---
     \\label{big theorem}
     \\ref{big theorem}
+    \\pageref{big theorem}
+  '''
+
+  testCase '''
+    {} escaping
+    ---
+    {@=}thm:main
+    {@}thm:main
+    {#@}thm:main
+    ---
+    {@=}thm:main
+    {@}thm:main
+    {#@}thm:main
   '''
