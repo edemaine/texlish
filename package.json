@@ -4,6 +4,14 @@
   "version": "0.0.0",
   "description": "Better LaTeX that compiles to LaTeX",
   "main": "dist/main.js",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "require": "./dist/main.cjs"
+    },
+    "./*": "./*",
+    "./dist/*": "./dist/*"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/edemaine/texlish.git"
@@ -23,6 +31,7 @@
     "build": "bash ./build/build.sh",
     "docs:dev": "pnpm build && pnpm --dir docs dev",
     "docs:build": "pnpm build && pnpm --dir docs build",
+    "prepublish": "pnpm build",
     "test": "mocha"
   },
   "author": "Erik Demaine",
