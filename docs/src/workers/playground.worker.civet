@@ -1,4 +1,5 @@
-{ compile } from '../../../dist/main.js'
+{ compile } from ../../../dist/main.js
+{ createHighlighter } from shiki
 
 export type WorkerInput
   id: number
@@ -9,20 +10,43 @@ export type WorkerOutput
   {
     id: number
     tex: string
+    html: string
   } |
   {
     id: number
     error: string
+    html: string
   }
 
-onmessage = ({data:: WorkerInput}): void =>
+declare const postMessage: (data: WorkerOutput) => void
+
+themes :=
+  light: 'github-light'
+  dark: 'github-dark-high-contrast'
+highlighter := await createHighlighter
+  themes: Object.values themes
+  langs: ['tex']
+
+export function process(data: WorkerInput): WorkerOutput
   {id, src, complete} := data
-  let tex
+  let tex: string, html: string
   try
     tex = compile src, fragment: !complete
     // Clean up output a bit for better alignment
     .replace /\n{3,}/g, '\n\n'
+    html = highlighter.codeToHtml tex, {
+      lang: 'tex'
+      themes
+    }
+    return { id, tex, html }
   catch e
-    return postMessage { id, error: (e as Error).message }
+    error := (e as Error).message
+    html := error
+    .replace /&/g, '&amp;'
+    .replace /</g, '&lt;'
+    .replace />/g, '&gt;'
+    return { id, error, html }
 
-  postMessage { id, tex }
+unless typeof onmessage is 'undefined'
+  onmessage = ({data:: WorkerInput}): void =>
+    postMessage process data

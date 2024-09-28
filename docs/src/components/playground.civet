@@ -23,16 +23,18 @@ unless isServer
 export function Playground({
   src: initialSrc:: string
   compiled: initialCompiled:: string
+  html: initialHtml:: string
   complete?:: boolean
 })
   [src, setSrc] := createSignal initialSrc
   [compiled] := createResource<WorkerOutput, string> src, (src) =>
     if isServer
-      return {id: -100, tex: initialCompiled}
-    id := nextId++
-    new Promise (done) =>
-      msgMap.set id, done
-      worker.postMessage { id, src, complete }
+      return {id: -1, tex: initialCompiled, html: initialHtml}
+    else
+      id := nextId++
+      new Promise (done) =>
+        msgMap.set id, done
+        worker.postMessage { id, src, complete }
   function rows
     (src().match(/\n/g)?# ?? 0) + 2
 
@@ -42,8 +44,4 @@ export function Playground({
     <pre><textarea rows() onInput=
       (e) => setSrc e.currentTarget.value
     >initialSrc
-    <pre>
-      if "error" in compiled.latest?
-        compiled.latest.error
-      else
-        compiled.latest?.tex
+    <div innerHTML=compiled.latest?.html>
