@@ -1,0 +1,28 @@
+{ compile } from '../../../dist/main.js'
+
+export type WorkerInput
+  id: number
+  src: string
+  complete?: boolean
+
+export type WorkerOutput
+  {
+    id: number
+    tex: string
+  } |
+  {
+    id: number
+    error: string
+  }
+
+onmessage = ({data:: WorkerInput}): void =>
+  {id, src, complete} := data
+  let tex
+  try
+    tex = compile src, fragment: !complete
+    // Clean up output a bit for better alignment
+    .replace /\n{3,}/g, '\n\n'
+  catch e
+    return postMessage { id, error: (e as Error).message }
+
+  postMessage { id, tex }

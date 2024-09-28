@@ -5,6 +5,7 @@ import starlight from '@astrojs/starlight'
 import mdx from '@astrojs/mdx'
 import solid from '@astrojs/solid-js'
 import civet from '@danielx/civet/astro'
+import civetVite from '@danielx/civet/vite'
 
 // https://astro.build/config
 export default defineConfig({
@@ -41,4 +42,10 @@ export default defineConfig({
     solid(),
     civet({ts: 'preserve'}) as AstroIntegration,
   ],
+  vite: {
+    worker: {
+      format: 'es',
+      plugins: () => [civetVite({ts: 'preserve'})],
+    }
+  }
 })

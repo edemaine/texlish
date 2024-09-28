@@ -1,7 +1,10 @@
 ---
 import { Playground } from './playground.civet'
+import { compile } from '../../../dist/main.js'
+const defaultSrc = `# Hello, Texlish!`
+const defaultCompiled = compile(defaultSrc)
 ---
-<Playground client:load src="# Hello, Texlish!" complete />
+<Playground client:load complete src={defaultSrc} compiled={defaultCompiled} />
 
 <style lang="stylus" is:global>
   .example
