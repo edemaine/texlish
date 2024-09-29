@@ -175,11 +175,14 @@ Comment
     }
 
 Command
-  /\\([a-zA-Z@]+|.)/ ->
+  /\\([a-zA-Z@]+|.|$)/ ->
     return {
       type: "Command",
       token: $0,
     }
+
+CommandWithoutNewline
+  !/\\[\r\n]/ Command -> $2
 
 ParenthesizedContent
   "(" ParenBalancedContent ")"
@@ -242,11 +245,11 @@ Environment
     }
 
 CommandWithColonArgument
-  Indent:indent Command:command ColonArgument:arg
+  Indent:indent CommandWithoutNewline:command ColonArgument:arg
 
 # Inline version prevents combining same-line and indented content
 InlineCommandWithColonArgument
-  Command InlineColonArgument
+  CommandWithoutNewline InlineColonArgument
 
 ColonArgument
   ":" ArgumentAfterColon -> $2

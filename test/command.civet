@@ -20,6 +20,16 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    ignored after newline
+    ---
+    \\
+    : foo
+    ---
+    \\
+    : foo
+  '''
+
+  testCase '''
     ignored in comment
     ---
     % \\bibliography: bib
@@ -151,4 +161,12 @@ describe '\\command:', ->
       bib}% give to BibTeX
     \\bibliography{%
       bib}% give to BibTeX
+  '''
+
+  testCase '''
+    at EOF
+    ---
+    \\
+    ---
+    \\
   '''
