@@ -1,9 +1,9 @@
 // based on https://github.com/DanielXMoore/Civet/blob/main/source/main.civet
 
-import { parse, getStateKey } from ./parser.hera
+import { parse, getStateKey, ParseError } from ./parser.hera
 //import * as sourcemap from "./sourcemap.civet"
 //{ SourceMap } := sourcemap
-export { parse }
+export { parse, ParseError }
 
 import { process } from ./postprocess.civet
 export { process }

@@ -19,6 +19,8 @@ export const state = {
 export function getStateKey() {
   return state.currentIndent.level
 }
+
+export { ParseError }
 ```
 
 Main

@@ -1,4 +1,4 @@
-{ compile } from ../../../dist/main.js
+{ compile, ParseError } from ../../../dist/main.js
 { createHighlighter } from shiki
 
 export type WorkerInput
@@ -23,6 +23,10 @@ declare const postMessage: (data: WorkerOutput) => void
 themes :=
   light: 'github-light'
   dark: 'github-dark-high-contrast'
+highlightOptions := {
+  lang: 'tex'
+  themes
+}
 highlighter := await createHighlighter
   themes: Object.values themes
   langs: ['tex']
@@ -34,17 +38,23 @@ export function process(data: WorkerInput): WorkerOutput
     tex = compile src, fragment: !complete
     // Clean up output a bit for better alignment
     .replace /\n{3,}/g, '\n\n'
-    html = highlighter.codeToHtml tex, {
-      lang: 'tex'
-      themes
-    }
+    html = highlighter.codeToHtml tex, highlightOptions
     return { id, tex, html }
   catch e
-    error := (e as Error).message
-    html := error
-    .replace /&/g, '&amp;'
-    .replace /</g, '&lt;'
-    .replace />/g, '&gt;'
+    let error: string
+    if e instanceof ParseError
+      linesUntilError := src.split('\n')[0...e.line].join '\n'
+      errorLine := `${' '.repeat e.column - 1}^ ${e.header}`;
+      error = `${linesUntilError}\n${errorLine}`;
+      html = highlighter.codeToHtml error, highlightOptions
+    else
+      error = e.toString()
+      html = error
+      .replace /&/g, '&amp;'
+      .replace /</g, '&lt;'
+      .replace />/g, '&gt;'
+      .replace /([^:]*?): /, '<strong style="color: red">$1</strong>: '
+      |> `<pre>${&}</pre>`
     return { id, error, html }
 
 unless typeof onmessage is 'undefined'
