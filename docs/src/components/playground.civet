@@ -1,17 +1,20 @@
 "civet jsxCode"
-{ createResource, createSignal } from solid-js
+{ createEffect, createResource, createSignal, onMount } from solid-js
 { isServer } from solid-js/web
 type { WorkerInput, WorkerOutput } from '../workers/playground.worker.civet'
 
 let worker: Worker
 let nextId: number
 let msgMap: Map<number, (data: WorkerOutput) => void>
+let ready: Promise<void>
 unless isServer
   worker = new Worker
     new URL '../workers/playground.worker.civet.tsx', import.meta.url
     type: 'module'
-  nextId = 0
-  msgMap = new Map
+  nextId = 1
+  let readyResolve: => void
+  ready = new Promise (resolve) => readyResolve = resolve
+  msgMap = new Map [[0, readyResolve!]]
   worker.onmessage = ({ data:: WorkerOutput }) =>
     resolver := msgMap.get data.id
     if resolver?
@@ -34,14 +37,25 @@ export function Playground({
       id := nextId++
       new Promise (done) =>
         msgMap.set id, done
+        await ready
         worker.postMessage { id, src, complete }
   function rows
     (src().match(/\n/g)?# ?? 0) + 2
 
+  let textarea: HTMLTextAreaElement
+  function changeSrc(code: string)
+    setSrc code
+    textarea.value = code
+  onMount =>  // ensure successful hydration before we change the example
+    if code := window.localStorage.getItem 'code'
+      changeSrc code
+  createEffect =>
+    window.localStorage.setItem 'code', src()
+
   <.example>
     <h5>'Enter Texlish code:'
     <h5>'Resulting LaTeX output:'
-    <pre><textarea rows() -spellcheck onInput=
+    <pre><textarea ref=textarea! rows() -spellcheck onInput=
       (e) => setSrc e.currentTarget.value
     >initialSrc
     <div innerHTML=compiled.latest?.html>

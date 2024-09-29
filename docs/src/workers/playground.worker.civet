@@ -60,3 +60,4 @@ export function process(data: WorkerInput): WorkerOutput
 unless typeof onmessage is 'undefined'
   onmessage = ({data:: WorkerInput}): void =>
     postMessage process data
+  postMessage { id: 0, tex: '', html: '' }
