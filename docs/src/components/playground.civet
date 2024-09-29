@@ -39,9 +39,9 @@ export function Playground({
     (src().match(/\n/g)?# ?? 0) + 2
 
   <.example>
-    <h5>'Enter Texlish code here:'
+    <h5>'Enter Texlish code:'
     <h5>'Resulting LaTeX output:'
-    <pre><textarea rows() onInput=
+    <pre><textarea rows() -spellcheck onInput=
       (e) => setSrc e.currentTarget.value
     >initialSrc
     <div innerHTML=compiled.latest?.html>
