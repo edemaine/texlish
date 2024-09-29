@@ -55,13 +55,16 @@ export function Playground({
       return changeSrc queryCode if queryCode?
     if code := window.localStorage.getItem 'code'
       changeSrc code
-  function onInput()
+  function onInput
     setSrc textarea.value
     window.localStorage.setItem 'code', src()
     window.history.replaceState {}, '', `${location.pathname}?code=${btoa src()}`
+  function clear
+    changeSrc ''
 
   <.example>
     <h5>'Enter Texlish code:'
     <h5>'Resulting LaTeX output:'
     <pre><textarea ref=textarea! rows() -spellcheck {onInput}>initialSrc
     <div innerHTML=compiled.latest?.html>
+    <a .clear onClick=clear>'Clear'

@@ -39,4 +39,16 @@ const {tex, html} = process({src, complete: true})
       font-style: var(--shiki-dark-font-style) !important
       font-weight: var(--shiki-dark-font-weight) !important
       text-decoration: var(--shiki-dark-text-decoration) !important
+  a.clear
+    display: block
+    justify-self: center
+    border-radius: 0.5rem
+    background: inherit
+    color: var(--sl-color-text-accent)
+    border: 1px solid var(--sl-color-text-accent)
+    padding: 0.1rem 1rem
+    cursor: pointer
+    &:hover
+      color: var(--sl-color-white)
+      border-color: 1px solid var(--sl-color-white)
 </style>
