@@ -134,6 +134,7 @@ function makeCache(options: CompilerOptions): CacheEvents
 
       stateKey := getStateKey()
       key: CacheKey := [stateKey, state.pos, ruleName ]
+      result = { ...result } if result?
       stateCache.set(key, result)
 
       if trace
