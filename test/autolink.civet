@@ -152,7 +152,7 @@ describe '<autolink>', ->
     ---
     foo@bar.example.com
     ---
-    foo\\ref{bar.example.com}
+    foo@bar.example.com
   '''
 
   testCase '''
