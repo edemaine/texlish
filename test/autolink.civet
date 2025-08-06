@@ -8,7 +8,7 @@ describe '<autolink>', ->
     ---
     <http://foo.bar.baz>
     ---
-    \\url{http://foo.bar.baz}
+    \\protect\\url{http://foo.bar.baz}
   '''
 
   testCase '''
@@ -16,7 +16,7 @@ describe '<autolink>', ->
     ---
     <https://foo.bar.baz/test?q=hello&id=22&boolean>
     ---
-    \\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
+    \\protect\\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
   '''
 
   testCase '''
@@ -24,7 +24,7 @@ describe '<autolink>', ->
     ---
     <irc://foo.bar:2233/baz>
     ---
-    \\url{irc://foo.bar:2233/baz}
+    \\protect\\url{irc://foo.bar:2233/baz}
   '''
 
   testCase '''
@@ -32,7 +32,7 @@ describe '<autolink>', ->
     ---
     <MAILTO:FOO@BAR.BAZ>
     ---
-    \\url{MAILTO:FOO@BAR.BAZ}
+    \\protect\\url{MAILTO:FOO@BAR.BAZ}
   '''
 
   testCase '''
@@ -40,7 +40,7 @@ describe '<autolink>', ->
     ---
     <a+b+c:d>
     ---
-    \\url{a+b+c:d}
+    \\protect\\url{a+b+c:d}
   '''
 
   testCase '''
@@ -48,7 +48,7 @@ describe '<autolink>', ->
     ---
     <made-up-scheme://foo,bar>
     ---
-    \\url{made-up-scheme://foo,bar}
+    \\protect\\url{made-up-scheme://foo,bar}
   '''
 
   testCase '''
@@ -56,7 +56,7 @@ describe '<autolink>', ->
     ---
     <https://../>
     ---
-    \\url{https://../}
+    \\protect\\url{https://../}
   '''
 
   testCase '''
@@ -64,7 +64,7 @@ describe '<autolink>', ->
     ---
     <localhost:5001/foo>
     ---
-    \\url{localhost:5001/foo}
+    \\protect\\url{localhost:5001/foo}
   '''
 
   testCase '''
@@ -80,7 +80,7 @@ describe '<autolink>', ->
     ---
     <https://example.com/\\[\\>
     ---
-    \\url{https://example.com/\\[\\}
+    \\protect\\url{https://example.com/\\[\\}
   '''
 
   testCase '''
@@ -88,7 +88,7 @@ describe '<autolink>', ->
     ---
     <foo@bar.example.com>
     ---
-    \\href{mailto:foo@bar.example.com}{\\nolinkurl{foo@bar.example.com}}
+    \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}}
   '''
 
   testCase '''
@@ -96,7 +96,7 @@ describe '<autolink>', ->
     ---
     <foo+special@Bar.baz-bar0.com>
     ---
-    \\href{mailto:foo+special@Bar.baz-bar0.com}{\\nolinkurl{foo+special@Bar.baz-bar0.com}}
+    \\protect\\href{mailto:foo+special@Bar.baz-bar0.com}{\\protect\\nolinkurl{foo+special@Bar.baz-bar0.com}}
   '''
 
   testCase '''
@@ -160,7 +160,7 @@ describe '<autolink>', ->
     ---
     <!#$%&'*+/=?^_`|~-@example.com>
     ---
-    \\href{mailto:!#$%25&amp;'*+/=?%5E_%60%7C~-@example.com}{\\nolinkurl{!#$%&'*+/=?^_`|~-@example.com}}
+    \\protect\\href{mailto:!#$%25&amp;'*+/=?%5E_%60%7C~-@example.com}{\\protect\\nolinkurl{!#$%&'*+/=?^_`|~-@example.com}}
   '''
 
   testCase '''
@@ -168,5 +168,5 @@ describe '<autolink>', ->
     ---
     <{one,two}@example.com>
     ---
-    \\href{mailto:one@example.com,two@example.com}{\\nolinkurl{{one,two}@example.com}}
+    \\protect\\href{mailto:one@example.com,two@example.com}{\\protect\\nolinkurl{{one,two}@example.com}}
   '''
