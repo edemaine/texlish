@@ -1,5 +1,21 @@
 # Texlish Changelog
 
+## 0.1.1
+
+* Blank lines no longer terminate an indented argument or environment.
+  [[#9](https://github.com/edemaine/texlish/issues/9),
+  [#14](https://github.com/edemaine/texlish/pull/14)]
+* Email autolinks now support `{a,b}@domain` syntax for multiple
+  addresses at the same domain.
+  [[#13](https://github.com/edemaine/texlish/issues/13)]
+* Email autolinks now use `\nolinkurl` to format the same as `\url`
+  (i.e., following `\urlstyle`), instead of manual escaping.
+* URL and email autolinks now use `\protect` in case they appear in
+  a moving argument (e.g. argument to `\thanks`).
+* `@ref` must now be preceded by whitespace or punctuation,
+  avoiding e.g. email addresses to be interpreted as references.
+  [[#12](https://github.com/edemaine/texlish/issues/12)]
+
 ## 0.1.0
 
 * Change environment and special environment syntax from `>env` and `>>special`

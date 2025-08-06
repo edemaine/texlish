@@ -1,7 +1,7 @@
 {
   "name": "texlish",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Better LaTeX that compiles to LaTeX",
   "main": "dist/main.js",
   "exports": {
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/edemaine/texlish.git"
+    "url": "git+https://github.com/edemaine/texlish.git"
   },
   "bin": {
     "texlish": "dist/texlish"
