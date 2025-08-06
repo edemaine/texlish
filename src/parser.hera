@@ -516,9 +516,9 @@ PopIndent
   "" ->
     state.indents.pop()
 
+# Here and below, EOL+ skips over blank lines without correct indentation
 Nested
-  EOL &IndentedFurther -> $1
-  (EOL)+ &IndentedFurther -> $1  # Skip one or more empty lines
+  EOL+ &IndentedFurther -> $1
 
 IndentedFurther
   Indentation:indent ->
@@ -526,8 +526,7 @@ IndentedFurther
     return $0
 
 SameLevel
-  EOL &IndentedSame -> $1
-  (EOL)+ &IndentedSame -> $1
+  EOL+ &IndentedSame -> $1
 
 IndentedSame
   Indentation:indent ->
@@ -535,8 +534,7 @@ IndentedSame
     return $0
 
 NonstrictlyNested
-  EOL &IndentedNotLess -> $1
-  (EOL)+ &IndentedNotLess -> $1
+  EOL+ &IndentedNotLess -> $1
 
 IndentedNotLess
   Indentation:indent ->

@@ -22,6 +22,36 @@ describe ': environments', ->
   '''
 
   testCase '''
+    indented body with blank line
+    ---
+    : theorem
+      Cool!
+
+      Right?
+    ---
+    \\begin{theorem}
+      Cool!
+
+      Right?
+    \\end{theorem}
+  '''
+
+  testCase '''
+    indented command body with blank line
+    ---
+    : figure
+      \\includegraphics: part1
+
+      \\includegraphics: part2
+    ---
+    \\begin{figure}
+      \\includegraphics{part1}%
+
+      \\includegraphics{part2}%
+    \\end{figure}
+  '''
+
+  testCase '''
     same-line argument
     ---
     : theorem: Hello
