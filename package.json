@@ -37,13 +37,13 @@
   "author": "Erik Demaine",
   "license": "MIT",
   "devDependencies": {
-    "@danielx/civet": "0.9.6",
+    "@danielx/civet": "0.10.5",
     "@danielx/hera": "0.8.16",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.13.4",
-    "esbuild": "^0.25.0",
-    "mocha": "^10.7.10",
-    "typescript": "^5.7.3"
+    "@types/node": "^24.2.0",
+    "esbuild": "^0.25.8",
+    "mocha": "^11.7.1",
+    "typescript": "^5.9.2"
   },
-  "packageManager": "pnpm@10.4.0+sha512.6b849d0787d97f8f4e1f03a9b8ff8f038e79e153d6f11ae539ae7c435ff9e796df6a862c991502695c7f9e8fac8aeafc1ac5a8dab47e36148d183832d886dd52"
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }
