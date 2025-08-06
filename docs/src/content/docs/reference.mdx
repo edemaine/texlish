@@ -128,11 +128,21 @@ wrap it in braces:
 
 ## Links
 
-Similar to Markdown autolinks.
+Similar to Markdown autolinks, you can write URLs and email addresses
+in angle brackets.
 
 <Example src={`
   <https://texlish.org>
   <edemaine@mit.edu>
+`}/>
+
+Texlish uses `\protect` in case these appear in a moving argument.
+
+Texlish even produces a correct `mailto:` link in the common brace format
+for writing multiple email addresses at the same domain:
+
+<Example src={`
+  <{edemaine,mdemaine}@mit.edu>
 `}/>
 
 ## Commands

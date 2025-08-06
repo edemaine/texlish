@@ -227,15 +227,22 @@ Autolink
   /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
     return `\\url{${$1}}`
   # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
-  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
+  # Texlish additionally allows {a,b} in the userid, which is common in papers
+  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-,]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
     let email = $1
-    // https://tex.stackexchange.com/a/34586/245104
-    let escaped = email
-    .replace(/\\/g, "\\textbackslash ")
-    .replace(/[&%$#_{}]/g, "\\$&")
-    .replace(/~/g, "\\textasciitilde ")
-    .replace(/\^/g, "\\textasciicircum ")
-    return `\\href{mailto:${email}}{${escaped}}`
+    // Convert {a,b}@domain to mailto:a@domain,b@domain
+    let match = /\{([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`\|~\-,]+)\}/.exec(email)
+    if (match) {
+      email = match[1].split(',').map(part =>
+        email.slice(0, match.index) + part +
+        email.slice(match.index + match[0].length)
+      ).join(',')
+    }
+    // commonmark.js dingus escapes as follows:
+    email = email
+    .replace(/&/g, '&amp;')
+    .replace(/[%^`|]/g, m => `%${m.charCodeAt(0).toString(16).toUpperCase()}`)
+    return `\\href{mailto:${email}}{\\nolinkurl{${$1}}}`
 
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early

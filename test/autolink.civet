@@ -88,7 +88,7 @@ describe '<autolink>', ->
     ---
     <foo@bar.example.com>
     ---
-    \\href{mailto:foo@bar.example.com}{foo@bar.example.com}
+    \\href{mailto:foo@bar.example.com}{\\nolinkurl{foo@bar.example.com}}
   '''
 
   testCase '''
@@ -96,7 +96,7 @@ describe '<autolink>', ->
     ---
     <foo+special@Bar.baz-bar0.com>
     ---
-    \\href{mailto:foo+special@Bar.baz-bar0.com}{foo+special@Bar.baz-bar0.com}
+    \\href{mailto:foo+special@Bar.baz-bar0.com}{\\nolinkurl{foo+special@Bar.baz-bar0.com}}
   '''
 
   testCase '''
@@ -158,7 +158,15 @@ describe '<autolink>', ->
   testCase '''
     escaping email
     ---
-    <!#$%&'\*\+\/=\?\^_`{\|}~\-@example.com>
+    <!#$%&'*+/=?^_`|~-@example.com>
     ---
-    \\href{mailto:!#$%&'*+/=?^_`{|}~-@example.com}{!\\#\\$\\%\\&'*+/=?\\textasciicircum \\_`\\{|\\}\\textasciitilde -@example.com}
+    \\href{mailto:!#$%25&amp;'*+/=?%5E_%60%7C~-@example.com}{\\nolinkurl{!#$%&'*+/=?^_`|~-@example.com}}
+  '''
+
+  testCase '''
+    braced email ids
+    ---
+    <{one,two}@example.com>
+    ---
+    \\href{mailto:one@example.com,two@example.com}{\\nolinkurl{{one,two}@example.com}}
   '''
