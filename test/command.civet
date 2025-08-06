@@ -26,7 +26,8 @@ describe '\\command:', ->
     : foo
     ---
     \\
-    : foo
+    \\begin{foo}
+    \\end{foo}
   '''
 
   testCase '''
@@ -169,4 +170,12 @@ describe '\\command:', ->
     \\
     ---
     \\
+  '''
+
+  testCase '''
+    starred
+    ---
+    \\section*: Acknowledgements
+    ---
+    \\section*{Acknowledgements}%
   '''

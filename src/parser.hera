@@ -175,14 +175,28 @@ Comment
     }
 
 Command
-  /\\([a-zA-Z@]+|.|$)/ ->
+  CommandWithoutNewline
+  /\\(?=[\r\n]|$)/ ->
     return {
       type: "Command",
       token: $0,
     }
 
+# Forbids \ followed by newline
 CommandWithoutNewline
-  !/\\[\r\n]/ Command -> $2
+  /\\([a-zA-Z@]+|[^\r\n])/ ->
+    return {
+      type: "Command",
+      token: $0,
+    }
+
+# Command that can be followed by a colon argument
+# Forbids \ followed by newline
+# Captures * after command name to allow e.g. \section*: Acknowledgments
+StarredCommand
+  CommandWithoutNewline /[ \t]*\*/? ->
+    if (!$2) return $1
+    return { ...$1, token: $1.token + $2[0] }
 
 ParenthesizedContent
   "(" ParenBalancedContent ")"
@@ -245,11 +259,11 @@ Environment
     }
 
 CommandWithColonArgument
-  Indent:indent CommandWithoutNewline:command ColonArgument:arg
+  Indent:indent StarredCommand:command ColonArgument:arg
 
 # Inline version prevents combining same-line and indented content
 InlineCommandWithColonArgument
-  CommandWithoutNewline InlineColonArgument
+  StarredCommand InlineColonArgument
 
 ColonArgument
   ":" ArgumentAfterColon -> $2
