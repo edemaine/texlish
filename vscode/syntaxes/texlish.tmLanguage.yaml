@@ -2122,7 +2122,7 @@ repository:
   link-email:
     name: meta.link.email.texlish
     match: >-
-      (<)([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>
+      (<)([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-,]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>
     captures:
       1:
         name: punctuation.definition.link.markdown
