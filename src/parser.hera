@@ -174,6 +174,9 @@ Comment
       $loc,
     }
 
+CommentEOL
+  Comment EOL
+
 Command
   CommandWithoutNewline
   /\\(?=[\r\n]|$)/ ->
@@ -273,10 +276,14 @@ InlineCommandWithColonArgument
   StarredCommand InlineColonArgument
 
 ColonArgument
-  ":" ArgumentAfterColon -> $2
+  Colon ArgumentAfterColon -> $2
 
 InlineColonArgument
-  ":" InlineArgumentAfterColon -> $2
+  Colon InlineArgumentAfterColon -> $2
+
+# ":", but don't treat :: as :
+Colon
+  /:(?!:)/
 
 ArgumentAfterColon
   NestedArgumentList
@@ -355,14 +362,19 @@ MetaUse
   "use" NestedUseList:list -> list
 
 UseItem
-  Bullet? /[^:\r\n]+/:name UseColonArgument?:arg ->
+  Bullet? /[^:%\r\n]+/:name Comment?:comment UseColonArgument?:arg ->
     name = name[0]
+    let match = /\s*$/.exec(name)
+    let space = match[0]
+    name = name.slice(0, match.index)
     return {
       type: "Use",
       children: [
         '\\usepackage',
         arg,
-        `{${name}}`
+        `{${name}}`,
+        space,
+        comment,
       ]
     }
 
@@ -379,17 +391,16 @@ NestedUseItem
     return $0
 
 UseColonArgument
-  ":" UseArgument ->
+  SaveIndent:indent Colon UseArgument:arg ->
     return [
       "[",
-      $2,
+      arg,
+      getEndComment(arg) && [ "\n", indent ],
       "]",
     ]
 
 UseArgument
-  NestedUseArgumentList
-  NonEmptyNestedBody
-  TrimmedText
+  TrimmedText ( NestedUseArgumentList / NonEmptyNestedBody )?
 
 NestedUseArgumentList
   PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
@@ -401,7 +412,10 @@ UseArgumentList
     if (!content) return $skip
     // Add commas between bullets
     let [ first, rest ] = content
-    rest = rest.map(([ eol, bullet ]) => [ ",", eol, bullet ])
+    rest = rest.map(
+      ([ eol, [ indent, bull, ...rest ] ]) =>
+      [ eol, [ indent, ",",  ...rest ] ]
+    )
     return [ first, rest ]
 
 UseArgumentBullet
@@ -409,7 +423,7 @@ UseArgumentBullet
     let [ , bullet, space ] = $2
     return [
       indent,
-      space, " ", // indent the same as the bullet
+      " ", space, // indent the same as the bullet
       text,
       body,
     ]

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* `::use` supports partially indented arguments,
+  and comments after packages and arguments.
+  [[#19](https://github.com/edemaine/texlish/issues/19)]
 * `@ref` no longer includes `~` as part of `ref` (unless quoted),
   allowing for nonbreaking spaces between `@ref`s.
   [[#18](https://github.com/edemaine/texlish/issues/18)]
