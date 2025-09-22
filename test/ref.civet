@@ -75,3 +75,11 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     {@}thm:main
     {#@}thm:main
   '''
+
+  testCase '''
+    ~ not in @ref
+    ---
+    Theorems~@a~\\&~@b
+    ---
+    Theorems~\\ref{a}~\\&~\\ref{b}
+  '''

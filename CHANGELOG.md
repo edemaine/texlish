@@ -1,5 +1,11 @@
 # Texlish Changelog
 
+## 0.1.2
+
+* `@ref` no longer includes `~` as part of `ref` (unless quoted),
+  allowing for nonbreaking spaces between `@ref`s.
+  [[#18](https://github.com/edemaine/texlish/issues/18)]
+
 ## 0.1.1
 
 * Blank lines no longer terminate an indented argument or environment.

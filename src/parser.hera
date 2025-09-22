@@ -88,7 +88,7 @@ TextPart
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@|#@)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
     return `${state.styles[$1]}{${$2.slice(1, -1)}}`
   # @ref without spaces and without grabbing trailing punctuation
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@|#@)([^\s'"{}=][^\s{}]*)(?<!\p{Punctuation})/ ->
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@|#@)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
     return `${state.styles[$1]}{${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.styles['[[']}{${$1}}`

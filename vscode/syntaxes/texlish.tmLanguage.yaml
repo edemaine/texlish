@@ -111,7 +111,7 @@ patterns:
       1:
         name: punctuation.definition.string.texlish
   - name: string.quoted.other.labelref.bare.texlish
-    match: '(@=|@|#@)[^\s''"{}=][^\s{}]*(?<!\p{Punctuation})'
+    match: '(@=|@|#@)[^\s''"{}=~][^\s{}~]*(?<!\p{Punctuation})'
     captures:
       1:
         name: punctuation.definition.string.texlish
