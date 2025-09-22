@@ -1,10 +1,13 @@
 # Texlish Changelog
 
-## 0.1.2
+## Unreleased
 
 * `@ref` no longer includes `~` as part of `ref` (unless quoted),
   allowing for nonbreaking spaces between `@ref`s.
   [[#18](https://github.com/edemaine/texlish/issues/18)]
+* CLI adds a comment at the top of generated `.tex` files, linking to Texlish
+  and suggesting to edit the `.texlish` file instead of this one.
+  [[#23](https://github.com/edemaine/texlish/issues/23)]
 
 ## 0.1.1
 
