@@ -36,6 +36,36 @@ describe '::use', ->
   '''
 
   testCase '''
+    single package on one line with partially nested argument
+    ---
+    ::use geometry: letterpaper,
+      margin = 1in
+    ---
+    \\usepackage[letterpaper,
+      margin = 1in]{geometry}
+  '''
+
+  testCase '''
+    single package on one line with comment
+    ---
+    ::use amsmath % for align environment
+    ::use amsfonts% for mathbb
+    ---
+    \\usepackage{amsmath} % for align environment
+    \\usepackage{amsfonts}% for mathbb
+  '''
+
+  testCase '''
+    single package on one line with comment and nested argument
+    ---
+    ::use csquotes: % automatic " handling
+      style=english
+    ---
+    \\usepackage[% automatic " handling
+      style=english]{csquotes}
+  '''
+
+  testCase '''
     multiple nested packages
     ---
     ::use
@@ -47,6 +77,20 @@ describe '::use', ->
       \\usepackage{amsmath}
       \\usepackage{colortbl}
       \\usepackage{cleveref}
+  '''
+
+  testCase '''
+    multiple nested packages with comments
+    ---
+    ::use
+      amsmath % for align environment
+      colortbl% for row colors
+      cleveref% clever references
+    ---
+
+      \\usepackage{amsmath} % for align environment
+      \\usepackage{colortbl}% for row colors
+      \\usepackage{cleveref}% clever references
   '''
 
   testCase '''
@@ -64,6 +108,20 @@ describe '::use', ->
   '''
 
   testCase '''
+    multiple nested packages with bullets and comments
+    ---
+    ::use
+      * amsmath % for align environment
+      - colortbl% for row colors
+      ~ cleveref% clever references
+    ---
+
+      \\usepackage{amsmath} % for align environment
+      \\usepackage{colortbl}% for row colors
+      \\usepackage{cleveref}% clever references
+  '''
+
+  testCase '''
     same-line package with arguments
     ---
     ::use hyperref:
@@ -71,8 +129,21 @@ describe '::use', ->
       - pdfauthor = Me
     ---
     \\usepackage[
-        pdftitle = Hello World,
-        pdfauthor = Me]{hyperref}
+        pdftitle = Hello World
+      , pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    same-line package with arguments and comments
+    ---
+    ::use hyperref:
+      - pdftitle = Hello World % working title
+      - pdfauthor = Me% = myself
+    ---
+    \\usepackage[
+        pdftitle = Hello World % working title
+      , pdfauthor = Me% = myself
+    ]{hyperref}
   '''
 
   testCase '''
@@ -91,8 +162,8 @@ describe '::use', ->
       \\usepackage{colortbl}
       \\usepackage{cleveref}
       \\usepackage[
-          margin = 1in,
-          letterpaper]{geometry}
+          margin = 1in
+        , letterpaper]{geometry}
   '''
 
   testCase '''
@@ -107,6 +178,28 @@ describe '::use', ->
 
       \\usepackage[margin=1in]{geometry}
       \\usepackage[
-          pdftitle = Hello World,
-          pdfauthor = Me]{hyperref}
+          pdftitle = Hello World
+        , pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    more nested packages with arguments and comments
+    ---
+    ::use
+      geometry: margin=1in % 1-inch margins
+      csquotes: % automatic " handling
+        style=english
+      hyperref: % metadata
+        - pdftitle = Hello World % working title
+        - pdfauthor = Me% = myself
+    ---
+
+      \\usepackage[margin=1in % 1-inch margins
+      ]{geometry}
+      \\usepackage[% automatic " handling
+        style=english]{csquotes}
+      \\usepackage[% metadata
+          pdftitle = Hello World % working title
+        , pdfauthor = Me% = myself
+      ]{hyperref}
   '''
