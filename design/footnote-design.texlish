@@ -1,0 +1,46 @@
+% How we have to write footnotes today
+This is a problem%
+\footnote:
+  This is actually not true.
+  See Figure @fig:example.
+, but not too bad%
+\footnote: This is actually true.
+.
+
+% Original design. Issue: [n] might be text the user might want to write.
+This is a problem[1], but not too bad[2].
+[1]:
+  This is actually not true.
+  See Figure @fig:example.
+[2]: This is actually true.
+
+% Less ambiguous, but maybe hard to keep track of ((n)) vs [[cite]]
+This is a problem((1)), but not too bad((2)).
+((1)):
+  This is actually not true.
+  See Figure @fig:example.
+((2)): This is actually true.
+
+% Extension of \label/\ref system
+% @^number is a temporarily assigned number (can re-use later on)
+% @^label uses a label and can be repeated
+This is a problem@^1, but not too bad@^false.
+@^1 =
+  This is actually not true.
+  See Figure @fig:example.
+@^false = This is actually true.
+-> \footnote{\label{false} This is actually true.}
+
+See footnote @false for details.@^false
+-> See footnote \ref{false} for details.\footnotemark[\ref{false}]
+
+% Markdown footnotes, combined with above ideas
+This is a problem[^1], but not too bad[^false].
+[^1]:
+  This is actually not true.
+  See Figure @fig:example.
+[^false]: This is actually true.
+-> \footnote{\label{footnote:false} This is actually true.}
+
+See footnote @^false for details.[^false]
+-> See footnote \ref{footnote:false} for details.\footnotemark[\ref{footnote:false}]
