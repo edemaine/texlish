@@ -117,12 +117,12 @@ patterns:
                 patterns:
                   - include: '#inline'
   - name: string.quoted.other.labelref.quoted.texlish
-    match: '(@=|@\^|@|#@)(''[^'']*''|"[^"]*"|\{[^{}]*\})'
+    match: '(@[=#^]?)(''[^'']*''|"[^"]*"|\{[^{}]*\})'
     captures:
       1:
         name: punctuation.definition.string.texlish
   - name: string.quoted.other.labelref.bare.texlish
-    match: '(@=|@\^|@|#@)[^\s''"{}=~][^\s{}~]*(?<!\p{Punctuation})'
+    match: '(@[=#^]?)[^\s''"{}=~][^\s{}~]*(?<!\p{Punctuation})'
     captures:
       1:
         name: punctuation.definition.string.texlish

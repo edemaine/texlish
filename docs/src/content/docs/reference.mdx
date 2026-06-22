@@ -89,7 +89,7 @@ Similar to Markdown lists, but with less strict requirements on indentation.
 <Example src={`
   @=thm:main
   @thm:main
-  #@thm:main
+  @#thm:main
 `}/>
 
 If your label needs spaces or trailing punctuation, put it in quotes or braces:
@@ -98,7 +98,7 @@ If your label needs spaces or trailing punctuation, put it in quotes or braces:
   @='thm main'
   @"thm main"
   @{thm main}
-  #@'thm main'
+  @#'thm main'
 `}/>
 
 If you want to use a custom `\ref` system, such as `cleveref`, you can
@@ -107,9 +107,9 @@ override the meaning of these symbols:
 <Example src={`
   ::styles
     @ = \\cref
-    #@ = \\cpageref
+    @# = \\cpageref
   @thm:main
-  #@thm:main
+  @#thm:main
   @thm:main,thm:other
 `}/>
 

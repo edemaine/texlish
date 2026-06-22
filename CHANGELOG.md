@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Page references now use `@#ref` instead of `#@ref`.
+  [[#31](https://github.com/edemaine/texlish/issues/31)]
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]

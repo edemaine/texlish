@@ -47,7 +47,7 @@ Init
       '@=': '\\label',
       '@': '\\ref',
       '@^': '\\ref',
-      '#@': '\\pageref',
+      '@#': '\\pageref',
       '[[': '\\cite',
     }
 
@@ -99,13 +99,13 @@ TextPart
   Comment
   FootnoteRef
   # @'long ref'
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@\^|@|#@)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
     const label = $2.slice(1, -1)
     const prefix = labelPrefix($1, label)
     if (prefix == null) return $skip
     return `${state.styles[$1]}{${prefix}${label}}`
   # @ref without spaces and without grabbing trailing punctuation
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@\^|@|#@)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
     const prefix = labelPrefix($1, $2)
     if (prefix == null) return $skip
     return `${state.styles[$1]}{${prefix}${$2}}`

@@ -14,7 +14,7 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
   testCase '''
     pageref
     ---
-    Theorem @thm:main on page #@thm:main.
+    Theorem @thm:main on page @#thm:main.
     ---
     Theorem \\ref{thm:main} on page \\pageref{thm:main}.
   '''
@@ -41,11 +41,11 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     ::styles
       @ = \\cref
-      #@ = \\pagecref
+      @# = \\pagecref
       @= = \\clabel
     @=thm:big
     @thm:big
-    #@thm:big
+    @#thm:big
     ---
     \\clabel{thm:big}
     \\cref{thm:big}
@@ -57,7 +57,7 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     @='big theorem'
     @"big theorem"
-    #@{big theorem}
+    @#{big theorem}
     ---
     \\label{big theorem}
     \\ref{big theorem}
@@ -69,11 +69,11 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     {@=}thm:main
     {@}thm:main
-    {#@}thm:main
+    {@#}thm:main
     ---
     {@=}thm:main
     {@}thm:main
-    {#@}thm:main
+    {@#}thm:main
   '''
 
   testCase '''
