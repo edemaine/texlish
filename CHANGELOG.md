@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
+  repeated references via `\footref`, and `@^id` numeric references.
+  [[#21](https://github.com/edemaine/texlish/issues/21)]
 * `::use` supports partially indented arguments,
   and comments after packages and arguments.
   [[#19](https://github.com/edemaine/texlish/issues/19)]
