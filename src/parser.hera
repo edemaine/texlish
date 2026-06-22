@@ -5,6 +5,7 @@ import {
   commentForBody,
   commentForTextBody,
   getEndComment,
+  isNumeric,
   trimEnd,
   trimEndComment,
 } from './util.civet'
@@ -18,6 +19,16 @@ export const state = {
 }
 export function getStateKey() {
   return state.currentIndent.level
+}
+
+/**
+ * Prefix generated labels for shorthand references with special namespaces.
+ * Returns undefined to reject shorthand meaning it should be left alone.
+ */
+function labelPrefix(style, label) {
+  if (style === '@^' && isNumeric(label)) return
+  if (style === '@^') return 'footnote:'
+  return ''
 }
 
 export { ParseError }
@@ -35,6 +46,7 @@ Init
       '***': '\\defn',
       '@=': '\\label',
       '@': '\\ref',
+      '@^': '\\ref',
       '#@': '\\pageref',
       '[[': '\\cite',
     }
@@ -62,6 +74,7 @@ EOL
 Statement
   Heading
   MetaBlock
+  FootnoteDefinition
   Environment
   CommandWithColonArgument
   UnorderedList
@@ -84,12 +97,18 @@ Text
 TextPart
   BracedContent
   Comment
+  FootnoteRef
   # @'long ref'
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@|#@)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
-    return `${state.styles[$1]}{${$2.slice(1, -1)}}`
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@\^|@|#@)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
+    const label = $2.slice(1, -1)
+    const prefix = labelPrefix($1, label)
+    if (prefix == null) return $skip
+    return `${state.styles[$1]}{${prefix}${label}}`
   # @ref without spaces and without grabbing trailing punctuation
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@|#@)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
-    return `${state.styles[$1]}{${$2}}`
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@=|@\^|@|#@)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
+    const prefix = labelPrefix($1, $2)
+    if (prefix == null) return $skip
+    return `${state.styles[$1]}{${prefix}${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.styles['[[']}{${$1}}`
   Autolink
@@ -137,6 +156,20 @@ TextPart
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
   /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
+
+FootnoteRef
+  /\[\^([^\]\r\n]+)\]/:marker EOLNext:eolNext ->
+    return {
+      type: "FootnoteRef",
+      id: marker[1].trim(),
+      eolNext,
+      children: [marker[0]],
+    }
+
+# Once we upgrade Hera, this can be replaced by `(&EOL)?` || false
+EOLNext
+  &EOL -> true
+  "" -> false
 
 TrimmedText
   Text:t ->
@@ -270,6 +303,24 @@ Environment
 
 CommandWithColonArgument
   Indent:indent StarredCommand:command ColonArgument:arg
+
+FootnoteDefinition
+  Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon ArgumentAfterColon:arg ->
+    const {body} = arg
+    return {
+      type: "FootnoteDefinition",
+      id: marker[1].trim(),
+      body,
+      // In case this footnote definition isn't used, its fallback text is
+      // roughly the original.
+      children: [
+        indent,
+        marker[0],
+        colon,
+        // Unwrap ArgumentAfterColon
+        body?.[0] === "%" ? body.slice(1) : [ " ", body ],
+      ]
+    }
 
 # Inline version prevents combining same-line and indented content
 InlineCommandWithColonArgument

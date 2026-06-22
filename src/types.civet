@@ -27,6 +27,8 @@ export type ASTNode
   | Delimiter
   | Environment
   | EOL
+  | FootnoteDefinition
+  | FootnoteRef
   | Heading
   | Indent
   | List
@@ -65,6 +67,17 @@ export interface Environment extends ASTParent
 
 export interface EOL extends ASTToken
   type: "EOL"
+
+export interface FootnoteDefinition extends ASTParent
+  type: "FootnoteDefinition"
+  id: string
+  body: AST[]
+
+export interface FootnoteRef extends ASTParent
+  type: "FootnoteRef"
+  id: string
+  /** Is the footnote reference followed by an end-of-line? */
+  eolNext: boolean
 
 export interface Heading extends ASTParent
   type: "Heading"

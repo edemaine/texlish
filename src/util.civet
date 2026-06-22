@@ -1,5 +1,7 @@
 type { AST } from ./types.civet
 
+export isNumeric := (is like /^\d+/)
+
 /** Generate all nodes in the tree in prefix order. */
 export function iterate(node: AST): Generator<AST>
   yield node
@@ -46,13 +48,15 @@ export function find(node: AST, match: (candidate: AST) => boolean): AST
   return
 
 /**
- * Check for completely empty node, in particular including empty array
+ * Check for completely empty node, in particular including empty array.
+ * Any object or nonempty string is treated as nonempty.
  */
 export function isEmpty(node: AST): boolean
   if not node
     true
   else if Array.isArray node
-    node.every isEmpty
+    for every child of node
+      isEmpty child
   else
     false
 

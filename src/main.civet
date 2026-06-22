@@ -42,6 +42,9 @@ export function generate(ast: AST): string
     else
       throw new Error `Unrecognized token ${ast}`
   recurse ast
+  // Special \0 character eats a following newline,
+  // and at end of file a preceding newline
+  .replace /(\n|\r\n?)\0$/g, ''
   .replace /\0(\n|\r\n?)?/g, ''
 
 type CompileOutput<T extends CompilerOptions> =

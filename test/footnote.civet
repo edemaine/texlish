@@ -1,0 +1,165 @@
+{ testCase } from './helper.civet'
+
+describe 'Markdown footnotes', ->
+  testCase '''
+    inline and nested definitions
+    ---
+    This is a problem[^false], but not too bad[^true].
+    [^false]:
+      This is actually not true.
+      See Figure @fig:example.
+    [^true]: This is actually true.
+    ---
+    This is a problem%
+    \\footnote{\\label{footnote:false}%
+      This is actually not true.
+      See Figure \\ref{fig:example}.}%
+    , but not too bad%
+    \\footnote{\\label{footnote:true}This is actually true.}%
+    .
+
+  '''
+
+  testCase '''
+    repeated footnote mark
+    ---
+    This is first[^false].
+    [^false]: This is actually true.
+
+    See footnote @^false for details.[^false]
+    ---
+    This is first%
+    \\footnote{\\label{footnote:false}This is actually true.}%
+    .
+
+    See footnote \\ref{footnote:false} for details.\\footref{footnote:false}
+  '''
+
+  testCase '''
+    definition between lines
+    ---
+    First[^x].
+    [^x]: Note.
+    Second.
+    ---
+    First%
+    \\footnote{\\label{footnote:x}Note.}%
+    .
+    Second.
+  '''
+
+  testCase '''
+    duplicate named definitions
+    ---
+    First[^x].
+    [^x]: First note.
+    [^x]: Second note.
+    ---
+    First%
+    \\footnote{\\label{footnote:x}First note.
+    \\label{footnote:x}Second note.}%
+    .
+
+  '''
+
+  testCase '''
+    numeric ids are disposable
+    ---
+    First paragraph[^1], again[^1].
+    [^1]: First note.
+
+    Second paragraph[^1].
+    [^1]: Second note.
+    ---
+    First paragraph%
+    \\footnote{\\label{footnote:1}First note.}%
+    , again\\footref{footnote:1}.
+
+    Second paragraph%
+    \\footnote{\\label{footnote:2}Second note.}%
+    .
+  '''
+
+  testCase '''
+    numeric ids bind forward
+    ---
+    Before[^1].
+    [^1]: Before note.
+    After[^1].
+    [^1]: After note.
+    ---
+    Before%
+    \\footnote{\\label{footnote:1}Before note.}%
+    .
+    After%
+    \\footnote{\\label{footnote:2}After note.}%
+    .
+  '''
+
+  testCase '''
+    list item definition
+    ---
+    * Item[^x]
+      [^x]: Note.
+    ---
+    \\begin{itemize}
+    \\item Item%
+    \\footnote{\\label{footnote:x}Note.}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    nested list item definition
+    ---
+    * Item
+      nested[^x]
+      [^x]: Note.
+    ---
+    \\begin{itemize}
+    \\item Item
+      nested%
+    \\footnote{\\label{footnote:x}Note.}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    footnote ref at end of line
+    ---
+    foo[^1]
+    bar
+
+    [^1]: foot
+    ---
+    foo%
+    \\footnote{\\label{footnote:1}foot}
+    bar
+
+  '''
+
+  testCase '''
+    quoted footnote ref
+    ---
+    See @^'long note'.
+    [^long note]: A note.
+    ---
+    See \\ref{footnote:long note}.
+    [^long note]: A note.
+  '''
+
+  testCase '''
+    numeric footnote refs are not labels
+    ---
+    See @^1.
+    [^1]: A note.
+    ---
+    See @^1.
+    [^1]: A note.
+  '''
+
+  testCase '''
+    undefined marker remains literal
+    ---
+    This remains[^missing].
+    ---
+    This remains[^missing].
+  '''

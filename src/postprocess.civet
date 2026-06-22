@@ -1,11 +1,12 @@
-type { AST, CompilerOptions, Delimiter } from ./types.civet
-{ iteratePrePost, iterateFlatArrays } from ./util.civet
+type { AST, CompilerOptions, Delimiter, FootnoteDefinition, FootnoteRef } from ./types.civet
+{ isNumeric, iterate, iteratePrePost, iterateFlatArrays } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
   processMarkdown root
+  processFootnotes root
   processBeginEnd root
   processDocument root unless options.fragment
   root
@@ -46,7 +47,7 @@ function processMarkdown(root: AST[]): void
               opens.splice i, opens# - i
               (child.children ??= []).push '}'
               if close# > open#  // some close remains
-                close = child.token = close[open.length..]
+                close = child.token = close[open#..]
               else  // close finished too
                 delete child.token
                 break
@@ -54,7 +55,7 @@ function processMarkdown(root: AST[]): void
             // Open+close delimiter: Forbid double nested identical emphasis
             unless open is close+close and (opens[i].close or child.open)
               (opens[i].children ?= []).unshift opener close
-              opens[i].token = open[...-close.length]
+              opens[i].token = open[...-close#]
               (child.children ??= []).push '}'
               delete child.token
               break
@@ -71,6 +72,71 @@ function processMarkdown(root: AST[]): void
       if open.token and open.children?
         open.children.splice open.openIndex ?? 0, 0, open.token
         delete open.token
+
+/** Expand Markdown footnotes, with named IDs global and numeric IDs local. */
+function processFootnotes(root: AST[]): void
+  // Collect footnote definitions and references in document order.
+  events: (FootnoteDefinition | FootnoteRef)[] := []
+  namedDefinitions: Map<string, FootnoteDefinition[]> := new Map
+  for node of iterate root
+    switch node
+      { type: "FootnoteDefinition" }
+        events.push node
+        unless isNumeric node.id
+          // Accumulate named definitions into array in case of duplicates
+          definitions .= namedDefinitions.get node.id
+          namedDefinitions.set node.id, definitions = [] unless definitions
+          definitions.push node
+      { type: "FootnoteRef" }
+        events.push node
+
+  // Rewrite each reference using its matched definition.
+  usedNamed: Set<string> := new Set  // already written \footnote?
+  pendingNumeric: Map<string, FootnoteRef[]> := new Map
+  numericLabels .= 0
+  for each node of events
+    switch node.type
+      when "FootnoteRef"
+        if isNumeric node.id
+          pending .= pendingNumeric.get node.id
+          pendingNumeric.set node.id, pending = [] unless pending
+          pending.push node
+        else
+          continue unless definitions := namedDefinitions.get node.id
+          label := `footnote:${node.id}`
+          if usedNamed.has node.id
+            node.children = [`\\footref{${label}}`]
+          else
+            usedNamed.add node.id
+            // Matched definitions are replaced by the expanded footnote.
+            for definition of definitions
+              definition.children = ["\0"]
+            node.children = footnoteChildren definitions, node, label
+      when "FootnoteDefinition"
+        continue unless isNumeric node.id
+        pending := pendingNumeric.get node.id
+        continue unless pending?#
+        // Numeric definitions are consumed by the pending refs they follow.
+        node.children = ["\0"]
+        label := `footnote:${++numericLabels}`
+        for each ref, i of pending
+          ref.children =
+            if i is 0
+              footnoteChildren [node], ref, label
+            else
+              [`\\footref{${label}}`]
+        pending# = 0
+
+  function footnoteChildren(definitions: FootnoteDefinition[], ref: FootnoteRef, label?: string): AST[]
+    children: AST[] := ["%\n\\footnote{"]
+    for each definition, i of definitions
+      children.push "\n" if i > 0
+      // Re-use the same label for duplicate names so LaTeX reports it.
+      children.push `\\label{${label}}` if label?
+      children.push definition.body
+    children.push "}"
+    children.push "%\n" unless ref.eolNext
+    children
 
 function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
@@ -162,7 +228,7 @@ function processDocument(root: AST[]): void
       .flat()
     (document["\\begin"] as AST[]).splice 0, 0, ...copy
     for each line of preamble
-      line.splice 0, line.length, "\0"
+      line.splice 0, line#, "\0"
 
   // Add \documentclass as first line if it doesn't exist
   unless document["\\documentclass"]
