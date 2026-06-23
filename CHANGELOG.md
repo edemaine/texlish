@@ -2,14 +2,20 @@
 
 ## Unreleased
 
-* Page references now use `@#ref` instead of `#@ref`.
-  [[#31](https://github.com/edemaine/texlish/issues/31)]
+* Compiler configuration via in-file `::config`, CLI `--config`, and
+  project config files.
+  [[#26](https://github.com/edemaine/texlish/issues/26)]
+* Configurable sub/superscript grouping, with new default behavior
+  correctly handling polynomials like `x^12y^42`.
+  [[#26](https://github.com/edemaine/texlish/issues/26)]
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]
 * `::use` supports partially indented arguments,
   and comments after packages and arguments.
   [[#19](https://github.com/edemaine/texlish/issues/19)]
+* Page references now use `@#ref` instead of `#@ref`.
+  [[#31](https://github.com/edemaine/texlish/issues/31)]
 * `@ref` no longer includes `~` as part of `ref` (unless quoted),
   allowing for nonbreaking spaces between `@ref`s.
   [[#18](https://github.com/edemaine/texlish/issues/18)]

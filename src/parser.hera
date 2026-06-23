@@ -2,6 +2,10 @@
 import { generate } from './main.civet'
 import { process } from './postprocess.civet'
 import {
+  applyCompilerOption,
+  makeCompilerOptions,
+} from './config.civet'
+import {
   commentForBody,
   commentForTextBody,
   getEndComment,
@@ -12,11 +16,19 @@ import {
 
 export const state = {
   indents: [ { token: '', level: 0 } ],
-  styles: {},
+  compilerOptions: makeCompilerOptions(),
   get currentIndent() {
     return state.indents.at(-1)
   }
 }
+
+export function getCompilerOptions(options) {
+  return state.compilerOptions
+}
+export function setCompilerOptions(options) {
+  state.compilerOptions = options
+}
+
 export function getStateKey() {
   return state.currentIndent.level
 }
@@ -31,6 +43,16 @@ function labelPrefix(style, label) {
   return ''
 }
 
+function applyConfigAssignments(body) {
+  if (body.some(([key]) => key[0] === "styles")) {
+    // Avoid aliasing so that we can copy by reference in Delimiters
+    state.compilerOptions.styles = {...state.compilerOptions.styles}
+  }
+  for (const [key, value] of body) {
+    applyCompilerOption(state.compilerOptions, key, value)
+  }
+}
+
 export { ParseError }
 ```
 
@@ -40,16 +62,6 @@ Main
 Init
   "" ->
     state.indents = [ { token: '', level: 0 } ]
-    state.styles = {
-      '*': '\\emph',
-      '**': '\\textbf',
-      '***': '\\defn',
-      '@=': '\\label',
-      '@': '\\ref',
-      '@^': '\\ref',
-      '@#': '\\pageref',
-      '[[': '\\cite',
-    }
 
 Content
   Statement ( EOL Statement )* ->
@@ -94,6 +106,18 @@ Text
     if (!$2) return $1
     return [ ...$1, $2 ]
 
+ScriptGroupingNumeric
+  "" ->
+    if (state.compilerOptions.scriptGrouping !== "numeric") return $skip
+
+ScriptGroupingAlpha
+  "" ->
+    if (state.compilerOptions.scriptGrouping !== "alpha") return $skip
+
+ScriptGroupingAlphanumeric
+  "" ->
+    if (state.compilerOptions.scriptGrouping !== "alphanumeric") return $skip
+
 TextPart
   BracedContent
   Comment
@@ -103,17 +127,21 @@ TextPart
     const label = $2.slice(1, -1)
     const prefix = labelPrefix($1, label)
     if (prefix == null) return $skip
-    return `${state.styles[$1]}{${prefix}${label}}`
+    return `${state.compilerOptions.styles[$1]}{${prefix}${label}}`
   # @ref without spaces and without grabbing trailing punctuation
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
     const prefix = labelPrefix($1, $2)
     if (prefix == null) return $skip
-    return `${state.styles[$1]}{${prefix}${$2}}`
+    return `${state.compilerOptions.styles[$1]}{${prefix}${$2}}`
   /\[\[(.*?)\]\]/ ->
-    return `${state.styles['[[']}{${$1}}`
+    return `${state.compilerOptions.styles['[[']}{${$1}}`
   Autolink
-  /([\^_])(\d{2,}|[a-zA-Z]{2,})/ ->
-    return `${$1}{${$2}}`
+  ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
+  ScriptGroupingAlpha /([\^_])([a-zA-Z]{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
+  ScriptGroupingAlphanumeric /([\^_])([a-zA-Z0-9]{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
   [\^_] ParenthesizedContent ->
     // $2[1] strips the parens
     return [ $1[0], '{', $2[1], '}' ]
@@ -123,7 +151,7 @@ TextPart
       type: "Delimiter",
       open: true,
       close: true,
-      styles: state.styles,
+      styles: state.compilerOptions.styles,
       symbol: $1,
       token: $1,
     }
@@ -136,7 +164,7 @@ TextPart
       type: "Delimiter",
       open: true,
       close: false,
-      styles: state.styles,
+      styles: state.compilerOptions.styles,
       symbol: $1,
       token: $1,
     }
@@ -148,7 +176,7 @@ TextPart
       type: "Delimiter",
       open: false,
       close: true,
-      styles: state.styles,
+      styles: state.compilerOptions.styles,
       symbol: $1,
       token: $1,
     }
@@ -388,25 +416,54 @@ MetaBlock
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
 
 MetaCommand
+  MetaConfig
   MetaStyles
   MetaUse
   MetaPreamble
 
+MetaConfig
+  "config" /[ \t]+/ ConfigAssignment:body ->
+    applyConfigAssignments(body)
+    return '\0'  // eat following newline
+  "config" NestedConfigAssignments:body ->
+    applyConfigAssignments(body)
+    return '\0'  // eat following newline
+
 MetaStyles
-  "styles" NestedAssignments:body ->
+  "styles" NestedConfigAssignments:body ->
     // Avoid aliasing so that we can copy by reference in Delimiters
-    state.styles = {...state.styles}
+    state.compilerOptions.styles = {...state.compilerOptions.styles}
     for (const [key, value] of body) {
-      state.styles[key] = generate(value)
+      applyCompilerOption(state.compilerOptions, ["styles", ...key], value)
     }
     return '\0'  // eat following newline
 
-NestedAssignments
-  PushIndent NestedAssignment*:items PopIndent -> items
+NestedConfigAssignments
+  PushIndent NestedConfigAssignment*:items PopIndent ->
+    return items.flat()
 
-NestedAssignment
-  Nested Indent /[^\s:]+/:key /\s+:?=\s*/ Text:value ->
-    return [ key[0], value ]
+NestedConfigAssignment
+  Nested Indent ConfigAssignment:assignment -> assignment
+
+ConfigAssignment
+  /[^\s:%]+(?=[ \t]*=)/:key ConfigRHS:value ->
+    return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
+  /[^\s:=%]+/:key NestedConfigRHS:value ->
+    return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
+
+NestedConfigRHS
+  # `key:` for nested config
+  /[ \t]*:[ \t]*/ NestedConfigAssignments:items ->
+    return items
+  ConfigRHS:rhs -> rhs
+
+ConfigRHS
+  # `key=value`
+  /[ \t]*=/ TrimmedText:value ->
+    return [[[], generate(value)]]
+  # `key` alone enables option
+  "" ->
+    return [[[], true]]
 
 MetaUse
   "use" [ \t]+ UseItem:item -> item

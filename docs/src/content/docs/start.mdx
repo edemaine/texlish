@@ -27,7 +27,33 @@ texlish --lua filename.texlish
 texlish --latex filename.texlish
 # Just compile to filename.tex
 texlish filename.texlish
+# Override one compiler option for this run
+texlish --config scriptGrouping=alpha filename.texlish
+# Enable LaTeX-compat mode
+texlish --config latexCompat filename.texlish
 ```
+
+## Configuration
+
+Texlish looks for a project config file in `.config/`, then in the
+current directory, named one of:
+
+* `texlishconfig.yaml`, `texlishconfig.yml`, `texlishconfig.json`,
+  `texlishconfig.js`, `texlishconfig.mjs`, or `texlishconfig.cjs`
+* `texlish.config.yaml`, `texlish.config.yml`, `texlish.config.json`,
+  `texlish.config.js`, `texlish.config.mjs`, or `texlish.config.cjs`
+
+YAML config example:
+
+```yaml
+scriptGrouping: alphanumeric
+latexCompat: false
+styles:
+  "*": "\\textit"
+```
+
+You can also override config options in individual `.texlish` files
+using [`::config`](reference#config) directives.
 
 ## VSCode Integration
 

@@ -1,0 +1,92 @@
+fs from node:fs/promises
+path from node:path
+{ pathToFileURL } from node:url
+{ applyCompilerOption, makeCompilerOptions } from ./config.civet
+type { CompilerOptions } from ./types.civet
+
+configNames := [
+  "texlishconfig"
+  "texlish.config"
+]
+configExtensions := [
+  ".yaml"
+  ".yml"
+  ".json"
+  ".js"
+  ".mjs"
+  ".cjs"
+]
+configDir := ".config"
+
+/**
+ * Search a directory, then its .config subdirectory, for a Texlish config file.
+ * Returns the first matching file path; it does not parse or validate contents.
+ */
+export function findInDir(dirPath: string): Promise<string | undefined>
+  entries := new Set await fs.readdir dirPath
+  pathFor := (name: string) => path.join dirPath, name
+
+  if entries.has(configDir) and try fs.stat pathFor configDir |> await |> .isDirectory()
+    found := await findInDir pathFor configDir
+    return found if found
+
+  for each configName of configNames
+    for each extension of configExtensions
+      for each entry of ["." + configName + extension, configName + extension]
+        if entries.has(entry) and try fs.stat pathFor entry |> await |> .isFile()
+          return pathFor entry
+  return
+
+/**
+ * Load and parse a config file from disk into compiler options.
+ * Reads JSON/YAML/module files into untrusted data, then validates object shape,
+ * option names, value types, and allowed values before returning options.
+ */
+export function loadConfig(pathname: string): Promise<CompilerOptions>
+  let data: ???
+  if pathname.endsWith ".json"
+    text := await fs.readFile pathname, "utf8"
+    try
+      data = JSON.parse text
+    catch e
+      throw new Error `Error parsing JSON config file ${pathname}: ${e}`
+
+  else if /\.ya?ml$/.test pathname
+    text := await fs.readFile pathname, "utf8"
+    try
+      YAML from yaml
+      data = YAML.parse text
+    catch e
+      throw new Error `Error parsing YAML config file ${pathname}: ${e}`
+
+  else
+    try
+      data = pathname
+      |> pathToFileURL
+      |> .href
+      |> import
+      |> await
+      |> .default
+    catch e
+      throw new Error `Error importing config file ${pathname}: ${e}`
+
+  makeCompilerOptions()
+  ||> parseConfigObject ., data, pathname
+
+/**
+ * Apply an already-parsed config object node to compiler options.
+ * Recurses through nested objects to form dotted option paths, checks that each
+ * node is an object, and delegates option-name/value validation to config.civet.
+ */
+function parseConfigObject(options: CompilerOptions, data: ???, source: string, path: string[] = []): void
+  unless isObject data
+    throw new Error `${source} must export an object`
+  for rawKey, rawValue in data
+    keyPath := [...path, rawKey]
+    if rawValue? <? "object" and not Array.isArray rawValue
+      parseConfigObject options, rawValue, source, keyPath
+    else
+      applyCompilerOption options, keyPath, rawValue
+
+function isObject(data: ???): data is Record<string, ???>
+  data? <? "object" and not Array.isArray data

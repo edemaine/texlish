@@ -1,0 +1,70 @@
+assert from assert
+fs from node:fs/promises
+os from node:os
+path from node:path
+{ parseCompilerOption, parseConfigAssignment } from ../src/config.civet
+{ findInDir, loadConfig } from ../src/config-file.civet
+
+describe 'project config', ->
+  it 'finds and loads texlishconfig.json', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        scriptGrouping: 'alpha'
+      })
+      found := await findInDir dir
+      assert.equal found, configPath
+      config := await loadConfig found!
+      assert.equal config.scriptGrouping, 'alpha'
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'loads nested style config and latexCompat', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        styles:
+          '*': '\\textit'
+          '@': '\\cref'
+        latexCompat: true
+      })
+      config := await loadConfig configPath
+      assert.equal config.scriptGrouping, 'none'
+      assert.equal config.styles!['*'], '\\textit'
+      assert.equal config.styles!['@'], '\\cref'
+      assert.equal config.styles!['**'], '\\textbf'
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+describe '--config assignment', ->
+  it 'parses key=value', ->
+    assert.deepEqual parseConfigAssignment('scriptGrouping=alphanumeric'),
+      key: 'scriptGrouping'
+      value: 'alphanumeric'
+
+  it 'parses key with implicit true', ->
+    assert.deepEqual parseConfigAssignment('latexCompat'),
+      key: 'latexCompat'
+      value: true
+
+  it 'rejects invalid assignment syntax', ->
+    assert.throws (
+      => parseConfigAssignment('scriptGrouping alpha')
+    ), /Expected key or key=value/
+
+  it 'rejects missing scriptGrouping value', ->
+    assert.throws (
+      => parseCompilerOption('scriptGrouping', true)
+    ), /must be a string/
+
+  it 'parses style key paths', ->
+    assert.deepEqual parseCompilerOption('styles.*', '\\textit'),
+      key: 'styles'
+      value:
+        '*': '\\textit'

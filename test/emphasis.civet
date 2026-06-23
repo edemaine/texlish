@@ -71,6 +71,17 @@ describe 'Markdown emphasis (*/**/***)', ->
   '''
 
   testCase '''
+    nested styles
+    ---
+    ::styles
+      family:
+        serif = \\textrm
+    *serif*
+    ---
+    \\emph{serif}
+  '''
+
+  testCase '''
     {} escaping
     ---
     {*}not italic{*}
@@ -169,7 +180,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       foo_bar_
       ---
-      foo_{bar}_
+      foo_bar_
     '''
 
     testCase '''
@@ -193,7 +204,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       aa_"bb"_cc
       ---
-      aa_"bb"_{cc}
+      aa_"bb"_cc
     '''
 
     testCase.skip '''
@@ -209,7 +220,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       _foo*
       ---
-      _{foo}*
+      _foo*
     '''
 
     testCase '''
@@ -259,7 +270,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       _foo bar _
       ---
-      _{foo} bar _
+      _foo bar _
     '''
 
     testCase '''
@@ -283,7 +294,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       _foo_bar
       ---
-      _{foo}_{bar}
+      _foo_bar
     '''
 
     testCase '''
@@ -381,7 +392,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       foo__bar__
       ---
-      foo__{bar}__
+      foo__bar__
     '''
 
     testCase '''
@@ -469,7 +480,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       __foo bar __
       ---
-      __{foo} bar __
+      __foo bar __
     '''
 
     testCase '''
@@ -477,7 +488,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       __(__foo)
       ---
-      __(__{foo})
+      __(__foo)
     '''
 
     testCase.skip '''
@@ -493,7 +504,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       __foo__bar
       ---
-      __{foo}__{bar}
+      __foo__bar
     '''
 
     testCase '''
@@ -1054,7 +1065,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       *foo _bar* baz_
       ---
-      \\emph{foo _{bar}} baz_
+      \\emph{foo _bar} baz_
     '''
 
     testCase.skip '''
@@ -1094,7 +1105,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       _foo \\href{/url}{bar*}
       ---
-      _{foo} \\href{/url}{bar*}
+      _foo \\href{/url}{bar*}
     '''
 
     testCase '''

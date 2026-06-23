@@ -1,8 +1,13 @@
+export type ScriptGrouping = "numeric" | "alphanumeric" | "alpha" | "none"
+
 export type CompilerOptions
   filename?: string
   ast?: boolean
   trace?: string
   fragment?: boolean
+  scriptGrouping?: ScriptGrouping
+  latexCompat?: boolean
+  styles?: Record<string, string>
 
 export type AST
   | undefined

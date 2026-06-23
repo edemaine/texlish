@@ -1,0 +1,178 @@
+{ testCase } from './helper.civet'
+
+describe 'sub/superscript autogrouping', ->
+  testCase '''
+    digits only for subscripts
+    ---
+    $x_12 + x_ij$
+    ---
+    $x_{12} + x_ij$
+  '''
+
+  testCase '''
+    digits only for superscripts
+    ---
+    $x^12 + x^ij$
+    ---
+    $x^{12} + x^ij$
+  '''
+
+  testCase '''
+    alphanumeric mode
+    ---
+    $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
+    ---
+    $x_{12} + x_{ij} + x_{i1} + x_{1i} + x^{12} + x^{ij} + x^{i1} + x^{1i}$
+  ''', {
+    scriptGrouping: "alphanumeric"
+  }
+
+  testCase '''
+    alpha mode
+    ---
+    $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
+    ---
+    $x_12 + x_{ij} + x_i1 + x_1i + x^12 + x^{ij} + x^i1 + x^1i$
+  ''', {
+    scriptGrouping: "alpha"
+  }
+
+  testCase '''
+    none mode
+    ---
+    $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
+    ---
+    $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
+  ''', {
+    scriptGrouping: "none"
+  }
+
+  testCase '''
+    numeric mode keeps mixed alphanumerics
+    ---
+    $x_i1 + x_1i + x^i1 + x^1i$
+    ---
+    $x_i1 + x_1i + x^i1 + x^1i$
+  ''', {
+    scriptGrouping: "numeric"
+  }
+
+  testCase '''
+    latexCompat option disables autogrouping
+    ---
+    $x_12 + x_ij + x_i1 + x^12 + x^ij + x^i1$
+    ---
+    $x_12 + x_ij + x_i1 + x^12 + x^ij + x^i1$
+  ''', {
+    latexCompat: true
+  }
+
+  testCase '''
+    in-file ::config
+    ---
+    $x_ij$
+    ::config
+      scriptGrouping = alphanumeric
+    $x_ij + x_i1$
+    ::config
+      scriptGrouping = none
+    $x_12 + x_i1$
+    ---
+    $x_ij$
+    $x_{ij} + x_{i1}$
+    $x_12 + x_i1$
+  '''
+
+  testCase '''
+    in-file ::config compact assignment
+    ---
+    $x_ij$
+    ::config
+      scriptGrouping=alphanumeric
+    $x_ij + x_i1$
+    ---
+    $x_ij$
+    $x_{ij} + x_{i1}$
+  '''
+
+  testCase '''
+    inline ::config
+    ---
+    $x_ij$
+    ::config scriptGrouping=alphanumeric
+    $x_ij + x_i1$
+    ---
+    $x_ij$
+    $x_{ij} + x_{i1}$
+  '''
+
+  testCase '''
+    in-file ::config latexCompat flag
+    ---
+    $x_12$
+    ::config
+      latexCompat
+    $x_12$
+    ---
+    $x_{12}$
+    $x_12$
+  '''
+
+  testCase '''
+    in-file ::config styles section
+    ---
+    *foo*
+    ::config
+      styles:
+        * = \\textit
+    *foo*
+    ---
+    \\emph{foo}
+    \\textit{foo}
+  '''
+
+  testCase '''
+    inline ::config dotted style
+    ---
+    *foo*
+    ::config styles.*=\\textit
+    *foo*
+    ---
+    \\emph{foo}
+    \\textit{foo}
+  '''
+
+  testCase '''
+    in-file ::config empty styles section
+    ---
+    *foo*
+    ::config
+      styles:
+    *foo*
+    ---
+    \\emph{foo}
+    \\emph{foo}
+  '''
+
+  testCase '''
+    inline ::config empty styles section
+    ---
+    *foo*
+    ::config styles:
+    *foo*
+    ---
+    \\emph{foo}
+    \\emph{foo}
+  '''
+
+  testCase '''
+    inline ::config nonempty styles section
+    ---
+    *foo*
+    ::config styles:
+      * = \\textit
+    *foo*
+    ---
+    \\emph{foo}
+    \\textit{foo}
+  '''

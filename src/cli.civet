@@ -1,5 +1,7 @@
 fs from fs/promises
 { spawn } from child_process
+{ applyCompilerOption, makeCompilerOptions, parseConfigAssignment } from './config.civet'
+{ findInDir, loadConfig } from './config-file.civet'
 { compile, type CompilerOptions } from './main.civet'
 
 function usage: void
@@ -19,6 +21,7 @@ function usage: void
 
     Other options:
     --trace=filename: Debug compilation by writing a trace log
+    --config key[=value]: Set compiler config (e.g. scriptGrouping=alpha or latexCompat)
     -...: Other LaTeX command-line options are passed on as-is
 
   '''
@@ -47,8 +50,20 @@ export function cli: Promise<void>
   mode .= 'compile'
   flags .= []
   filenames .= []
-  options: CompilerOptions .= {}
-  for arg of process.argv[2..]
+  options .= makeCompilerOptions()
+  try
+    if configPath := await findInDir process.cwd()
+      options = makeCompilerOptions {
+        ...options
+        ...await loadConfig configPath
+      }
+  catch error
+    console.log `!! ${error}`
+    process.exit 1
+    return
+
+  for i .= 2; i < process.argv#; i++
+    arg := process.argv[i]
     switch arg
       /^--?help/
         return usage()
@@ -62,6 +77,28 @@ export function cli: Promise<void>
         mode = 'xelatex'
       /^--?trace=/
         options.trace = arg[arg.indexOf('=')+1..]
+      /^--?config=/
+        try
+          { key, value } := parseConfigAssignment arg[arg.indexOf('=')+1..]
+          applyCompilerOption options, key, value
+        catch error
+          console.log `!! ${error}`
+          process.exit 1
+          return
+      /^--?config$/
+        i++
+        configArg := process.argv[i]
+        unless configArg
+          console.log "!! Missing value after --config"
+          process.exit 1
+          return
+        try
+          { key, value } := parseConfigAssignment configArg
+          applyCompilerOption options, key, value
+        catch error
+          console.log `!! ${error}`
+          process.exit 1
+          return
       /^-/  // LaTeX command-line option
         flags.push arg
       else

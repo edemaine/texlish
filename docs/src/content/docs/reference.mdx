@@ -46,6 +46,19 @@ You can also redefine the meaning of these symbols:
   ***teletype***
 `}/>
 
+Equivalent `::config` form:
+
+<Example src={`
+  ::config
+    styles:
+      * = \\textit
+      ** = \\textsf
+      *** = \\texttt
+  *italic*
+  **sans-serif**
+  ***teletype***
+`}/>
+
 To use the LaTeX character `*`, wrap it in braces
 (so that pairs of emphasis characters aren't in the same group):
 
@@ -353,3 +366,81 @@ and/or report a bug.
 
 For clarity, most examples in this documentation disable this feature
 (via the `fragment: true` compiler option).
+
+## Config
+
+`::config` changes compiler options for the rest of the file:
+
+<Example src={`
+  $x_ij$
+  ::config
+    scriptGrouping = alphanumeric
+  $x_ij$
+`}/>
+
+For a single option, `::config` can also be written on one line:
+
+<Example src={`
+  ::config scriptGrouping=alphanumeric
+  $x_ij$
+  ::config latexCompat
+  $x_12$
+`}/>
+
+Style config keys can be written in nested form:
+
+<Example src={`
+  *foo*
+  ::config
+    styles:
+      * = \\textit
+  *foo*
+`}/>
+
+or inline form with dots:
+
+<Example src={`
+  *foo*
+  ::config styles.*=\\textit
+  *foo*
+`}/>
+
+Supported config options are:
+
+* `latexCompat`: flag setting equivalent to `scriptGrouping = none`
+* `scriptGrouping`: [script grouping](#script-grouping) mode,
+  one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
+* `styles`: styles for [emphasis](#emphasis) or [label/ref](#label-ref);
+  equivalent to `::styles`
+
+You can also set config options globally in a
+[project config file](start#configuration).
+
+## Script Grouping
+
+By default, Texlish auto-groups multi-digit sub/superscripts:
+
+<Example src={`
+  $x^12y^42$
+`}/>
+
+To change this behavior for the rest of the file, use `::config`:
+
+<Example src={`
+  ::config scriptGrouping = alphanumeric
+  $x_12 + x_ij + x^12 + x^ij$
+`}/>
+
+Allowed values for `scriptGrouping` are:
+
+* `numeric` (default)
+* `alphanumeric` (letters and digits group together)
+* `alpha` (letters group together)
+* `none` (no grouping, like LaTeX)
+
+In LaTeX-compat mode, `scriptGrouping` is effectively set to `none`:
+
+<Example src={`
+  ::config latexCompat
+  $x_12 + x_ij + x^12 + x^ij$
+`}/>
