@@ -119,6 +119,27 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    nested command closes before parent argument
+    ---
+    : align*
+        C_\\mathrm{j} &= \\frac:
+            - C_\\mathrm{j0}
+            - \\sqrt:
+                - 1 + \\frac:
+                    - V_\\mathrm{D}
+                    - \\Phi_0
+    ---
+    \\begin{align*}
+        C_\\mathrm{j} &= \\frac
+             {C_\\mathrm{j0}}%
+             {\\sqrt
+                 {1 + \\frac
+                     {V_\\mathrm{D}}%
+                     {\\Phi_0}}}%
+    \\end{align*}
+  '''
+
+  testCase '''
     in brace
     ---
     {\\includegraphics:
