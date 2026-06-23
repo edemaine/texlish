@@ -13,6 +13,11 @@ export type { AST, CompilerOptions }
 
 import StateCache from ./state-cache.civet
 { makeCompilerOptions } from ./config.civet
+export {
+  applyCompilerOption,
+  makeCompilerOptions,
+  parseConfigAssignment,
+} from ./config.civet
 
 // Need to no-cache any rule that directly modifies parser state
 // indentation stack, jsx stack, etc.

@@ -1,7 +1,7 @@
 fs from node:fs/promises
 path from node:path
 { pathToFileURL } from node:url
-{ applyCompilerOption, makeCompilerOptions } from ./config.civet
+{ applyCompilerOption, makeCompilerOptions } from ./main.civet
 type { CompilerOptions } from ./types.civet
 
 configNames := [

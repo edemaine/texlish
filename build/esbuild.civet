@@ -2,9 +2,6 @@ esbuild from "esbuild"
 heraPlugin from "@danielx/hera/esbuild-plugin"
 civetPlugin from "@danielx/civet/esbuild"
 
-path from "path"
-{access} from "fs/promises"
-
 watch := process.argv.includes '--watch'
 build :=
   if watch
@@ -13,20 +10,13 @@ build :=
     esbuild.build
 minify := false
 sourcemap := false
+civetPluginOptions :=
+  ts: 'civet' as const
+  parseOptions:
+    comptime: true
 
-exists := (p) ->
-  access(p)
-  .then ->
-    true
-  .catch ->
-    false
-
-// To get proper extension resolution for non-bundled files, we need to use
-// a plugin hack: https://github.com/evanw/esbuild/issues/622#issuecomment-769462611
-// set bundle: true, then rewrite .coffee -> .js and mark as external
-// Also marking everything else as external since we don't want to bundle anything
 rewriteCivetImports := {
-  name: 'rewrite-civet'
+  name: 'rewrite-civet-imports'
   setup(build)
     ext := build.initialOptions.format is "esm" ? ".js" : ".cjs"
     build.onResolve { filter: /.*/ }, (args) =>
@@ -35,9 +25,8 @@ rewriteCivetImports := {
         external: true
 }
 
-// Files that need civet imports re-written
-// since they aren't actually bundled
-for name of ["cli"]
+// Node-only files that should import the shared compiler from dist/main.js.
+for name of ["cli", "config-file"]
   build({
     entryPoints: [`src/${name}.civet`]
     bundle: true
@@ -46,10 +35,11 @@ for name of ["cli"]
     outfile: `dist/${name}.js`
     plugins: [
       rewriteCivetImports
-      civetPlugin js: 'civet'
+      civetPlugin civetPluginOptions
     ]
     external: [
       '../package.json'
+      'yaml'
     ]
   }).catch -> process.exit 1
 
@@ -62,7 +52,7 @@ for esm of [false, true]
     outfile: `dist/main.${if esm then 'js' else 'cjs'}`
     plugins: [
       heraPlugin module: true
-      civetPlugin js: 'civet'
+      civetPlugin civetPluginOptions
     ]
   }).catch -> process.exit 1
 
@@ -76,6 +66,6 @@ build({
   external: ['node:fs']
   plugins: [
     heraPlugin module: true
-    civetPlugin js: 'civet'
+    civetPlugin civetPluginOptions
   ]
 }).catch -> process.exit 1

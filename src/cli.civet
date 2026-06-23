@@ -1,8 +1,13 @@
 fs from fs/promises
 { spawn } from child_process
-{ applyCompilerOption, makeCompilerOptions, parseConfigAssignment } from './config.civet'
+{
+  applyCompilerOption,
+  compile,
+  makeCompilerOptions,
+  parseConfigAssignment,
+} from './main.civet'
 { findInDir, loadConfig } from './config-file.civet'
-{ compile, type CompilerOptions } from './main.civet'
+type { CompilerOptions } from './types.civet'
 
 function usage: void
   console.log '''
