@@ -10,7 +10,7 @@ type Version =
   major: number
   minor: number
   patch: number
-  prerelease?: PrereleaseIdentifier[]
+  prerelease?: PrereleaseIdentifier[]?
 
 type Comparator =
   op: "<" | "<=" | ">" | ">=" | "="
@@ -157,6 +157,7 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
           wild.major
           wild.minor ?? 0
           wild.patch ?? 0
+          prerelease: [0] if wild.major >= 0
         }
       if wild.major >= 0
         comparators.push
@@ -166,10 +167,12 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
               major: wild.major
               minor: wild.minor + 1
               patch: 0
+              prerelease: [0]
             else
               major: wild.major + 1
               minor: 0
               patch: 0
+              prerelease: [0]
 
   unless comparators#
     throw new Error "Version range cannot be empty"
@@ -179,6 +182,8 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
 export function satisfiesVersionRange(versionText: string, range: string): boolean
   current := parseVersion versionText
   for some each comparators of parseComparators range
+    // Prereleases are included according to SemVer precedence,
+    // like npm semver's includePrerelease option.
     for every each comparator of comparators
       comparison := compareVersions current, comparator.version
       switch comparator.op

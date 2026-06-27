@@ -464,7 +464,7 @@ use `x`, `X`, or `*` wildcards.  For example, the following are equivalent:
 ::version 0.1
 ::version 0.1.x
 ::version 0.1.*
-::version >=0.1.0 <0.2.0
+::version >=0.1.0-0 <0.2.0-0
 ```
 
 Use `||` to accept multiple alternatives:
@@ -479,3 +479,7 @@ Comparisons should specify full `major.minor.patch` version numbers
 Multiple comparisons and ranges separated by whitespace are combined with AND.
 Then alternatives separated by `||` are combined with OR.
 Comparisons follow [SemVer 2.0.0](https://semver.org/) rules.
+Prerelease versions are included according to SemVer precedence
+(like npm SemVer's
+[`includePrerelease`](https://github.com/npm/node-semver?tab=readme-ov-file#prerelease-tags)
+option).
