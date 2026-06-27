@@ -1,11 +1,20 @@
 // @ts-check
 import type { AstroIntegration } from 'astro'
+import type { LanguageRegistration } from 'shiki'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import mdx from '@astrojs/mdx'
 import solid from '@astrojs/solid-js'
 import civet from '@danielx/civet/astro'
 import civetVite from '@danielx/civet/vite'
+import texlishGrammarJson from '../vscode/syntaxes/texlish.tmLanguage.json' with { type: 'json' }
+
+const texlishLanguage: LanguageRegistration = {
+  ...(texlishGrammarJson as LanguageRegistration),
+  name: 'texlish',
+  displayName: 'Texlish',
+  embeddedLangs: ['tex'],
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -41,6 +50,11 @@ export default defineConfig({
           slug: 'playground',
         },
       ],
+      expressiveCode: {
+        shiki: {
+          langs: [texlishLanguage],
+        },
+      },
     }),
     mdx(),
     solid(),
