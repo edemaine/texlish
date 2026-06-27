@@ -16,24 +16,28 @@ type Comparator =
   op: "<" | "<=" | ">" | ">=" | "="
   version: Version
 
+comparisonOpsRE := "<=|>=|<|>|="
+
 // https://semver.org/
-versionPrefixRE := ///
+versionRE := ///
   // major   minor    patch
   ^ (\d+) \. (\d+) \. (\d+)
   // prerelease
   (?: - ( [0-9A-Za-z-]+ (?: \.[0-9A-Za-z-]+ )* ) )?
   // build metadata (ignored for comparison)
   (?: \+ [0-9A-Za-z-]+ (?: \.[0-9A-Za-z-]+ )* )?
+  $
 ///
 numericIdentifierRE := /^(0|[1-9]\d*)$/
-wildVersionPrefixRE := ///
-  ${versionPrefixRE.source} |
+wildVersionRE := ///
+  ${versionRE.source} |
   // Version with wildcards or partial information (implicit wildcards)
   // E.g. 1.2 = 1.2.x
   ^ ( [0-9]+ | [xX*] )
   (?: \. ( [0-9]+ | [xX*] )
     (?: \. ( [0-9]+ | [xX*] ) )?
   )?
+  $
 ///
 fullOffset := 1
 wildOffset := 5
@@ -50,8 +54,7 @@ function parseNumber(part: string, versionText: string): number
 
 /** Parse a strict SemVer-like version into comparable numeric and prerelease parts. */
 function parseVersion(versionText: string): Version
-  match := versionPrefixRE.exec versionText
-  unless match and match[0]# is versionText#
+  unless match := versionRE.exec versionText
     throw new Error `Invalid version: ${versionText}`
   parseVersionMatch match, versionText
 
@@ -62,7 +65,7 @@ function parseVersionMatch(match: RegExpExecArray, versionText: string): Version
   patch: parseNumber match[3], versionText
   prerelease:
     for each identifier of match[4]?.split('.') ?? []
-      if /^\d+$/.test identifier
+      if identifier is like /^\d+$/
         parseNumber identifier, versionText
       else
         identifier
@@ -70,10 +73,8 @@ function parseVersionMatch(match: RegExpExecArray, versionText: string): Version
 /** Compare SemVer prerelease identifiers, where numeric identifiers sort before text. */
 function compareIdentifiers(a: PrereleaseIdentifier, b: PrereleaseIdentifier): -1 | 0 | +1
   // "Numeric identifiers always have lower precedence than non-numeric identifiers."
-  aNumeric := a <? "number"
-  bNumeric := b <? "number"
-  return -1 if aNumeric and not bNumeric
-  return +1 if bNumeric and not aNumeric
+  return -1 if a <? "number" and b !<? "number"
+  return +1 if b <? "number" and a !<? "number"
   // "Identifiers consisting of only digits are compared numerically."
   // "Identifiers with letters or hyphens are compared lexically in ASCII sort order."
   // We've already converted numeric identifiers to numbers,
@@ -106,29 +107,29 @@ function compareVersions(a: Version, b: Version): -1 | 0 | +1
 /** Parse a whitespace-separated AND range into exact or comparison predicates. */
 function parseComparators(range: string): Comparator[]
   comparators: Comparator[] := []
-  pos .= 0
-  function skipWhitespace(): void
-    pos++ while range[pos] is like /^\s/
-  while pos < range#
-    skipWhitespace()
-    break if pos >= range#
-
+  // Allow spaces after comparison operators,
+  // then split on required whitespace between comparators.
+  tokens := range
+    .replace /// (${comparisonOpsRE}) \s+ ///g, "$1"
+    .trim()
+    .split /\s+/
+  for let token of tokens
+    continue unless token
     op: Comparator["op"]? .= undefined
-    if match := /^(<=|>=|<|>|=)/.exec range[pos..]
+    if match := /// ^ (${comparisonOpsRE}) ///.exec token
       op = match[1] as Comparator["op"]
-      pos += match[0]#
-      skipWhitespace()
+      token = token[match[0]#..]
 
-    unless match := wildVersionPrefixRE.exec range[pos..]
+    unless match := wildVersionRE.exec token
       throw new Error `Invalid version range: ${range}`
     versionText := match[0]
-    if match[fullOffset]?
+    if match[fullOffset]? // full version, possibly with operator
       comparators.push {
-        op: op ?? "="
+        op ?? "="
         version: parseVersionMatch match, versionText
       }
     else if op
-      throw new Error `Invalid version range: ${range}`
+      throw new Error `Invalid version range: ${range} uses comparison operator with wildcard/partial version`
     else
       wildcard .= false
       wild: Partial<Version> := {}
@@ -164,10 +165,6 @@ function parseComparators(range: string): Comparator[]
               major: wild.major + 1
               minor: 0
               patch: 0
-    pos += versionText#
-    // Require space after a comparator, so that e.g. "1.2.3<1.2.4" is invalid.
-    if pos < range# and range[pos] is not like /^\s/
-      throw new Error `Invalid version range: ${range}`
 
   unless comparators#
     throw new Error "Version range cannot be empty"
@@ -176,7 +173,7 @@ function parseComparators(range: string): Comparator[]
 /** Return whether a version satisfies a range of whitespace-separated comparators. */
 export function satisfiesVersionRange(versionText: string, range: string): boolean
   current := parseVersion versionText
-  for every comparator of parseComparators range
+  for every each comparator of parseComparators range
     comparison := compareVersions current, comparator.version
     switch comparator.op
       when "<"
