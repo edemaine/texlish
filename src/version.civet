@@ -104,12 +104,17 @@ function compareVersions(a: Version, b: Version): -1 | 0 | +1
     return diff if diff
   0
 
-/** Parse a whitespace-separated AND range into exact or comparison predicates. */
-function parseComparators(range: string): Comparator[]
+/** Parse || alternatives of whitespace-separated AND comparators. */
+function parseComparators(range: string): Comparator[][]
+  for alternative of range.split /\s*\|\|\s*/
+    parseComparatorAlternative range, alternative
+
+/** Parse one whitespace-separated AND alternative. */
+function parseComparatorAlternative(range: string, alternative: string): Comparator[]
   comparators: Comparator[] := []
   // Allow spaces after comparison operators,
   // then split on required whitespace between comparators.
-  tokens := range
+  tokens := alternative
     .replace /// (${comparisonOpsRE}) \s+ ///g, "$1"
     .trim()
     .split /\s+/
@@ -173,21 +178,22 @@ function parseComparators(range: string): Comparator[]
 /** Return whether a version satisfies a range of whitespace-separated comparators. */
 export function satisfiesVersionRange(versionText: string, range: string): boolean
   current := parseVersion versionText
-  for every each comparator of parseComparators range
-    comparison := compareVersions current, comparator.version
-    switch comparator.op
-      when "<"
-        comparison < 0
-      when "<="
-        comparison <= 0
-      when ">"
-        comparison > 0
-      when ">="
-        comparison >= 0
-      when "="
-        comparison is 0
-      else
-        throw new Error `Invalid comparator operator: ${comparator.op}`
+  for some each comparators of parseComparators range
+    for every each comparator of comparators
+      comparison := compareVersions current, comparator.version
+      switch comparator.op
+        when "<"
+          comparison < 0
+        when "<="
+          comparison <= 0
+        when ">"
+          comparison > 0
+        when ">="
+          comparison >= 0
+        when "="
+          comparison is 0
+        else
+          throw new Error `Invalid comparator operator: ${comparator.op}`
 
 /** Throw if the current Texlish package version does not satisfy the range. */
 export function assertTexlishVersion(range: string): void

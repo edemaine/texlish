@@ -467,8 +467,15 @@ use `x`, `X`, or `*` wildcards.  For example, the following are equivalent:
 ::version >=0.1.0 <0.2.0
 ```
 
+Use `||` to accept multiple alternatives:
+
+```texlish
+::version 0.1 || 0.2
+```
+
 Comparisons should specify full `major.minor.patch` version numbers
 (optionally with `-` prerelease), and can be prefixed by
 `<`, `<=`, `>`, `>=`, or `=` (the default meaning of a bare full version).
-Multiple comparisons and ranges (separated by whitespace) are combined with AND.
+Multiple comparisons and ranges separated by whitespace are combined with AND.
+Then alternatives separated by `||` are combined with OR.
 Comparisons follow [SemVer 2.0.0](https://semver.org/) rules.

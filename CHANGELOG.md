@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-* `::version` enforces strict Texlish version ranges with comparison
-  operators and whitespace-separated AND conditions.
+* `::version` enforces Texlish version ranges with comparison operators,
+  partial/wildcard versions, whitespace-separated AND conditions, and
+  `||` alternatives.
   [[#24](https://github.com/edemaine/texlish/issues/24)]
 * Compiler configuration via in-file `::config`, CLI `--config`, and
   project config files.
