@@ -5,6 +5,7 @@ import {
   applyCompilerOption,
   makeCompilerOptions,
 } from './config.civet'
+import { assertTexlishVersion } from './version.civet'
 import {
   commentForBody,
   commentForTextBody,
@@ -416,10 +417,16 @@ MetaBlock
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
 
 MetaCommand
+  MetaVersion
   MetaConfig
   MetaStyles
   MetaUse
   MetaPreamble
+
+MetaVersion
+  "version" /[ \t]+([^\r\n%]+)/:range Comment? ->
+    assertTexlishVersion(range[1].trim())
+    return '\0'  // eat following newline
 
 MetaConfig
   "config" /[ \t]+/ ConfigAssignment:body ->

@@ -18,6 +18,7 @@ export {
   makeCompilerOptions,
   parseConfigAssignment,
 } from ./config.civet
+export { version } from ./version.civet
 
 // Need to no-cache any rule that directly modifies parser state
 // indentation stack, jsx stack, etc.

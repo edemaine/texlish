@@ -22,7 +22,7 @@ patterns:
       3:
         name: variable.parameter.function.texlish
   - name: meta.function.special.keyword.texlish
-    match: '^\s*((::\s*)(use|styles|preamble)\b)'
+    match: '^\s*((::\s*)(use|styles|preamble|version)\b)'
     captures:
       1:
         name: support.function.texlish

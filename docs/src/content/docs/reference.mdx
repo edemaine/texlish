@@ -444,3 +444,22 @@ In LaTeX-compat mode, `scriptGrouping` is effectively set to `none`:
   ::config latexCompat
   $x_12 + x_ij + x^12 + x^ij$
 `}/>
+
+## Version Requirements
+
+If you're using a more recent or removed Texlish feature
+(see the [changelog](https://github.com/edemaine/texlish/blob/main/CHANGELOG.md)),
+you want to make sure that your collaborators have a matching version.
+Use `::version` to check that the current Texlish version
+satisfies a version range:
+
+<Example src={`
+  ::version >=0.1.1 <99999.0.0
+  This document uses Texlish 0.1.x+ syntax.
+`}/>
+
+Ranges should specify full `major.minor.patch` version numbers
+(optionally with `-` prerelease), and can be prefixed by a comparison of
+`<`, `<=`, `>`, `>=`, or `=` (the default meaning of a bare version).
+Multiple comparisons (separated by whitespace) are combined with AND.
+Comparisons follow [SemVer 2.0.0](https://semver.org/) rules.

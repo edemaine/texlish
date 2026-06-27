@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* `::version` enforces strict Texlish version ranges with comparison
+  operators and whitespace-separated AND conditions.
+  [[#24](https://github.com/edemaine/texlish/issues/24)]
 * Compiler configuration via in-file `::config`, CLI `--config`, and
   project config files.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
@@ -19,8 +22,8 @@
 * `@ref` no longer includes `~` as part of `ref` (unless quoted),
   allowing for nonbreaking spaces between `@ref`s.
   [[#18](https://github.com/edemaine/texlish/issues/18)]
-* CLI adds a comment at the top of generated `.tex` files, linking to Texlish
-  and suggesting to edit the `.texlish` file instead of this one.
+* CLI adds a comment at the top of generated `.tex` files, with version number,
+  linking to Texlish and suggesting to edit the `.texlish` file instead.
   [[#23](https://github.com/edemaine/texlish/issues/23)]
 
 ## 0.1.1

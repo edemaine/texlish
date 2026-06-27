@@ -1,0 +1,146 @@
+export const version: string = comptime
+  import "../package.json", with: type: "json"
+  |> await
+  |> .default.version
+else "0.0.0" // for non-async typing, and used in testing
+
+type PrereleaseIdentifier = string | number
+
+type Version =
+  major: number
+  minor: number
+  patch: number
+  prerelease: PrereleaseIdentifier[]
+
+type Comparator =
+  op: "<" | "<=" | ">" | ">=" | "="
+  version: Version
+
+// https://semver.org/
+versionPrefixRE := ///
+  // major   minor    patch
+  ^ (\d+) \. (\d+) \. (\d+)
+  // prerelease
+  (?: - ( [0-9A-Za-z-]+ (?: \.[0-9A-Za-z-]+ )* ) )?
+  // build metadata (ignored for comparison)
+  (?: \+ [0-9A-Za-z-]+ (?: \.[0-9A-Za-z-]+ )* )?
+///
+numericIdentifierRE := /^(0|[1-9]\d*)$/
+
+/** Parse a numeric version component, rejecting leading zeroes or unsafe values. */
+function parseNumber(part: string, versionText: string): number
+  unless numericIdentifierRE.test part
+    throw new Error `Invalid version ${versionText}: numeric component ${part} cannot contain leading zeroes`
+  value := Number part
+  unless Number.isSafeInteger value
+    throw new Error `Invalid version ${versionText}: numeric component ${part} is too large`
+  value
+
+/** Parse a strict SemVer-like version into comparable numeric and prerelease parts. */
+function parseVersion(versionText: string): Version
+  match := versionPrefixRE.exec versionText
+  unless match and match[0]# is versionText#
+    throw new Error `Invalid version: ${versionText}`
+  major: parseNumber match[1], versionText
+  minor: parseNumber match[2], versionText
+  patch: parseNumber match[3], versionText
+  prerelease:
+    for each identifier of match[4]?.split('.') ?? []
+      if /^\d+$/.test identifier
+        parseNumber identifier, versionText
+      else
+        identifier
+
+/** Compare SemVer prerelease identifiers, where numeric identifiers sort before text. */
+function compareIdentifiers(a: PrereleaseIdentifier, b: PrereleaseIdentifier): -1 | 0 | +1
+  // "Numeric identifiers always have lower precedence than non-numeric identifiers."
+  aNumeric := a <? "number"
+  bNumeric := b <? "number"
+  return -1 if aNumeric and not bNumeric
+  return +1 if bNumeric and not aNumeric
+  // "Identifiers consisting of only digits are compared numerically."
+  // "Identifiers with letters or hyphens are compared lexically in ASCII sort order."
+  // We've already converted numeric identifiers to numbers,
+  // so same comparison works for both.
+  return -1 if a < b
+  return +1 if a > b
+  0
+
+/** Compare two parsed versions according to SemVer precedence. */
+function compareVersions(a: Version, b: Version): -1 | 0 | +1
+  for key of ["major", "minor", "patch"] as const
+    diff := a[key] - b[key]
+    return Math.sign(diff) as -1 | 0 | +1 if diff
+
+  // A release version has higher precedence than its prereleases.
+  return 0 unless a.prerelease# or b.prerelease#
+  return 1 unless a.prerelease#
+  return -1 unless b.prerelease#
+
+  for aIdentifier?, bIdentifier? of a.prerelease, b.prerelease
+    // "A larger set of pre-release fields has a higher precedence than a smaller set, if all of the preceding identifiers are equal."
+    return -1 unless aIdentifier?
+    return 1 unless bIdentifier?
+    diff := compareIdentifiers aIdentifier, bIdentifier
+    return diff if diff
+  0
+
+/** Parse a whitespace-separated AND range into exact or comparison predicates. */
+function parseComparators(range: string): Comparator[]
+  comparators: Comparator[] := []
+  pos .= 0
+  function skipWhitespace(): void
+    pos++ while range[pos] is like /^\s/
+  while pos < range#
+    skipWhitespace()
+    break if pos >= range#
+
+    op: Comparator["op"] .= "="
+    if match := /^(<=|>=|<|>|=)/.exec range[pos..]
+      op = match[1] as Comparator["op"]
+      pos += match[0]#
+      skipWhitespace()
+
+    unless versionMatch := versionPrefixRE.exec range[pos..]
+      throw new Error `Invalid version range: ${range}`
+    versionText := versionMatch[0]
+    comparators.push {
+      op
+      version: parseVersion versionText
+    }
+    pos += versionText#
+    // Require space after a comparator, so that e.g. "1.2.3<1.2.4" is invalid.
+    if pos < range# and range[pos] is not like /^\s/
+      throw new Error `Invalid version range: ${range}`
+
+  unless comparators#
+    throw new Error "Version range cannot be empty"
+  comparators
+
+/** Test a parsed version against one exact or comparison predicate. */
+function satisfiesComparator(current: Version, comparator: Comparator): boolean
+  comparison := compareVersions current, comparator.version
+  switch comparator.op
+    when "<"
+      comparison < 0
+    when "<="
+      comparison <= 0
+    when ">"
+      comparison > 0
+    when ">="
+      comparison >= 0
+    when "="
+      comparison is 0
+    else
+      throw new Error `Invalid comparator operator: ${comparator.op}`
+
+/** Return whether a version satisfies a range of whitespace-separated comparators. */
+export function satisfiesVersionRange(versionText: string, range: string): boolean
+  current := parseVersion versionText
+  for every comparator of parseComparators range
+    satisfiesComparator current, comparator
+
+/** Throw if the current Texlish package version does not satisfy the range. */
+export function assertTexlishVersion(range: string): void
+  unless satisfiesVersionRange version, range
+    throw new Error `Texlish ${version} does not satisfy version range ${range}`
