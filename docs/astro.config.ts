@@ -5,6 +5,7 @@ import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import mdx from '@astrojs/mdx'
 import solid from '@astrojs/solid-js'
+import texLanguageRegistration from 'shiki/langs/tex.mjs'
 import civet from '@danielx/civet/astro'
 import civetVite from '@danielx/civet/vite'
 import texlishGrammarJson from '../vscode/syntaxes/texlish.tmLanguage.json' with { type: 'json' }
@@ -28,10 +29,18 @@ export default defineConfig({
       customCss: [
         './src/styles/theme.styl',
       ],
-      social: {
-        discord: 'https://discord.gg/SCet9ssMUg',
-        github: 'https://github.com/edemaine/texlish',
-      },
+      social: [
+        {
+          icon: 'discord',
+          label: 'Discord',
+          href: 'https://discord.gg/SCet9ssMUg',
+        },
+        {
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/edemaine/texlish',
+        },
+      ],
       sidebar: [
         {
           label: 'Homepage',
@@ -52,7 +61,7 @@ export default defineConfig({
       ],
       expressiveCode: {
         shiki: {
-          langs: [texlishLanguage],
+          langs: [...texLanguageRegistration, texlishLanguage],
         },
       },
     }),

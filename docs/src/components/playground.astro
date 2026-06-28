@@ -1,6 +1,5 @@
 ---
 import { Playground } from './playground.civet'
-import { compile } from '../../../dist/main.js'
 import { process } from '../workers/playground.worker.civet'
 const src = `# Hello, Texlish!`
 const {tex, html} = process({src, complete: true})
@@ -13,6 +12,7 @@ const {tex, html} = process({src, complete: true})
     grid-template-columns: 1fr 1fr
     gap: 1rem
     align-items: stretch
+    margin-top: 0 !important
     > *
       margin-top: 0 !important
   textarea

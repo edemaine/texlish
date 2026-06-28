@@ -32,6 +32,10 @@
 // Smaller left sidebar
 :root
   --sl-sidebar-width: 9rem
+// Keep the narrow sidebar usable. If the nav grows enough to scroll regularly,
+// remove this override and widen --sl-sidebar-width instead.
+.sidebar-pane
+  scrollbar-gutter: auto
 
 // Less space around hero
 @media (min-width: 50rem)
