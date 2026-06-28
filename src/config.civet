@@ -104,7 +104,7 @@ export function parseCompilerOption(key: string | string[], value: ???): ParsedC
     when "styles"
       if path# < 2
         throw new Error `Config option ${path.join '.'} must include a style key`
-      styleKey := path[1..].join '.'
+      styleKey := path[>=1].join '.'
       stringValue := parseString `styles.${styleKey}`, value
       key: "styles"
       value: { [styleKey]: stringValue }

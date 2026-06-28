@@ -47,7 +47,7 @@ function processMarkdown(root: AST[]): void
               opens.splice i, opens# - i
               (child.children ??= []).push '}'
               if close# > open#  // some close remains
-                close = child.token = close[open#..]
+                close = child.token = close[>= open#]
               else  // close finished too
                 delete child.token
                 break
@@ -55,7 +55,7 @@ function processMarkdown(root: AST[]): void
             // Open+close delimiter: Forbid double nested identical emphasis
             unless open is close+close and (opens[i].close or child.open)
               (opens[i].children ?= []).unshift opener close
-              opens[i].token = open[...-close#]
+              opens[i].token = open[< -close#]
               (child.children ??= []).push '}'
               delete child.token
               break

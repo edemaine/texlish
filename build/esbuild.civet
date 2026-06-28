@@ -1,6 +1,6 @@
-esbuild from "esbuild"
-heraPlugin from "@danielx/hera/esbuild-plugin"
-civetPlugin from "@danielx/civet/esbuild"
+esbuild from esbuild
+heraPlugin from @danielx/hera/esbuild-plugin
+civetPlugin from @danielx/civet/esbuild
 
 watch := process.argv.includes '--watch'
 build :=
@@ -14,6 +14,9 @@ civetPluginOptions :=
   ts: 'civet' as const
   parseOptions:
     comptime: true
+heraPluginOptions :=
+  module: true
+  language: 'civet' as const
 
 rewriteCivetImports := {
   name: 'rewrite-civet-imports'
@@ -51,7 +54,7 @@ for esm of [false, true]
     format: if esm then 'esm' else 'cjs'
     outfile: `dist/main.${if esm then 'js' else 'cjs'}`
     plugins: [
-      heraPlugin module: true
+      heraPlugin heraPluginOptions
       civetPlugin civetPluginOptions
     ]
   }).catch -> process.exit 1
@@ -65,7 +68,7 @@ build({
   outfile: 'dist/browser.js'
   external: ['node:fs']
   plugins: [
-    heraPlugin module: true
+    heraPlugin heraPluginOptions
     civetPlugin civetPluginOptions
   ]
 }).catch -> process.exit 1

@@ -52,7 +52,7 @@ export function find(node: AST, match: (candidate: AST) => boolean): AST
  * Any object or nonempty string is treated as nonempty.
  */
 export function isEmpty(node: AST): boolean
-  if not node
+  unless node
     true
   else if Array.isArray node
     for every child of node

@@ -6,9 +6,9 @@ fs from fs/promises
   makeCompilerOptions,
   parseConfigAssignment,
   version,
-} from './main.civet'
-{ findInDir, loadConfig } from './config-file.civet'
-type { CompilerOptions } from './types.civet'
+} from ./main.civet
+{ findInDir, loadConfig } from ./config-file.civet
+type { CompilerOptions } from ./types.civet
 
 function usage: void
   console.log '''
@@ -126,8 +126,8 @@ export function cli: Promise<void>
     else if await exists filename + '.tex'
       texFile = filename + '.tex'
     else if filename.toLowerCase().endsWith '.tex'
-      if await exists filename[...-4] + '.texlish'
-        texFile = await transpile filename[...-4] + '.texlish', options
+      if await exists filename[< -4] + '.texlish'
+        texFile = await transpile filename[< -4] + '.texlish', options
       else
         texFile = filename
         unless await exists texFile

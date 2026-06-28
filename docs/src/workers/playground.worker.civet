@@ -44,8 +44,8 @@ export function process(data: WorkerInput): WorkerOutput
     let error: string
     if e instanceof ParseError
       linesUntilError := src.split('\n')[0...e.line].join '\n'
-      errorLine := `${' '.repeat e.column - 1}^ ${e.header}`;
-      error = `${linesUntilError}\n${errorLine}`;
+      errorLine := `${' '.repeat e.column - 1}^ ${e.header}`
+      error = `${linesUntilError}\n${errorLine}`
       html = highlighter.codeToHtml error, highlightOptions
     else
       error = e.toString()
@@ -57,7 +57,7 @@ export function process(data: WorkerInput): WorkerOutput
       |> `<pre>${&}</pre>`
     return { id, error, html }
 
-unless typeof onmessage is 'undefined'
+unless onmessage <? "undefined"
   onmessage = ({data:: WorkerInput}): void =>
     postMessage process data
   postMessage { id: 0, tex: '', html: '' }

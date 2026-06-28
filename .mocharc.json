@@ -3,7 +3,7 @@
     "civet"
   ],
   "require": [
-    "@danielx/hera/register",
+    "@danielx/hera/register/civet",
     "@danielx/civet/register"
   ],
   "reporter": "dot",

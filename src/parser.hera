@@ -1,58 +1,52 @@
 ```
-import { generate } from './main.civet'
-import { process } from './postprocess.civet'
-import {
+{ generate } from ./main.civet
+{ process } from ./postprocess.civet
+{
   applyCompilerOption,
   makeCompilerOptions,
-} from './config.civet'
-import { assertTexlishVersion } from './version.civet'
-import {
+} from ./config.civet
+{ assertTexlishVersion } from ./version.civet
+{
   commentForBody,
   commentForTextBody,
   getEndComment,
   isNumeric,
   trimEnd,
   trimEndComment,
-} from './util.civet'
+} from ./util.civet
 
-export const state = {
+export state := {
   indents: [ { token: '', level: 0 } ],
   compilerOptions: makeCompilerOptions(),
-  get currentIndent() {
-    return state.indents.at(-1)
-  }
+  get currentIndent()
+    state.indents.-1
 }
 
-export function getCompilerOptions(options) {
-  return state.compilerOptions
-}
-export function setCompilerOptions(options) {
+export function getCompilerOptions(options)
+  state.compilerOptions
+
+export function setCompilerOptions(options)
   state.compilerOptions = options
-}
 
-export function getStateKey() {
-  return state.currentIndent.level
-}
+export function getStateKey()
+  state.currentIndent.level
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
  * Returns undefined to reject shorthand meaning it should be left alone.
  */
-function labelPrefix(style, label) {
-  if (style === '@^' && isNumeric(label)) return
-  if (style === '@^') return 'footnote:'
-  return ''
-}
+function labelPrefix(style, label)
+  if style is '@^'
+    return if isNumeric label
+    return 'footnote:'
+  ''
 
-function applyConfigAssignments(body) {
-  if (body.some(([key]) => key[0] === "styles")) {
+function applyConfigAssignments(body)
+  if body.some [key] => key[0] is "styles"
     // Avoid aliasing so that we can copy by reference in Delimiters
     state.compilerOptions.styles = {...state.compilerOptions.styles}
-  }
-  for (const [key, value] of body) {
+  for [key, value] of body
     applyCompilerOption(state.compilerOptions, key, value)
-  }
-}
 
 export { ParseError }
 ```
@@ -104,20 +98,20 @@ TextLine
 # (can be empty, no newline consumption)
 Text
   TextPart* InlineCommandWithColonArgument? ->
-    if (!$2) return $1
+    return $1 unless $2
     return [ ...$1, $2 ]
 
 ScriptGroupingNumeric
   "" ->
-    if (state.compilerOptions.scriptGrouping !== "numeric") return $skip
+    return $skip unless state.compilerOptions.scriptGrouping is "numeric"
 
 ScriptGroupingAlpha
   "" ->
-    if (state.compilerOptions.scriptGrouping !== "alpha") return $skip
+    return $skip unless state.compilerOptions.scriptGrouping is "alpha"
 
 ScriptGroupingAlphanumeric
   "" ->
-    if (state.compilerOptions.scriptGrouping !== "alphanumeric") return $skip
+    return $skip unless state.compilerOptions.scriptGrouping is "alphanumeric"
 
 TextPart
   BracedContent
@@ -125,14 +119,14 @@ TextPart
   FootnoteRef
   # @'long ref'
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
-    const label = $2.slice(1, -1)
-    const prefix = labelPrefix($1, label)
-    if (prefix == null) return $skip
+    label := $2[<..<]
+    prefix := labelPrefix $1, label
+    return $skip unless prefix?
     return `${state.compilerOptions.styles[$1]}{${prefix}${label}}`
   # @ref without spaces and without grabbing trailing punctuation
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
-    const prefix = labelPrefix($1, $2)
-    if (prefix == null) return $skip
+    prefix := labelPrefix $1, $2
+    return $skip unless prefix?
     return `${state.compilerOptions.styles[$1]}{${prefix}${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.compilerOptions.styles['[[']}{${$1}}`
@@ -187,26 +181,21 @@ TextPart
   /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
 
 FootnoteRef
-  /\[\^([^\]\r\n]+)\]/:marker EOLNext:eolNext ->
+  /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
     return {
       type: "FootnoteRef",
       id: marker[1].trim(),
-      eolNext,
+      eolNext: Boolean(eolNext),
       children: [marker[0]],
     }
 
-# Once we upgrade Hera, this can be replaced by `(&EOL)?` || false
-EOLNext
-  &EOL -> true
-  "" -> false
-
 TrimmedText
   Text:t ->
-    if (!Array.isArray(t)) return t.trim()
+    return t.trim() unless Array.isArray t
     t = [...t]
-    if (typeof t[0] === 'string') t[0] = t[0].trimStart()
-    const last = t.length - 1
-    if (typeof t[last] === 'string') t[last] = t[last].trimEnd()
+    t[0] = t[0].trimStart() if t[0] <? 'string'
+    last := t# - 1
+    t[last] = t[last].trimEnd() if t[last] <? 'string'
     return t
 
 BracedContent
@@ -214,17 +203,15 @@ BracedContent
     let comment
     [body, comment] = commentForBody(body)
     // Drop single %
-    if (comment?.token === "%" ) {
-      comment = undefined
-    }
+    comment = undefined if comment?.token is "%"
     return {
-      type: "Braced",
-      body,
+      type: "Braced"
+      body
       children: [
-        open,
-        body,
-        close,
-        comment,
+        open
+        body
+        close
+        comment
       ]
     }
 
@@ -260,7 +247,7 @@ CommandWithoutNewline
 # Captures * after command name to allow e.g. \section*: Acknowledgments
 StarredCommand
   CommandWithoutNewline /[ \t]*\*/? ->
-    if (!$2) return $1
+    return $1 unless $2
     return { ...$1, token: $1.token + $2[0] }
 
 ParenthesizedContent
@@ -272,14 +259,17 @@ ParenBalancedContent
 
 Heading
   /(!+|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
-    let [, dot, hash, star] = $1
-    let dots = dot.length
-    let hashes = hash.length
-    let command =
-      dot[0] === "!" ? ( dots > 1 || hashes > 1 ? '\\part' : '\\chapter' ) :
-      dots ? ( dots > 1 || hashes > 1 ? '\\subparagraph' : '\\paragraph' ) :
-      `\\${'sub'.repeat(hashes-1)}section`
-    if (star) command += '*'
+    [, dot, hash, star] .= $1
+    dots := dot#
+    hashes := hash#
+    command .=
+      if dot[0] is "!"
+        if dots > 1 or hashes > 1 then '\\part' else '\\chapter'
+      else if dots
+        if dots > 1 or hashes > 1 then '\\subparagraph' else '\\paragraph'
+      else
+        `\\${'sub'.repeat(hashes-1)}section`
+    command += '*' if star
     return {
       type: "Heading",
       subtype: command,
@@ -294,27 +284,24 @@ Autolink
   # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
   # Texlish additionally allows {a,b} in the userid, which is common in papers
   /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-,]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
-    let email = $1
+    email .= $1
     // Convert {a,b}@domain to mailto:a@domain,b@domain
-    let match = /\{([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`\|~\-,]+)\}/.exec(email)
-    if (match) {
-      email = match[1].split(',').map(part =>
-        email.slice(0, match.index) + part +
-        email.slice(match.index + match[0].length)
-      ).join(',')
-    }
+    if match := /\{([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`\|~\-,]+)\}/.exec email
+      email = match[1].split(',').map (part) =>
+        email[< match.index] + part + email[>= match.index + match[0]#]
+      .join(',')
     // commonmark.js dingus escapes as follows:
     email = email
-    .replace(/&/g, '&amp;')
-    .replace(/[%^`|]/g, m => `%${m.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replace /&/g, '&amp;'
+    .replace /[%^`|]/g, (m) => `%${m.charCodeAt(0).toString(16).toUpperCase()}`
     return `\\protect\\href{mailto:${email}}{\\protect\\nolinkurl{${$1}}}`
 
 Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
   # (in case ColonArgument involves multiple lines)
   &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
-    if (!content) return $skip
-    let [ env, first, body ] = content
+    return $skip unless content
+    [ env, first, body ] .= content
     env = env[1].trim()
     return {
       type: "Environment",
@@ -335,19 +322,19 @@ CommandWithColonArgument
 
 FootnoteDefinition
   Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon ArgumentAfterColon:arg ->
-    const {body} = arg
+    {body} := arg
     return {
-      type: "FootnoteDefinition",
-      id: marker[1].trim(),
-      body,
+      type: "FootnoteDefinition"
+      id: marker[1].trim()
+      body
       // In case this footnote definition isn't used, its fallback text is
       // roughly the original.
       children: [
-        indent,
-        marker[0],
-        colon,
+        indent
+        marker[0]
+        colon
         // Unwrap ArgumentAfterColon
-        body?.[0] === "%" ? body.slice(1) : [ " ", body ],
+        if body?.[0] is "%" then body[>=1] else [ " ", body ]
       ]
     }
 
@@ -369,18 +356,18 @@ ArgumentAfterColon
   NestedArgumentList
   TrimmedText:text NestedBody:body ->
     // If nothing on first line, comment out the newline
-    if (!text.length && body.length) text = "%"
+    text = "%" if not text# and body#
     let comment
     [text, body, comment] = commentForTextBody(text, body)
-    const textBody = [ text, body ]
+    textBody := [ text, body ]
     return {
-      type: "Braced",
-      body: textBody,
+      type: "Braced"
+      body: textBody
       children: [
-        "{",
-        textBody,
-        "}",
-        comment,
+        "{"
+        textBody
+        "}"
+        comment
       ]
     }
 
@@ -390,26 +377,26 @@ InlineArgumentAfterColon
     let comment
     [body, comment] = commentForBody(body)
     return {
-      type: "Braced",
-      body,
+      type: "Braced"
+      body
       children: [
-        "{%",
-        body,
-        "}",
-        comment,
+        "{%"
+        body
+        "}"
+        comment
       ]
     }
   TrimmedText:body ->
     let comment
     [body, comment] = commentForBody(body)
     return {
-      type: "Braced",
-      body,
+      type: "Braced"
+      body
       children: [
-        "{",
-        body,
-        "}",
-        comment,
+        "{"
+        body
+        "}"
+        comment
       ]
     }
 
@@ -440,9 +427,8 @@ MetaStyles
   "styles" NestedConfigAssignments:body ->
     // Avoid aliasing so that we can copy by reference in Delimiters
     state.compilerOptions.styles = {...state.compilerOptions.styles}
-    for (const [key, value] of body) {
-      applyCompilerOption(state.compilerOptions, ["styles", ...key], value)
-    }
+    for [key, value] of body
+      applyCompilerOption state.compilerOptions, ["styles", ...key], value
     return '\0'  // eat following newline
 
 NestedConfigAssignments
@@ -479,25 +465,25 @@ MetaUse
 UseItem
   Bullet? /[^:%\r\n]+/:name Comment?:comment UseColonArgument?:arg ->
     name = name[0]
-    let match = /\s*$/.exec(name)
-    let space = match[0]
-    name = name.slice(0, match.index)
+    match := /\s*$/.exec name
+    space := match[0]
+    name = name[< match.index]
     return {
-      type: "Use",
+      type: "Use"
       children: [
-        '\\usepackage',
-        arg,
-        `{${name}}`,
-        space,
-        comment,
+        '\\usepackage'
+        arg
+        `{${name}}`
+        space
+        comment
       ]
     }
 
 NestedUseList
   PushIndent NestedUseItem*:items PopIndent ->
-    if (!items.length) return $skip
+    return $skip unless items#
     return {
-      type: "Uses",
+      type: "Uses"
       children: items
     }
 
@@ -508,10 +494,10 @@ NestedUseItem
 UseColonArgument
   SaveIndent:indent Colon UseArgument:arg ->
     return [
-      "[",
-      arg,
-      getEndComment(arg) && [ "\n", indent ],
-      "]",
+      "["
+      arg
+      if getEndComment(arg) then [ "\n", indent ]
+      "]"
     ]
 
 UseArgument
@@ -519,33 +505,31 @@ UseArgument
 
 NestedUseArgumentList
   PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
-    if (!content) return $skip
+    return $skip unless content
     return content
 
 UseArgumentList
   &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet ( SameLevel UseArgumentBullet )* )?:content PopIndent ->
-    if (!content) return $skip
+    return $skip unless content
     // Add commas between bullets
-    let [ first, rest ] = content
-    rest = rest.map(
-      ([ eol, [ indent, bull, ...rest ] ]) =>
+    [ first, rest ] .= content
+    rest = rest.map [ eol, [ indent, bull, ...rest ] ] =>
       [ eol, [ indent, ",",  ...rest ] ]
-    )
     return [ first, rest ]
 
 UseArgumentBullet
   Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
-    let [ , bullet, space ] = $2
+    [ , bullet, space ] .= $2
     return [
-      indent,
-      " ", space, // indent the same as the bullet
-      text,
-      body,
+      indent
+      " ", space // indent the same as the bullet
+      text
+      body
     ]
 
 NonEmptyNestedBody
   NestedBody ->
-    if (!$1.length) return $skip
+    return $skip unless $1#
     return $1
 
 # can be empty; if not desired, use NonEmptyNestedBody
@@ -557,35 +541,35 @@ NestedItem
 
 MetaPreamble
   "preamble" ( /[ \t]+/ Text )?:text NestedBody:body ->
-    if (text) text = text[1]
-    const textBody = [ text, body ]
+    text = text[1] if text
+    textBody := [ text, body ]
     return {
-      type: "Preamble",
-      textBody,
-      children: [ textBody ],
+      type: "Preamble"
+      textBody
+      children: [ textBody ]
     }
 
 UnorderedList
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
-    if (!items) return $skip
+    return $skip unless items
     return {
-      type: "List",
-      subtype: "itemize",
+      type: "List"
+      subtype: "itemize"
       children: [
-        indent,
-        "\\begin{itemize}",
-        "\n",
-        indent,
-        items,
-        "\n",
-        indent,
-        "\\end{itemize}",
+        indent
+        "\\begin{itemize}"
+        "\n"
+        indent
+        items
+        "\n"
+        indent
+        "\\end{itemize}"
       ]
     }
 
 UnorderedBullet
   Bullet:bullet Text:text NestedBody:body ->
-    let space = bullet[1]
+    space := bullet[1]
     return [ '\\item', space, text, body ]
 
 Bullet
@@ -593,63 +577,65 @@ Bullet
 
 OrderedList
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet ( SameLevel Indent OrderedBullet )* )?:items PopIndent ->
-    if (!items) return $skip
+    return $skip unless items
     return {
       type: "List",
       subtype: "enumerate",
       children: [
-        indent,
-        "\\begin{enumerate}",
-        "\n",
-        indent,
-        items,
-        "\n",
-        indent,
-        "\\end{enumerate}",
+        indent
+        "\\begin{enumerate}"
+        "\n"
+        indent
+        items
+        "\n"
+        indent
+        "\\end{enumerate}"
       ]
     }
 
 OrderedBullet
   /\d+\.([ \t]+|(?=[\r\n]))/ Text:text NestedBody:body ->
-    let space = $1[1]
+    space := $1[1]
     return [ '\\item', space, text, body ]
 
 NestedArgumentList
   PushIndent ( NonstrictlyNested ArgumentList )?:content PopIndent ->
-    if (!content) return $skip
+    return $skip unless content
     return content
 
 ArgumentList
   &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
-    if (!content) return $skip
+    return $skip unless content
     return content
 
 ArgumentBullet
   Indent:indent Bullet:bullet Text:text NestedBody:body ->
-    let [ symbol, space ] = bullet
+    [ symbol, space ] .= bullet
     let comment
-    [text, body, comment] = commentForTextBody(text, body)
+    [text, body, comment] = commentForTextBody text, body
+    open := if symbol is '~' then '[' else '{'
+    close := if symbol is '~' then ']' else '}'
     return [
-      indent,
-      space, // indent the same as the bullet, except 1 for *-~ and {
-      symbol === '~' ? '[' : '{',
-      text,
-      body,
-      symbol === '~' ? ']' : '}',
-      comment,
+      indent
+      space // indent the same as the bullet, except 1 for *-~ and {
+      open
+      text
+      body
+      close
+      comment
     ]
 
 ## Indentation management, inspired by Civet's parser.hera
 
 Indentation
   /[ \t]*/ ->
-    const numTabs = $0.match(/\t/g)?.length ?? 0
-    const level = numTabs * 8 + ($0.length - numTabs)
+    numTabs := $0.match(/\t/g)?# ?? 0
+    level := numTabs * 8 + ($0# - numTabs)
     return {
-      type: "Indent",
-      token: $0,
-      level,
-      $loc,
+      type: "Indent"
+      token: $0
+      level
+      $loc
     }
 
 Indent
@@ -672,7 +658,7 @@ Nested
 
 IndentedFurther
   Indentation:indent ->
-    if (indent.level <= state.currentIndent.level) return $skip
+    return $skip if indent.level <= state.currentIndent.level
     return $0
 
 SameLevel
@@ -680,7 +666,7 @@ SameLevel
 
 IndentedSame
   Indentation:indent ->
-    if (indent.level !== state.currentIndent.level) return $skip
+    return $skip unless indent.level is state.currentIndent.level
     return $0
 
 NonstrictlyNested
@@ -688,7 +674,7 @@ NonstrictlyNested
 
 IndentedNotLess
   Indentation:indent ->
-    if (indent.level < state.currentIndent.level) return $skip
+    return $skip if indent.level < state.currentIndent.level
     return $0
 
 SaveIndent

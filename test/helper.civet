@@ -80,7 +80,7 @@ function throws(text: string, compilerOpts?: CompilerOptions, opt?: "only" | "sk
       e = caught
     // First confirm throw
     assert.throws
-      => e && throw e
+      => e and throw e
       undefined as any
       ```
 

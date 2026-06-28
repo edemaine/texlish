@@ -123,7 +123,7 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
     op: Comparator["op"]? .= undefined
     if match := /// ^ (${comparisonOpsRE}) ///.exec token
       op = match[1] as Comparator["op"]
-      token = token[match[0]#..]
+      token = token[>= match[0]#]
 
     unless match := wildVersionRE.exec token
       throw new Error `Invalid version range: ${range}`
