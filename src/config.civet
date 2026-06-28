@@ -1,6 +1,6 @@
-import type { CompilerOptions, ScriptGrouping } from ./types.civet
+import type { ActiveCompilerOptions, CompilerOptions, ScriptGrouping } from ./types.civet
 
-export const defaultConfig: CompilerOptions = {
+export const defaultConfig: ActiveCompilerOptions = {
   scriptGrouping: "numeric"
   styles:
     '*': '\\emph'
@@ -20,7 +20,7 @@ export const defaultConfig: CompilerOptions = {
  * Build a complete compiler options object from already-parsed option values.
  * Applies defaults and clones/merges styles so callers can mutate the result.
  */
-export function makeCompilerOptions(options: CompilerOptions = {}): CompilerOptions
+export function makeCompilerOptions(options: CompilerOptions = {}): ActiveCompilerOptions
   merged := Object.create defaultConfig
   Object.assign merged, options
   merged.styles = {

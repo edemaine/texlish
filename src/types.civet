@@ -9,7 +9,15 @@ export type CompilerOptions
   latexCompat?: boolean
   styles?: Record<string, string>
 
-export type AST
+export type ActiveCompilerOptions = CompilerOptions & {
+  scriptGrouping: ScriptGrouping
+  styles: Record<string, string>
+}
+
+export type ConfigValue = string | boolean
+export type ConfigEntry = [string[], ConfigValue]
+
+export type AST =
   | undefined
   | string
   | ASTParent
@@ -43,7 +51,7 @@ export type ASTNode
 
 export interface Braced extends ASTParent
   type: "Braced"
-  body: AST[]
+  body: AST
 
 export interface Comment extends ASTToken
   type: "Comment"
@@ -86,7 +94,11 @@ export interface FootnoteRef extends ASTParent
 
 export interface Heading extends ASTParent
   type: "Heading"
-  subtype: "\\part" | "\\chapter" | "\\section" | "\\subsection" | "\\subsubsection" | "\\paragraph" | "\\subparagraph"
+  /**
+   * "\part", "\chapter", "\section", "\subsection", "\subsubsection",
+   * "\paragraph", "\subparagraph", and starred versions "\part*" etc.
+   */
+  subtype: string
 
 export interface Indent extends ASTToken
   type: "Indent"
@@ -98,6 +110,7 @@ export interface List extends ASTParent
 
 export interface Preamble extends ASTParent
   type: "Preamble"
+  textBody: AST[]
 
 export interface Use extends ASTParent
   type: "Use"

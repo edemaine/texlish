@@ -32,7 +32,8 @@
     "docs:dev": "pnpm build && pnpm --dir docs dev",
     "docs:build": "pnpm build && pnpm --dir docs build",
     "prepublish": "pnpm build",
-    "test": "mocha"
+    "typecheck": "civet --typecheck",
+    "test": "mocha && pnpm typecheck"
   },
   "author": "Erik Demaine",
   "license": "MIT",

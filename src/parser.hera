@@ -1,6 +1,23 @@
 ```
 { generate } from ./main.civet
-{ process } from ./postprocess.civet
+type {
+  ActiveCompilerOptions,
+  AST,
+  Braced,
+  Comment,
+  ConfigEntry,
+  Command,
+  Environment,
+  EOL,
+  FootnoteDefinition,
+  FootnoteRef,
+  Heading,
+  Indent,
+  List,
+  Preamble,
+  Use,
+  Uses,
+} from ./types.civet
 {
   applyCompilerOption,
   makeCompilerOptions,
@@ -11,37 +28,44 @@
   commentForTextBody,
   getEndComment,
   isNumeric,
-  trimEnd,
-  trimEndComment,
 } from ./util.civet
 
-export state := {
-  indents: [ { token: '', level: 0 } ],
-  compilerOptions: makeCompilerOptions(),
-  get currentIndent()
+type ParserState
+  indents: Indent[]
+  compilerOptions: ActiveCompilerOptions
+  thisLineIndent: Indent
+  currentIndent: Indent
+
+initialIndent: Indent := { type: "Indent", token: '', level: 0 }
+
+export state: ParserState := {
+  indents: [ initialIndent ]
+  compilerOptions: makeCompilerOptions()
+  thisLineIndent: initialIndent
+  get currentIndent(): Indent
     state.indents.-1
 }
 
-export function getCompilerOptions(options)
+export function getCompilerOptions(): ActiveCompilerOptions
   state.compilerOptions
 
-export function setCompilerOptions(options)
+export function setCompilerOptions(options: ActiveCompilerOptions): void
   state.compilerOptions = options
 
-export function getStateKey()
+export function getStateKey(): number
   state.currentIndent.level
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
  * Returns undefined to reject shorthand meaning it should be left alone.
  */
-function labelPrefix(style, label)
+function labelPrefix(style: string, label: string): string?
   if style is '@^'
     return if isNumeric label
     return 'footnote:'
   ''
 
-function applyConfigAssignments(body)
+function applyConfigAssignments(body: ConfigEntry[]): void
   if body.some [key] => key[0] is "styles"
     // Avoid aliasing so that we can copy by reference in Delimiters
     state.compilerOptions.styles = {...state.compilerOptions.styles}
@@ -51,26 +75,27 @@ function applyConfigAssignments(body)
 export { ParseError }
 ```
 
-Main
+Main ::AST[]
   Init Content -> $2
 
 Init
   "" ->
-    state.indents = [ { token: '', level: 0 } ]
+    state.indents = [ initialIndent ]
+    state.thisLineIndent = initialIndent
 
-Content
+Content ::AST[]
   Statement ( EOL Statement )* ->
     return [ $1, ...$2.flat() ]
   "" -> []
 
 # First line starts mid-line, so uses Text; following lines assume start of line
 # No Nested requirement; used in BracedContent where indentation doesn't matter
-TextAndContent
+TextAndContent ::AST[]
   Text ( EOL Statement )* ->
     return [ $1, ...$2.flat() ]
   "" -> []
 
-EOL
+EOL ::EOL
   /[ \t]*(\n|\r\n?|$)/ ->
     return {
       type: "EOL",
@@ -78,7 +103,7 @@ EOL
       $loc,
     }
 
-Statement
+Statement ::AST
   Heading
   MetaBlock
   FootnoteDefinition
@@ -90,13 +115,13 @@ Statement
 
 # One line of text at start of the line
 # (can be empty, no newline consumption)
-TextLine
+TextLine ::AST[]
   Indent Text ->
     return [ $1, ...$2 ]
 
 # One line of text, starting in the middle of a line, for inline uses
 # (can be empty, no newline consumption)
-Text
+Text ::AST[]
   TextPart* InlineCommandWithColonArgument? ->
     return $1 unless $2
     return [ ...$1, $2 ]
@@ -113,7 +138,7 @@ ScriptGroupingAlphanumeric
   "" ->
     return $skip unless state.compilerOptions.scriptGrouping is "alphanumeric"
 
-TextPart
+TextPart ::AST
   BracedContent
   Comment
   FootnoteRef
@@ -180,7 +205,7 @@ TextPart
   # Skip to next interesting character
   /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
 
-FootnoteRef
+FootnoteRef ::FootnoteRef
   /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
     return {
       type: "FootnoteRef",
@@ -189,21 +214,20 @@ FootnoteRef
       children: [marker[0]],
     }
 
-TrimmedText
+TrimmedText ::AST[]
   Text:t ->
-    return t.trim() unless Array.isArray t
     t = [...t]
     t[0] = t[0].trimStart() if t[0] <? 'string'
     last := t# - 1
     t[last] = t[last].trimEnd() if t[last] <? 'string'
     return t
 
-BracedContent
+BracedContent ::Braced
   "{":open TextAndContent:body "}":close ->
     let comment
     [body, comment] = commentForBody(body)
     // Drop single %
-    comment = undefined if comment?.token is "%"
+    comment = undefined if comment is like { token: "%" }
     return {
       type: "Braced"
       body
@@ -215,7 +239,7 @@ BracedContent
       ]
     }
 
-Comment
+Comment ::Comment
   /%[^\r\n]*/ ->
     return {
       type: "Comment",
@@ -223,10 +247,10 @@ Comment
       $loc,
     }
 
-CommentEOL
+CommentEOL ::AST[]
   Comment EOL
 
-Command
+Command ::Command
   CommandWithoutNewline
   /\\(?=[\r\n]|$)/ ->
     return {
@@ -235,7 +259,7 @@ Command
     }
 
 # Forbids \ followed by newline
-CommandWithoutNewline
+CommandWithoutNewline ::Command
   /\\([a-zA-Z@]+|[^\r\n])/ ->
     return {
       type: "Command",
@@ -245,19 +269,19 @@ CommandWithoutNewline
 # Command that can be followed by a colon argument
 # Forbids \ followed by newline
 # Captures * after command name to allow e.g. \section*: Acknowledgments
-StarredCommand
+StarredCommand ::Command
   CommandWithoutNewline /[ \t]*\*/? ->
     return $1 unless $2
     return { ...$1, token: $1.token + $2[0] }
 
-ParenthesizedContent
+ParenthesizedContent ::AST[]
   "(" ParenBalancedContent ")"
 
-ParenBalancedContent
+ParenBalancedContent ::AST
   ParenthesizedContent
   TextPart
 
-Heading
+Heading ::Heading
   /(!+|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
     [, dot, hash, star] .= $1
     dots := dot#
@@ -277,7 +301,7 @@ Heading
     }
 
 # https://spec.commonmark.org/0.31.2/#autolinks
-Autolink
+Autolink ::AST
   # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
   /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
     return `\\protect\\url{${$1}}`
@@ -293,16 +317,16 @@ Autolink
     // commonmark.js dingus escapes as follows:
     email = email
     .replace /&/g, '&amp;'
-    .replace /[%^`|]/g, (m) => `%${m.charCodeAt(0).toString(16).toUpperCase()}`
+    .replace /[%^`|]/g, (m: string) => `%${m.charCodeAt(0).toString(16).toUpperCase()}`
     return `\\protect\\href{mailto:${email}}{\\protect\\nolinkurl{${$1}}}`
 
-Environment
+Environment ::Environment
   # use NestedItem* instead of NestedBody so that we can PushIndent early
   # (in case ColonArgument involves multiple lines)
   &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
     return $skip unless content
-    [ env, first, body ] .= content
-    env = env[1].trim()
+    [ envMatch, first, body ] .= content
+    env := envMatch[1].trim()
     return {
       type: "Environment",
       env,
@@ -317,12 +341,19 @@ Environment
       ]
     }
 
-CommandWithColonArgument
+CommandWithColonArgument ::AST[]
   Indent:indent StarredCommand:command ColonArgument:arg
 
-FootnoteDefinition
+FootnoteDefinition ::FootnoteDefinition
   Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon ArgumentAfterColon:arg ->
-    {body} := arg
+    body: AST[] :=
+      if Array.isArray arg
+        arg
+      else // type: "Braced"
+        if Array.isArray arg.body
+          arg.body
+        else
+          [arg.body]
     return {
       type: "FootnoteDefinition"
       id: marker[1].trim()
@@ -339,24 +370,24 @@ FootnoteDefinition
     }
 
 # Inline version prevents combining same-line and indented content
-InlineCommandWithColonArgument
+InlineCommandWithColonArgument ::AST[]
   StarredCommand InlineColonArgument
 
-ColonArgument
+ColonArgument ::AST
   Colon ArgumentAfterColon -> $2
 
-InlineColonArgument
+InlineColonArgument ::AST
   Colon InlineArgumentAfterColon -> $2
 
 # ":", but don't treat :: as :
 Colon
   /:(?!:)/
 
-ArgumentAfterColon
+ArgumentAfterColon ::AST[] | Braced
   NestedArgumentList
   TrimmedText:text NestedBody:body ->
     // If nothing on first line, comment out the newline
-    text = "%" if not text# and body#
+    text = ["%"] if not text# and body#
     let comment
     [text, body, comment] = commentForTextBody(text, body)
     textBody := [ text, body ]
@@ -371,7 +402,7 @@ ArgumentAfterColon
       ]
     }
 
-InlineArgumentAfterColon
+InlineArgumentAfterColon ::AST
   NestedArgumentList
   NonEmptyNestedBody:body ->
     let comment
@@ -400,22 +431,22 @@ InlineArgumentAfterColon
       ]
     }
 
-MetaBlock
+MetaBlock ::AST[]
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
 
-MetaCommand
+MetaCommand ::AST
   MetaVersion
   MetaConfig
   MetaStyles
   MetaUse
   MetaPreamble
 
-MetaVersion
+MetaVersion ::AST
   "version" /[ \t]+([^\r\n%]+)/:range Comment? ->
     assertTexlishVersion(range[1].trim())
     return '\0'  // eat following newline
 
-MetaConfig
+MetaConfig ::AST
   "config" /[ \t]+/ ConfigAssignment:body ->
     applyConfigAssignments(body)
     return '\0'  // eat following newline
@@ -423,7 +454,7 @@ MetaConfig
     applyConfigAssignments(body)
     return '\0'  // eat following newline
 
-MetaStyles
+MetaStyles ::AST
   "styles" NestedConfigAssignments:body ->
     // Avoid aliasing so that we can copy by reference in Delimiters
     state.compilerOptions.styles = {...state.compilerOptions.styles}
@@ -431,26 +462,26 @@ MetaStyles
       applyCompilerOption state.compilerOptions, ["styles", ...key], value
     return '\0'  // eat following newline
 
-NestedConfigAssignments
+NestedConfigAssignments ::ConfigEntry[]
   PushIndent NestedConfigAssignment*:items PopIndent ->
     return items.flat()
 
-NestedConfigAssignment
+NestedConfigAssignment ::ConfigEntry[]
   Nested Indent ConfigAssignment:assignment -> assignment
 
-ConfigAssignment
+ConfigAssignment ::ConfigEntry[]
   /[^\s:%]+(?=[ \t]*=)/:key ConfigRHS:value ->
     return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
   /[^\s:=%]+/:key NestedConfigRHS:value ->
     return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
 
-NestedConfigRHS
+NestedConfigRHS ::ConfigEntry[]
   # `key:` for nested config
   /[ \t]*:[ \t]*/ NestedConfigAssignments:items ->
     return items
   ConfigRHS:rhs -> rhs
 
-ConfigRHS
+ConfigRHS ::ConfigEntry[]
   # `key=value`
   /[ \t]*=/ TrimmedText:value ->
     return [[[], generate(value)]]
@@ -458,14 +489,13 @@ ConfigRHS
   "" ->
     return [[[], true]]
 
-MetaUse
+MetaUse ::AST
   "use" [ \t]+ UseItem:item -> item
   "use" NestedUseList:list -> list
 
-UseItem
-  Bullet? /[^:%\r\n]+/:name Comment?:comment UseColonArgument?:arg ->
-    name = name[0]
-    match := /\s*$/.exec name
+UseItem ::Use
+  Bullet? $(/[^:%\r\n]+/):name Comment?:comment UseColonArgument?:arg ->
+    match := /\s*$/.exec(name)!
     space := match[0]
     name = name[< match.index]
     return {
@@ -479,7 +509,7 @@ UseItem
       ]
     }
 
-NestedUseList
+NestedUseList ::Uses
   PushIndent NestedUseItem*:items PopIndent ->
     return $skip unless items#
     return {
@@ -487,11 +517,11 @@ NestedUseList
       children: items
     }
 
-NestedUseItem
+NestedUseItem ::AST[]
   Nested Indent UseItem ->
     return $0
 
-UseColonArgument
+UseColonArgument ::AST[]
   SaveIndent:indent Colon UseArgument:arg ->
     return [
       "["
@@ -500,26 +530,26 @@ UseColonArgument
       "]"
     ]
 
-UseArgument
+UseArgument ::AST
   TrimmedText ( NestedUseArgumentList / NonEmptyNestedBody )?
 
-NestedUseArgumentList
+NestedUseArgumentList ::AST[]
   PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
     return $skip unless content
     return content
 
-UseArgumentList
+UseArgumentList ::AST[]
   &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet ( SameLevel UseArgumentBullet )* )?:content PopIndent ->
     return $skip unless content
     // Add commas between bullets
     [ first, rest ] .= content
-    rest = rest.map [ eol, [ indent, bull, ...rest ] ] =>
+    rest = rest.map [ eol, [ indent, , ...rest ] ] =>
       [ eol, [ indent, ",",  ...rest ] ]
     return [ first, rest ]
 
-UseArgumentBullet
+UseArgumentBullet ::AST[]
   Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
-    [ , bullet, space ] .= $2
+    [ , , space ] .= $2
     return [
       indent
       " ", space // indent the same as the bullet
@@ -527,29 +557,29 @@ UseArgumentBullet
       body
     ]
 
-NonEmptyNestedBody
+NonEmptyNestedBody ::AST[]
   NestedBody ->
     return $skip unless $1#
     return $1
 
 # can be empty; if not desired, use NonEmptyNestedBody
-NestedBody
+NestedBody ::AST[]
   PushIndent NestedItem* PopIndent -> $2
 
-NestedItem
+NestedItem ::AST[]
   Nested Statement
 
-MetaPreamble
+MetaPreamble ::Preamble
   "preamble" ( /[ \t]+/ Text )?:text NestedBody:body ->
-    text = text[1] if text
-    textBody := [ text, body ]
+    preambleText := text?[1]
+    textBody := [ preambleText, body ]
     return {
       type: "Preamble"
       textBody
       children: [ textBody ]
     }
 
-UnorderedList
+UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
     return $skip unless items
     return {
@@ -567,7 +597,7 @@ UnorderedList
       ]
     }
 
-UnorderedBullet
+UnorderedBullet ::AST[]
   Bullet:bullet Text:text NestedBody:body ->
     space := bullet[1]
     return [ '\\item', space, text, body ]
@@ -575,7 +605,7 @@ UnorderedBullet
 Bullet
   /([*\-~])([ \t]+|(?=[\r\n]))/ -> [ $1, $2 ]
 
-OrderedList
+OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet ( SameLevel Indent OrderedBullet )* )?:items PopIndent ->
     return $skip unless items
     return {
@@ -593,22 +623,22 @@ OrderedList
       ]
     }
 
-OrderedBullet
+OrderedBullet ::AST[]
   /\d+\.([ \t]+|(?=[\r\n]))/ Text:text NestedBody:body ->
     space := $1[1]
     return [ '\\item', space, text, body ]
 
-NestedArgumentList
+NestedArgumentList ::AST[]
   PushIndent ( NonstrictlyNested ArgumentList )?:content PopIndent ->
     return $skip unless content
     return content
 
-ArgumentList
+ArgumentList ::AST[]
   &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
     return $skip unless content
     return content
 
-ArgumentBullet
+ArgumentBullet ::AST[]
   Indent:indent Bullet:bullet Text:text NestedBody:body ->
     [ symbol, space ] .= bullet
     let comment
@@ -627,7 +657,7 @@ ArgumentBullet
 
 ## Indentation management, inspired by Civet's parser.hera
 
-Indentation
+Indentation ::Indent
   /[ \t]*/ ->
     numTabs := $0.match(/\t/g)?# ?? 0
     level := numTabs * 8 + ($0# - numTabs)
@@ -638,7 +668,7 @@ Indentation
       $loc
     }
 
-Indent
+Indent ::Indent
   Indentation ->
     return state.thisLineIndent = $1
 
@@ -653,30 +683,30 @@ PopIndent
     state.indents.pop()
 
 # Here and below, EOL+ skips over blank lines without correct indentation
-Nested
+Nested ::AST[]
   EOL+ &IndentedFurther -> $1
 
-IndentedFurther
+IndentedFurther ::Indent
   Indentation:indent ->
     return $skip if indent.level <= state.currentIndent.level
     return $0
 
-SameLevel
+SameLevel ::AST[]
   EOL+ &IndentedSame -> $1
 
-IndentedSame
+IndentedSame ::Indent
   Indentation:indent ->
     return $skip unless indent.level is state.currentIndent.level
     return $0
 
-NonstrictlyNested
+NonstrictlyNested ::AST[]
   EOL+ &IndentedNotLess -> $1
 
-IndentedNotLess
+IndentedNotLess ::Indent
   Indentation:indent ->
     return $skip if indent.level < state.currentIndent.level
     return $0
 
-SaveIndent
+SaveIndent ::Indent
   "" ->
     return state.thisLineIndent

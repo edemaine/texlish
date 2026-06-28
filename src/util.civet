@@ -1,6 +1,7 @@
-type { AST } from ./types.civet
+type { AST, Comment } from ./types.civet
 
-export isNumeric := (is like /^\d+/)
+export function isNumeric(value: string): boolean
+  /^\d+/.test value
 
 /** Generate all nodes in the tree in prefix order. */
 export function iterate(node: AST): Generator<AST>
@@ -41,6 +42,8 @@ export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
   yield {node, post: true}
 
 /** Find any node that matches a given condition, or undefined if not found. */
+export function find<T extends AST>(node: AST, match: (candidate: AST) => candidate is T): T?
+export function find(node: AST, match: (candidate: AST) => boolean): AST
 export function find(node: AST, match: (candidate: AST) => boolean): AST
   for subnode of iterate node
     if match subnode
@@ -64,6 +67,8 @@ export function isEmpty(node: AST): boolean
 Find an "end" node (some step down the path of last nonempties)
 that matches a given condition, or undefined if not found.
 */
+export function getEnd<T extends AST>(node: AST, match: (candidate: AST) => candidate is T): T?
+export function getEnd(node: AST, match: (candidate: AST) => boolean): AST
 export function getEnd(node: AST, match: (candidate: AST) => boolean): AST
   if match node
     node
@@ -105,6 +110,8 @@ export function modifyEnd(node: AST, modify: (candidate: AST) => AST): AST
       node
 
 /** Trim end whitespace */
+export function trimEnd(node: AST[]): AST[]
+export function trimEnd(node: AST): AST
 export function trimEnd(node: AST): AST
   modifyEnd node, (node) =>
     if node <? "string"
@@ -115,12 +122,14 @@ export function trimEnd(node: AST): AST
 export function getTrimEnd(node: AST): string
   end := getEnd node, & <? "string"
   return '' unless end
-  (end as string).match(/\s*$/)!
+  end.match(/\s*$/)!
   |> &[0]
 
-export function getEndComment(node: AST): AST
+export function getEndComment(node: AST): Comment?
   getEnd node, (is like { type: "Comment" })
 
+export function trimEndComment(node: AST[]): AST[]
+export function trimEndComment(node: AST): AST
 export function trimEndComment(node: AST): AST
   modifyEnd node, (node) =>
     if node is like { type: "Comment" }
@@ -129,11 +138,11 @@ export function trimEndComment(node: AST): AST
       node
 
 /** Extract comment at end of [text, body] pair to replace comment */
-export function commentForTextBody(text: AST, body: AST[]): [AST, AST, AST]
-  let comment: AST
+export function commentForTextBody(text: AST[], body: AST[]): [AST[], AST[], Comment]
+  let comment: Comment?
   if body#
     if bodyComment := getEndComment body
-      body = body |> trimEndComment |> trimEnd |> as AST[]
+      body = body |> trimEndComment |> trimEnd
       comment = bodyComment
   else
     if textComment := getEndComment text
@@ -144,8 +153,8 @@ export function commentForTextBody(text: AST, body: AST[]): [AST, AST, AST]
     token: "%"
   [text, body, comment]
 
-export function commentForBody(body: AST): [AST, AST]
-  let comment: AST
+export function commentForBody(body: AST[]): [AST[], Comment]
+  let comment: Comment?
   if bodyComment := getEndComment body
     body = body |> trimEndComment |> trimEnd
     comment = bodyComment
