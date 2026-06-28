@@ -19,21 +19,17 @@ jobs:
     steps:
       - name: Checkout Git repository
         uses: actions/checkout@v4
-      - name: Enable Corepack
-        run: |
-          npm install -g corepack@latest
-          corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           cache: pnpm
           node-version: 22
       - name: Install Dependencies
-        run: |
-          pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Build Texlish and Docs
-        run: |
-          pnpm docs:build
+        run: pnpm docs:build
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
