@@ -35,6 +35,7 @@
     ]
   },
   "scripts": {
+    "grammar": "civet --no-config build/yaml2json.civet",
     "build": "bash ./build/build.sh",
     "package": "pnpm run build && vsce package",
     "vsce-publish": "pnpm run build && vsce publish"

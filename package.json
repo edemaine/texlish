@@ -29,8 +29,9 @@
   },
   "scripts": {
     "build": "bash ./build/build.sh",
-    "docs:dev": "pnpm build && pnpm --dir docs dev",
-    "docs:build": "pnpm build && pnpm --dir docs build",
+    "vscode:grammar": "pnpm --dir vscode grammar",
+    "docs:dev": "pnpm build && pnpm vscode:grammar && pnpm --dir docs dev",
+    "docs:build": "pnpm build && pnpm vscode:grammar && pnpm --dir docs build",
     "prepublish": "pnpm build",
     "typecheck": "civet --typecheck",
     "test": "mocha && pnpm typecheck"
