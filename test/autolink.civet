@@ -156,6 +156,22 @@ describe '<autolink>', ->
   '''
 
   testCase '''
+    mid-line URL
+    ---
+    See <https://example.com> now.
+    ---
+    See \\protect\\url{https://example.com} now.
+  '''
+
+  testCase '''
+    mid-line email
+    ---
+    Email <foo@bar.example.com> now.
+    ---
+    Email \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}} now.
+  '''
+
+  testCase '''
     escaping email
     ---
     <!#$%&'*+/=?^_`|~-@example.com>

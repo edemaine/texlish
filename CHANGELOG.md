@@ -26,6 +26,8 @@
 * CLI adds a comment at the top of generated `.tex` files, with version number,
   linking to Texlish and suggesting to edit the `.texlish` file instead.
   [[#23](https://github.com/edemaine/texlish/issues/23)]
+* URL and email autolinks now work in the middle of a text line.
+  [[#16](https://github.com/edemaine/texlish/issues/16)]
 
 ## 0.1.1
 

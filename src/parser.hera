@@ -203,7 +203,7 @@ TextPart ::AST
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\{}%][^\r\n@#\[\\\^_{}()%\*]*/
+  /[^\r\n\\{}%][^\r\n@#<\[\\\^_{}()%\*]*/
 
 FootnoteRef ::FootnoteRef
   /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
