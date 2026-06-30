@@ -222,6 +222,18 @@ TrimmedText ::AST[]
     t[last] = t[last].trimEnd() if t[last] <? 'string'
     return t
 
+# Analog of Text but with no Texlish processing, used e.g. for ::tex
+RawText ::[string, Comment | undefined]
+  /[^%\r\n]*/:text Comment?:comment -> [ text[0], comment ]
+
+TrimmedRawText ::AST[]
+  RawText:t ->
+    [ text, comment ] .= t
+    [
+      if comment then text.trimStart() else text.trim()
+      comment
+    ]
+
 BracedContent ::Braced
   "{":open TextAndContent:body "}":close ->
     let comment
@@ -439,6 +451,7 @@ MetaCommand ::AST
   MetaConfig
   MetaStyles
   MetaUse
+  MetaTex
   MetaPreamble
 
 MetaVersion ::AST
@@ -483,7 +496,7 @@ NestedConfigRHS ::ConfigEntry[]
 
 ConfigRHS ::ConfigEntry[]
   # `key=value`
-  /[ \t]*=/ TrimmedText:value ->
+  /[ \t]*=/ TrimmedRawText:value ->
     return [[[], generate(value)]]
   # `key` alone enables option
   "" ->
@@ -492,6 +505,9 @@ ConfigRHS ::ConfigEntry[]
 MetaUse ::AST
   "use" [ \t]+ UseItem:item -> item
   "use" NestedUseList:list -> list
+
+MetaTex ::AST[]
+  "tex" /\b[ \t]?/ RawText:text RawNestedBody:body -> [text, body]
 
 UseItem ::Use
   Bullet? $(/[^:%\r\n]+/):name Comment?:comment UseColonArgument?:arg ->
@@ -531,7 +547,7 @@ UseColonArgument ::AST[]
     ]
 
 UseArgument ::AST
-  TrimmedText ( NestedUseArgumentList / NonEmptyNestedBody )?
+  TrimmedRawText ( NestedUseArgumentList / NonEmptyRawNestedBody )?
 
 NestedUseArgumentList ::AST[]
   PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
@@ -548,7 +564,7 @@ UseArgumentList ::AST[]
     return [ first, rest ]
 
 UseArgumentBullet ::AST[]
-  Indent:indent /([*\-~])([ \t]+)/ Text:text NestedBody:body ->
+  Indent:indent /([*\-~])([ \t]+)/ RawText:text RawNestedBody:body ->
     [ , , space ] .= $2
     return [
       indent
@@ -568,6 +584,15 @@ NestedBody ::AST[]
 
 NestedItem ::AST[]
   Nested Statement
+
+# Raw versions of above
+NonEmptyRawNestedBody ::AST[]
+  RawNestedBody ->
+    return $skip unless $1#
+    return $1
+
+RawNestedBody ::AST[]
+  PushIndent ( Nested Indent RawText )* PopIndent -> $2
 
 MetaPreamble ::Preamble
   "preamble" ( /[ \t]+/ Text )?:text NestedBody:body ->

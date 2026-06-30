@@ -306,6 +306,17 @@ If you put `::use` after `\begin{document}`, it gets hoisted up to the preamble.
   \\end{document}
 `}/>
 
+## Raw TeX
+
+`::tex` passes TeX through unchanged. Content can be on the same line
+and/or on strictly indented lines.
+
+<Example src={`
+  ::tex \\foo{*raw* [text](url)}
+  ::tex
+    \\bar{@raw}
+`}/>
+
 ## Preamble
 
 `::preamble` puts LaTeX code in the preamble.

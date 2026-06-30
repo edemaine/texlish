@@ -143,6 +143,25 @@ describe 'sub/superscript autogrouping', ->
   '''
 
   testCase '''
+    in-file ::config style values are raw
+    ---
+    ::config styles.*=[raw](https://example.com) @ref *text*
+    *foo*
+    ---
+    [raw](https://example.com) @ref *text*{foo}
+  '''
+
+  testCase '''
+    in-file ::styles values are raw
+    ---
+    ::styles
+      * = [raw](https://example.com) @ref *text*
+    *foo*
+    ---
+    [raw](https://example.com) @ref *text*{foo}
+  '''
+
+  testCase '''
     in-file ::config empty styles section
     ---
     *foo*

@@ -26,6 +26,14 @@ describe '::use', ->
   '''
 
   testCase '''
+    package argument on one line is raw
+    ---
+    ::use hyperref: pdftitle = *Raw* [Link](https://example.com) @ref
+    ---
+    \\usepackage[pdftitle = *Raw* [Link](https://example.com) @ref]{hyperref}
+  '''
+
+  testCase '''
     single package on one line with nested argument
     ---
     ::use geometry:
@@ -33,6 +41,16 @@ describe '::use', ->
     ---
     \\usepackage[
       margin = 1in]{geometry}
+  '''
+
+  testCase '''
+    nested package argument is raw
+    ---
+    ::use hyperref:
+      pdftitle = *Raw* [Link](https://example.com) @ref
+    ---
+    \\usepackage[
+      pdftitle = *Raw* [Link](https://example.com) @ref]{hyperref}
   '''
 
   testCase '''
@@ -130,6 +148,18 @@ describe '::use', ->
     ---
     \\usepackage[
         pdftitle = Hello World
+      , pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    package argument bullets are raw
+    ---
+    ::use hyperref:
+      - pdftitle = *Raw* [Link](https://example.com) @ref
+      - pdfauthor = Me
+    ---
+    \\usepackage[
+        pdftitle = *Raw* [Link](https://example.com) @ref
       , pdfauthor = Me]{hyperref}
   '''
 

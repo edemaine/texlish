@@ -1,0 +1,62 @@
+{ testCase } from ./helper.civet
+
+describe '::tex', ->
+  testCase '''
+    same line raw tex
+    ---
+    ::tex \\foo{*raw* [link](https://example.com) @ref}
+    ---
+    \\foo{*raw* [link](https://example.com) @ref}
+  '''
+
+  testCase '''
+    trims one separator space before content
+    ---
+    ::tex  \\foo
+    ---
+     \\foo
+  '''
+
+  testCase '''
+    trims separator space before same-line comment
+    ---
+    ::tex % raw comment
+    ---
+    % raw comment
+  '''
+
+  testCase '''
+    nested raw tex
+    ---
+    ::tex
+      \\begin{raw}
+        *not emphasis* [not link](https://example.com) @ref
+      \\end{raw}
+    ---
+
+      \\begin{raw}
+        *not emphasis* [not link](https://example.com) @ref
+      \\end{raw}
+  '''
+
+  testCase '''
+    same line with nested raw tex
+    ---
+    ::tex \\begin{raw}
+      content
+    ::tex \\end{raw}
+    ---
+    \\begin{raw}
+      content
+    \\end{raw}
+  '''
+
+  testCase '''
+    does not grab same-level next line
+    ---
+    ::tex \\foo
+    [link](https://example.com)
+    ---
+    \\foo
+    \\protect\\href{https://example.com}{link}
+  '''

@@ -15,6 +15,11 @@
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]
+* `::tex` passes raw TeX through unchanged,
+  on the same line or in nested strictly indented lines.
+  [[#2](https://github.com/edemaine/texlish/issues/2)]
+* `::style` and `::use` package arguments are now treated as raw text,
+  so Texlish syntax is inactive there.
 * `::use` supports partially indented arguments,
   and comments after packages and arguments.
   [[#19](https://github.com/edemaine/texlish/issues/19)]
