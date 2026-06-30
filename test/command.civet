@@ -71,6 +71,18 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    bulleted with strict indentation
+    ---
+    \\foo:
+      - a
+      - b
+    ---
+    \\foo
+       {a}%
+       {b}%
+  '''
+
+  testCase '''
     bulleted with nested \\command:
     ---
     \\subcaptionbox:
@@ -102,6 +114,64 @@ describe '\\command:', ->
     \\includegraphics
        [width=0.5\\textwidth]%
        {image.png}%
+  '''
+
+  testCase '''
+    commented-out argument bullets do not interrupt list
+    ---
+    \\foo:
+    - one
+    %~ two
+    %- also two
+    - three
+    ---
+    \\foo
+     {one}%
+    %~ two
+    %- also two
+     {three}%
+  '''
+
+  testCase '''
+    comments before first argument bullet
+    ---
+    \\foo:
+      % skip one
+        %- skip two
+    - one
+    - two
+    ---
+    \\foo
+      % skip one
+        %- skip two
+     {one}%
+     {two}%
+  '''
+
+  testCase '''
+    dedented bullets do not become arguments
+    ---
+    : env
+      \\foo:
+    - one
+    : env
+      \\bar:
+        % skip
+    - two
+    ---
+    \\begin{env}
+      \\foo{}%
+    \\end{env}
+    \\begin{itemize}
+    \\item one
+    \\end{itemize}
+    \\begin{env}
+      \\bar{%
+        }% skip
+    \\end{env}
+    \\begin{itemize}
+    \\item two
+    \\end{itemize}
   '''
 
   testCase '''

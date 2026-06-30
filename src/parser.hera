@@ -338,6 +338,9 @@ Comment ::Comment
 CommentEOL ::AST[]
   Comment EOL
 
+NonstrictlyNestedComment ::AST[]
+  NonstrictlyNested Indent Comment -> $0
+
 Command ::Command
   CommandWithoutNewline
   /\\(?=[\r\n]|$)/ ->
@@ -630,18 +633,20 @@ UseArgument ::AST
   TrimmedRawText ( NestedUseArgumentList / NonEmptyRawNestedBody )?
 
 NestedUseArgumentList ::AST[]
-  PushIndent ( NonstrictlyNested UseArgumentList )?:content PopIndent ->
+  PushIndent UseArgumentList?:content PopIndent ->
     return $skip unless content
     return content
 
 UseArgumentList ::AST[]
-  &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet ( SameLevel UseArgumentBullet )* )?:content PopIndent ->
+  NonstrictlyNestedComment*:comments NonstrictlyNested:eol &/\s*[*\-~]/ &Indent PushIndent ( UseArgumentBullet UseArgumentListContinuation* )?:content PopIndent ->
     return $skip unless content
-    // Add commas between bullets
-    [ first, rest ] .= content
-    rest = rest.map [ eol, [ indent, , ...rest ] ] =>
-      [ eol, [ indent, ",",  ...rest ] ]
-    return [ first, rest ]
+    return [ comments, eol, content ]
+
+UseArgumentListContinuation ::AST[]
+  NonstrictlyNestedComment*:comments SameLevel:eol UseArgumentBullet:bullet ->
+    // Add a comma before the next bullet, after intervening comments/indent.
+    [ indent, , ...rest ] .= bullet
+    return [ comments, eol, [ indent, ",", ...rest ] ]
 
 UseArgumentBullet ::AST[]
   Indent:indent /([*\-~])([ \t]+)/ RawText:text RawNestedBody:body ->
@@ -685,7 +690,7 @@ MetaPreamble ::Preamble
     }
 
 UnorderedList ::List
-  &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet ( SameLevel Indent UnorderedBullet )* )?:items PopIndent ->
+  &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
     return $skip unless items
     return {
       type: "List"
@@ -707,11 +712,15 @@ UnorderedBullet ::AST[]
     space := bullet[1]
     return [ '\\item', space, text, body ]
 
+UnorderedListContinuation ::AST[]
+  NonstrictlyNestedComment*:comments SameLevel:eol Indent:indent UnorderedBullet:bullet ->
+    return [ comments, eol, indent, bullet ]
+
 Bullet
   /([*\-~])([ \t]+|(?=[\r\n]))/ -> [ $1, $2 ]
 
 OrderedList ::List
-  &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet ( SameLevel Indent OrderedBullet )* )?:items PopIndent ->
+  &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
     return {
       type: "List",
@@ -733,15 +742,23 @@ OrderedBullet ::AST[]
     space := $1[1]
     return [ '\\item', space, text, body ]
 
+OrderedListContinuation ::AST[]
+  NonstrictlyNestedComment*:comments SameLevel:eol Indent:indent OrderedBullet:bullet ->
+    return [ comments, eol, indent, bullet ]
+
 NestedArgumentList ::AST[]
-  PushIndent ( NonstrictlyNested ArgumentList )?:content PopIndent ->
+  PushIndent ArgumentList?:content PopIndent ->
     return $skip unless content
     return content
 
 ArgumentList ::AST[]
-  &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ( SameLevel ArgumentBullet )* )?:content PopIndent ->
+  NonstrictlyNestedComment*:comments NonstrictlyNested:eol &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ArgumentListContinuation* )?:content PopIndent ->
     return $skip unless content
-    return content
+    return [ comments, eol, content ]
+
+ArgumentListContinuation ::AST[]
+  NonstrictlyNestedComment*:comments SameLevel:eol ArgumentBullet:bullet ->
+    return [ comments, eol, bullet ]
 
 ArgumentBullet ::AST[]
   Indent:indent Bullet:bullet Text:text NestedBody:body ->
@@ -811,11 +828,13 @@ PushIndent
   "" ->
     //const {level} = indent
     //if (level < state.currentIndent.level) return $skip
+    state.savedLineIndents.push(state.thisLineIndent)
     state.indents.push(state.thisLineIndent)
 
 PopIndent
   "" ->
     state.indents.pop()
+    state.thisLineIndent = state.savedLineIndents.pop()!
 
 # Here and below, EOL+ skips over blank lines without correct indentation
 Nested ::AST[]

@@ -177,6 +177,63 @@ describe '::use', ->
   '''
 
   testCase '''
+    commented-out package argument bullets do not interrupt list
+    ---
+    ::use hyperref:
+      - pdftitle = Hello World
+      %- colorlinks
+      %- hidelinks
+      - pdfauthor = Me
+    ---
+    \\usepackage[
+        pdftitle = Hello World
+      %- colorlinks
+      %- hidelinks
+      , pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    comments before first package argument bullet
+    ---
+    ::use hyperref:
+        % skip one
+          %- skip two
+      - pdftitle = Hello World
+      - pdfauthor = Me
+    ---
+    \\usepackage[
+        % skip one
+          %- skip two
+        pdftitle = Hello World
+      , pdfauthor = Me]{hyperref}
+  '''
+
+  testCase '''
+    dedented bullets do not become package arguments
+    ---
+    ::use
+      hyperref:
+    - xcolor
+    ::use
+      geometry:
+        % skip
+    - colorlinks
+    ---
+
+      \\usepackage[]{hyperref}
+    \\begin{itemize}
+    \\item xcolor
+    \\end{itemize}
+
+      \\usepackage[
+        % skip
+      ]{geometry}
+    \\begin{itemize}
+    \\item colorlinks
+    \\end{itemize}
+  '''
+
+  testCase '''
     nested packages with arguments
     ---
     ::use

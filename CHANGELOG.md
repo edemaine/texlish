@@ -27,6 +27,9 @@
   [[#21](https://github.com/edemaine/texlish/issues/21)]
 * Markdown-style lists can be disabled with `-markdownLists` or
   `-markdownCompat`.
+* Commented-out list items no longer interrupt Markdown-style lists,
+  command argument lists, or package argument lists.
+  [[#22](https://github.com/edemaine/texlish/issues/22)]
 * `::tex` passes raw TeX through unchanged,
   on the same line or in nested strictly indented lines.
   [[#2](https://github.com/edemaine/texlish/issues/2)]

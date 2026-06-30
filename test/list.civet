@@ -60,6 +60,38 @@ describe 'unordered lists', ->
   '''
 
   testCase '''
+    commented-out bullets do not interrupt list
+    ---
+    - one
+    %* two
+    %- also two
+    ~ three
+    ---
+    \\begin{itemize}
+    \\item one
+    %* two
+    %- also two
+    \\item three
+    \\end{itemize}
+  '''
+
+  testCase '''
+    comments before first bullet stay outside list
+    ---
+    %* skip one
+    %- skip two
+    - one
+    - two
+    ---
+    %* skip one
+    %- skip two
+    \\begin{itemize}
+    \\item one
+    \\item two
+    \\end{itemize}
+  '''
+
+  testCase '''
     disabled by compiler option
     ---
     - one
@@ -120,6 +152,38 @@ describe 'ordered lists', ->
     \\item one
     \\item two
     \\item three
+    \\end{enumerate}
+  '''
+
+  testCase '''
+    commented-out bullets do not interrupt list
+    ---
+    1. one
+    %2. two
+    %3. also two
+    2. three
+    ---
+    \\begin{enumerate}
+    \\item one
+    %2. two
+    %3. also two
+    \\item three
+    \\end{enumerate}
+  '''
+
+  testCase '''
+    comments before first bullet stay outside list
+    ---
+    %1. skip one
+    %2. skip two
+    1. one
+    2. two
+    ---
+    %1. skip one
+    %2. skip two
+    \\begin{enumerate}
+    \\item one
+    \\item two
     \\end{enumerate}
   '''
 
