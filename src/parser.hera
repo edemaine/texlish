@@ -112,6 +112,7 @@ Statement ::AST
 
 ActualStatement ::AST
   Heading
+  MarkdownHorizontalRulesEnabled HorizontalRule -> $2
   MetaBlock
   FootnoteDefinition
   Environment
@@ -380,6 +381,17 @@ Heading ::Heading
       children: [ command, '{', title, '}' ],
     }
 
+HorizontalRule ::AST[]
+  Indent:indent $/-(?:[ \t]*-){2,}/:marker /[ \t]*/ Comment?:comment &EOL ->
+    if style := state.compilerOptions.styles[marker]
+      return [ indent, style, comment ]
+    // For rules consisting of just -, use the closest configured shorter style
+    unless /[ \t]/.test marker
+      for length of [marker# >..3]
+        if style := state.compilerOptions.styles['-'.repeat length]
+          return [ indent, style, comment ]
+    return [ indent, state.compilerOptions.styles['---'] ?? "\\hrule", comment ]
+
 # https://spec.commonmark.org/0.31.2/#autolinks
 Autolink ::AST
   # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
@@ -551,10 +563,10 @@ NestedConfigAssignment ::ConfigEntry[]
   Nested Indent ConfigAssignment:assignment -> assignment
 
 ConfigAssignment ::ConfigEntry[]
-  /[^\s:%]+(?=[ \t]*=)/:key ConfigRHS:value ->
-    return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
-  /[^\s:=%]+/:key NestedConfigRHS:value ->
-    return value.map(([subpath, value]) => [[...key[0].split('.'), ...subpath], value])
+  $/[^:%\r\n]+(?==)/:key ConfigRHS:value ->
+    return value.map(([subpath, value]) => [[...key.trimEnd().split('.'), ...subpath], value])
+  $/[^\s:=%]+/:key NestedConfigRHS:value ->
+    return value.map(([subpath, value]) => [[...key.split('.'), ...subpath], value])
 
 NestedConfigRHS ::ConfigEntry[]
   # `key:` for nested config
@@ -765,6 +777,10 @@ ScriptGroupingAlphanumeric
 ScriptParensEnabled
   "" ->
     return $skip unless state.compilerOptions.scriptParens
+
+MarkdownHorizontalRulesEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownHorizontalRules
 
 MarkdownLinksEnabled
   "" ->

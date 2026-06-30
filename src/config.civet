@@ -1,6 +1,7 @@
 import type { ActiveCompilerOptions, CompilerOptions, ScriptGrouping } from ./types.civet
 
 export const defaultConfig: ActiveCompilerOptions = {
+  markdownHorizontalRules: true
   markdownLinks: true
   scriptParens: true
   scriptGrouping: "numeric"
@@ -8,6 +9,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     '*': '\\emph'
     '**': '\\textbf'
     '***': '\\defn'
+    '---': '\\medskip\\hrule\\medskip'
     '@=': '\\label'
     '@': '\\ref'
     '@^': '\\ref'
@@ -18,6 +20,7 @@ export const defaultConfig: ActiveCompilerOptions = {
       @scriptGrouping = "none"
     @scriptParens = not value
   set markdownCompat(value: boolean)
+    @markdownHorizontalRules = value
     @markdownLinks = value
 }
 
@@ -57,12 +60,14 @@ type BooleanCompilerOption
   | "scriptParens"
   | "latexCompat"
   | "markdownCompat"
+  | "markdownHorizontalRules"
   | "markdownLinks"
 
 booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["scriptparens", "scriptParens"]
   . ["latexcompat", "latexCompat"]
   . ["markdowncompat", "markdownCompat"]
+  . ["markdownhorizontalrules", "markdownHorizontalRules"]
   . ["markdownlinks", "markdownLinks"]
 
 function setCompilerOption<K extends keyof CompilerOptions>(

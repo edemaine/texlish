@@ -1,0 +1,163 @@
+{ testCase } from ./helper.civet
+
+describe 'Markdown horizontal rules (---)', ->
+  options := separator: "==="
+
+  testCase '''
+    three hyphens
+    ===
+    ---
+    ===
+    \\medskip\\hrule\\medskip
+  ''', options
+
+  testCase '''
+    comment after separator
+    ===
+    --- % comment
+    ===
+    \\medskip\\hrule\\medskip% comment
+  ''', options
+
+  testCase '''
+    four hyphens
+    ---
+    ----
+    ---
+    \\medskip\\hrule\\medskip
+  '''
+
+  testCase '''
+    spaced hyphens
+    ---
+    - - -
+    ---
+    \\medskip\\hrule\\medskip
+  '''
+
+  testCase '''
+    text before and after
+    ---
+    Before
+    ----
+    After
+    ---
+    Before
+    \\medskip\\hrule\\medskip
+    After
+  '''
+
+  testCase '''
+    custom style
+    ---
+    ::styles
+      --- = \\bigskip\\hrule\\bigskip
+    ----
+    ---
+    \\bigskip\\hrule\\bigskip
+  '''
+
+  testCase '''
+    length-specific custom style
+    ---
+    ::styles
+      ---- = \\bigskip\\hrule\\bigskip
+    ----
+    ---
+    \\bigskip\\hrule\\bigskip
+  '''
+
+  testCase '''
+    closest shorter custom style
+    ---
+    ::styles
+      ---- = \\bigskip\\hrule\\bigskip
+    -----
+    ---
+    \\bigskip\\hrule\\bigskip
+  '''
+
+  testCase '''
+    spaced hyphens ignore length-specific styles
+    ---
+    ::styles
+      ---- = \\bigskip\\hrule\\bigskip
+    - - - -
+    ---
+    \\medskip\\hrule\\medskip
+  '''
+
+  testCase '''
+    exact spaced style
+    ---
+    ::styles
+      - - - - = \\bigskip\\hrule\\bigskip
+    - - - -
+    ---
+    \\bigskip\\hrule\\bigskip
+  '''
+
+  testCase '''
+    exact spaced default-length style
+    ---
+    ::styles
+      - - - = \\bigskip\\hrule\\bigskip
+    - - -
+    ---
+    \\bigskip\\hrule\\bigskip
+  '''
+
+  testCase '''
+    spaced hyphens fall back to default style
+    ---
+    ::styles
+      - - - = \\bigskip\\hrule\\bigskip
+    - - - -
+    ---
+    \\medskip\\hrule\\medskip
+  '''
+
+  testCase '''
+    disabled by compiler option
+    ===
+    ---
+    ===
+    ---
+  ''', {
+    ...options
+    markdownHorizontalRules: false
+  }
+
+  testCase '''
+    disabled by config shorthand
+    ===
+    ::config -markdownHorizontalRules
+    ---
+    ===
+    ---
+  ''', options
+
+  testCase '''
+    disabled by markdownCompat shorthand
+    ===
+    ::config -markdownCompat
+    ---
+    ===
+    ---
+  ''', options
+
+  testCase '''
+    nonbreak text
+    ---
+    -- text
+    ---
+    -- text
+  '''
+
+  testCase '''
+    nonbreak suffix
+    ---
+    ---x
+    ---
+    ---x
+  '''

@@ -35,8 +35,16 @@ export function compare(src: string, result: string, compilerOpts: CompilerOptio
  * The description will be used as the test description.
  * You can also do testCase.only and testCase.skip to only run or skip this test.
  */
-export function testCase(text: string, compilerOpts: CompilerOptions = {}, opt?: "only" | "skip")
-  [desc, src, result] := text.split /\n---(?:\n|$)/
+type TestCaseOptions = CompilerOptions & {
+  separator?: string
+}
+
+export function testCase(text: string, options: TestCaseOptions = {}, opt?: "only" | "skip")
+  { separator, ...compilerOpts } .= options
+  separator ??= "---"
+  [desc, src, result] := text.split ///
+    \n ${separator.replace /[.*+?^${}()|[\]\\]/g, '\\$&'} (?:\n|$)
+  ///
 
   fn := opt ? it[opt] : it
 
@@ -47,8 +55,8 @@ export function testCase(text: string, compilerOpts: CompilerOptions = {}, opt?:
       ...compilerOpts
     }
 
-testCase.only = (text: string, compilerOpts?: CompilerOptions) -> testCase text, compilerOpts, "only"
-testCase.skip = (text: string, compilerOpts?: CompilerOptions) -> testCase text, compilerOpts, "skip"
+testCase.only = (text: string, options?: TestCaseOptions) -> testCase text, options, "only"
+testCase.skip = (text: string, options?: TestCaseOptions) -> testCase text, options, "skip"
 
 /**
  * Pass a string with the following format:

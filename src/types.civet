@@ -9,6 +9,7 @@ export type CompilerOptions
   scriptParens?: boolean
   latexCompat?: boolean
   markdownCompat?: boolean
+  markdownHorizontalRules?: boolean
   markdownLinks?: boolean
   styles?: Record<string, string>
 

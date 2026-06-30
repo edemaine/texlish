@@ -19,6 +19,9 @@
   compiling to `\protect\href{url}{text}`.
   They can be disabled with `-markdownLinks` or `-markdownCompat`.
   [[#32](https://github.com/edemaine/texlish/issues/32)]
+* Markdown-style horizontal rules `---`, customizable through `::styles`.
+  They can be disabled with `-markdownHorizontalRules` or `-markdownCompat`.
+  [[#33](https://github.com/edemaine/texlish/issues/33)]
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]

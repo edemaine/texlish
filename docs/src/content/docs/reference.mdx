@@ -6,7 +6,10 @@ import Example from '../../components/example.astro'
 
 ## Sections
 
-Similar to Markdown headers, plus `*` for unnumbered sections.
+Similar to Markdown
+[headers](https://daringfireball.net/projects/markdown/syntax#header) /
+CommonMark [ATX headings](https://spec.commonmark.org/0.31.2/#atx-headings),
+plus `*` for unnumbered sections.
 
 <Example src={`
   # Introduction
@@ -26,7 +29,11 @@ Similar to Markdown headers, plus `*` for unnumbered sections.
 
 ## Emphasis
 
-Similar to Markdown emphasis.
+Similar to Markdown
+[emphasis](https://daringfireball.net/projects/markdown/syntax#em) /
+CommonMark
+[emphasis and strong emphasis](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis)
+(but only with `*`s, no `_` syntax).
 
 <Example src={`
   *italic*
@@ -69,7 +76,9 @@ To use the LaTeX character `*`, wrap it in braces
 
 ## Lists
 
-Similar to Markdown lists, but with less strict requirements on indentation.
+Similar to Markdown [lists](https://daringfireball.net/projects/markdown/syntax#list) /
+CommonMark [list items](https://spec.commonmark.org/0.31.2/#list-items),
+but with less strict requirements on indentation.
 
 <Example src={`
   - This is an item.
@@ -141,8 +150,10 @@ wrap it in braces:
 
 ## Footnotes
 
-Markdown-style footnotes define their content once with `[^id]:` and insert
-the first marker with `[^id]`.
+Similar to GitHub Markdown-style
+[footnotes](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/using-footnotes),
+you can define footnote content once with `[^id]:`
+and insert markers with `[^id]`.
 
 <Example src={`
   This is a problem[^false], but not too bad[^true].
@@ -185,8 +196,10 @@ You can also use Texlish footnote notation to specify authors and affiliations
 
 ## Links
 
-Similar to Markdown automatic links, you can write URLs and email addresses
-in angle brackets.
+Similar to Markdown
+[automatic links](https://daringfireball.net/projects/markdown/syntax#autolink) /
+CommonMark [autolinks](https://spec.commonmark.org/0.31.2/#autolinks),
+you can write URLs and email addresses in angle brackets.
 
 <Example src={`
   <https://texlish.org>
@@ -200,7 +213,9 @@ for writing multiple email addresses at the same domain:
   <{edemaine,mdemaine}@mit.edu>
 `}/>
 
-To customize the visible text of a link, use Markdown-style inline links:
+To customize the visible text of a link, use Markdown
+[inline links](https://daringfireball.net/projects/markdown/syntax#link) /
+CommonMark [links](https://spec.commonmark.org/0.31.2/#links):
 
 <Example src={`
   [Texlish](https://texlish.org)
@@ -208,7 +223,42 @@ To customize the visible text of a link, use Markdown-style inline links:
 
 Texlish uses `\protect` in case links appear in a moving argument.
 
-## Commands
+Markdown links can be disabled with `::config -markdownLinks`
+or `::config -markdownCompat`.
+
+## Horizontal Rules
+
+Similar to Markdown
+[horizontal rules](https://daringfireball.net/projects/markdown/syntax#hr) /
+CommonMark
+[thematic breaks](https://spec.commonmark.org/0.31.2/#thematic-breaks),
+a line of three or more hyphens (with possible spaces in between)
+draws a horizontal separator:
+
+<Example src={`
+  Before
+  ---
+  After
+`}/>
+
+The default expansion is `\medskip\hrule\medskip`.
+You can customize with `::styles`.
+
+<Example src={`
+  ::use dashrule
+  ::styles
+    --- = \\bigskip\\hrule\\bigskip
+    ---- = \\bigskip\\hrule\\medskip\\hrule\\bigskip
+    - - - = \\medskip\\noindent\\hdashrule{\\linewidth}{0.4pt}{2pt 2pt}\\medskip
+  ---   % single
+  ----  % double
+  - - - % dashed
+`}/>
+
+Horizontal rules can be disabled with `::config -markdownHorizontalRules`
+or `::config -markdownCompat`.
+
+## LaTeX Commands
 
 `\command:` makes it easier to specify commands with arguments.
 The argument can be on the same line and/or on indented lines.
@@ -253,7 +303,7 @@ Multiple arguments can be specified like a list:
   - example
 `}/>
 
-## Environments
+## LaTeX Environments
 
 `: env` is shorthand for `\begin{env} ... \end{env}`.
 You must have a space after the colon, similar to [list bullets](#lists).
@@ -443,14 +493,17 @@ Supported config options are:
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`
   and `scriptParens = false`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
-  currently `markdownLinks`
+  currently `markdownHorizontalRules` and `markdownLinks`
+* `markdownHorizontalRules`: whether horizontal rule lines like `---` compile to
+  `\medskip\hrule\medskip`; enabled by default
 * `markdownLinks`: whether `[text](url)` compiles to
   `\protect\href{url}{text}`; enabled by default
 * `scriptParens`: whether `_(...)` and `^(...)` group sub/superscripts;
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
-* `styles`: styles for [emphasis](#emphasis) or [label/ref](#label-ref);
+* `styles`: styles for [emphasis](#emphasis), [horizontal rules](#horizontal-rules),
+  or [label/ref](#label-ref);
   equivalent to `::styles`
 
 You can also set config options globally in a
