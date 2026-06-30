@@ -27,7 +27,7 @@ function usage: void
 
     Other options:
     --trace=filename: Debug compilation by writing a trace log
-    --config key[=value]: Set compiler config (e.g. scriptGrouping=alpha or latexCompat)
+    --config key[=value]: Set compiler config (e.g. scriptGrouping=alpha, latexCompat, or -markdownCompat)
     -...: Other LaTeX command-line options are passed on as-is
 
   '''

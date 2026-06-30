@@ -12,6 +12,13 @@
 * Configurable sub/superscript grouping, with new default behavior
   correctly handling polynomials like `x^12y^42`.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
+* Parenthesized sub/superscripts like `x_(ij)` and `x^(i+j)` more
+  correctly compile to braced LaTeX groups.
+  They can be disabled with `-scriptParens` or `latexCompat`.
+* Markdown-style links `[text](url)` support,
+  compiling to `\protect\href{url}{text}`.
+  They can be disabled with `-markdownLinks` or `-markdownCompat`.
+  [[#32](https://github.com/edemaine/texlish/issues/32)]
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]

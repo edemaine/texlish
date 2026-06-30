@@ -177,7 +177,7 @@ paragraph re-use simple IDs like `[^1]`, without having to think up a name.
 
 ## Links
 
-Similar to Markdown autolinks, you can write URLs and email addresses
+Similar to Markdown automatic links, you can write URLs and email addresses
 in angle brackets.
 
 <Example src={`
@@ -185,14 +185,20 @@ in angle brackets.
   <edemaine@mit.edu>
 `}/>
 
-Texlish uses `\protect` in case these appear in a moving argument.
-
 Texlish even produces a correct `mailto:` link in the common brace format
 for writing multiple email addresses at the same domain:
 
 <Example src={`
   <{edemaine,mdemaine}@mit.edu>
 `}/>
+
+To customize the visible text of a link, use Markdown-style inline links:
+
+<Example src={`
+  [Texlish](https://texlish.org)
+`}/>
+
+Texlish uses `\protect` in case links appear in a moving argument.
 
 ## Commands
 
@@ -398,6 +404,14 @@ For a single option, `::config` can also be written on one line:
   $x_12$
 `}/>
 
+Boolean options can be enabled with `optionName` and
+disabled with `-optionName`:
+
+<Example src={`
+  ::config -markdownCompat
+  [Texlish](https://texlish.org)
+`}/>
+
 Style config keys can be written in nested form:
 
 <Example src={`
@@ -419,6 +433,13 @@ or inline form with dots:
 Supported config options are:
 
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`
+  and `scriptParens = false`
+* `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
+  currently `markdownLinks`
+* `markdownLinks`: whether `[text](url)` compiles to
+  `\protect\href{url}{text}`; enabled by default
+* `scriptParens`: whether `_(...)` and `^(...)` group sub/superscripts;
+  enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
 * `styles`: styles for [emphasis](#emphasis) or [label/ref](#label-ref);
@@ -435,11 +456,19 @@ By default, Texlish auto-groups multi-digit sub/superscripts:
   $x^12y^42$
 `}/>
 
-To change this behavior for the rest of the file, use `::config`:
+Texlish also groups parenthesized sub/superscripts:
+
+<Example src={`
+  $x_(ij) + x^(i+j)$
+`}/>
+
+To change this behavior for the rest of the file, use [`::config`](#config):
 
 <Example src={`
   ::config scriptGrouping = alphanumeric
   $x_12 + x_ij + x^12 + x^ij$
+  ::config -scriptParens
+  $x_(ij) + x^(i+j)$
 `}/>
 
 Allowed values for `scriptGrouping` are:
@@ -449,11 +478,12 @@ Allowed values for `scriptGrouping` are:
 * `alpha` (letters group together)
 * `none` (no grouping, like LaTeX)
 
-In LaTeX-compat mode, `scriptGrouping` is effectively set to `none`:
+In LaTeX-compat mode, `scriptGrouping` gets set to `none`
+and `scriptParens` gets set to `false`:
 
 <Example src={`
   ::config latexCompat
-  $x_12 + x_ij + x^12 + x^ij$
+  $x_12 + x_ij + x_(ij) + x^12 + x^ij + x^(ij)$
 `}/>
 
 ## Version Requirements

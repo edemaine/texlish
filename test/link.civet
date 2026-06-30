@@ -1,0 +1,409 @@
+{ testCase } from ./helper.civet
+
+describe '<autolink>', ->
+  // examples from https://spec.commonmark.org/0.31.2/#autolinks
+
+  testCase '''
+    594
+    ---
+    <http://foo.bar.baz>
+    ---
+    \\protect\\url{http://foo.bar.baz}
+  '''
+
+  testCase '''
+    595
+    ---
+    <https://foo.bar.baz/test?q=hello&id=22&boolean>
+    ---
+    \\protect\\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
+  '''
+
+  testCase '''
+    596
+    ---
+    <irc://foo.bar:2233/baz>
+    ---
+    \\protect\\url{irc://foo.bar:2233/baz}
+  '''
+
+  testCase '''
+    597
+    ---
+    <MAILTO:FOO@BAR.BAZ>
+    ---
+    \\protect\\url{MAILTO:FOO@BAR.BAZ}
+  '''
+
+  testCase '''
+    598
+    ---
+    <a+b+c:d>
+    ---
+    \\protect\\url{a+b+c:d}
+  '''
+
+  testCase '''
+    599
+    ---
+    <made-up-scheme://foo,bar>
+    ---
+    \\protect\\url{made-up-scheme://foo,bar}
+  '''
+
+  testCase '''
+    600
+    ---
+    <https://../>
+    ---
+    \\protect\\url{https://../}
+  '''
+
+  testCase '''
+    601
+    ---
+    <localhost:5001/foo>
+    ---
+    \\protect\\url{localhost:5001/foo}
+  '''
+
+  testCase '''
+    602
+    ---
+    <https://foo.bar/baz bim>
+    ---
+    <https://foo.bar/baz bim>
+  '''
+
+  testCase '''
+    603
+    ---
+    <https://example.com/\\[\\>
+    ---
+    \\protect\\url{https://example.com/\\[\\}
+  '''
+
+  testCase '''
+    604
+    ---
+    <foo@bar.example.com>
+    ---
+    \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}}
+  '''
+
+  testCase '''
+    605
+    ---
+    <foo+special@Bar.baz-bar0.com>
+    ---
+    \\protect\\href{mailto:foo+special@Bar.baz-bar0.com}{\\protect\\nolinkurl{foo+special@Bar.baz-bar0.com}}
+  '''
+
+  testCase '''
+    606
+    ---
+    <foo\\+@bar.example.com>
+    ---
+    <foo\\+\\ref{bar.example.com>}
+  '''
+
+  testCase '''
+    607
+    ---
+    <>
+    ---
+    <>
+  '''
+
+  testCase '''
+    608
+    ---
+    < https://foo.bar >
+    ---
+    < https://foo.bar >
+  '''
+
+  testCase '''
+    609
+    ---
+    <m:abc>
+    ---
+    <m:abc>
+  '''
+
+  testCase '''
+    610
+    ---
+    <foo.bar.baz>
+    ---
+    <foo.bar.baz>
+  '''
+
+  testCase '''
+    610
+    ---
+    https://example.com
+    ---
+    https://example.com
+  '''
+
+  testCase '''
+    611
+    ---
+    foo@bar.example.com
+    ---
+    foo@bar.example.com
+  '''
+
+  testCase '''
+    mid-line URL
+    ---
+    See <https://example.com> now.
+    ---
+    See \\protect\\url{https://example.com} now.
+  '''
+
+  testCase '''
+    mid-line email
+    ---
+    Email <foo@bar.example.com> now.
+    ---
+    Email \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}} now.
+  '''
+
+  testCase '''
+    escaping email
+    ---
+    <!#$%&'*+/=?^_`|~-@example.com>
+    ---
+    \\protect\\href{mailto:!#$%25&amp;'*+/=?%5E_%60%7C~-@example.com}{\\protect\\nolinkurl{!#$%&'*+/=?^_`|~-@example.com}}
+  '''
+
+  testCase '''
+    braced email ids
+    ---
+    <{one,two}@example.com>
+    ---
+    \\protect\\href{mailto:one@example.com,two@example.com}{\\protect\\nolinkurl{{one,two}@example.com}}
+  '''
+
+describe 'Markdown links', ->
+  testCase '''
+    plain link
+    ---
+    See [Texlish](https://texlish.org).
+    ---
+    See \\protect\\href{https://texlish.org}{Texlish}.
+  '''
+
+  testCase '''
+    balanced parens in link target
+    ---
+    See [Texlish](https://texlish.org/foo(and(bar))).
+    ---
+    See \\protect\\href{https://texlish.org/foo(and(bar))}{Texlish}.
+  '''
+
+  testCase '''
+    escaped parens in link target
+    ---
+    See [Texlish](\\(https://texlish.org\\)).
+    ---
+    See \\protect\\href{(https://texlish.org)}{Texlish}.
+  '''
+
+  testCase '''
+    escaped unbalanced parens in link target
+    ---
+    See [Texlish](https://texlish.org/foo\\(bar).
+    ---
+    See \\protect\\href{https://texlish.org/foo(bar}{Texlish}.
+  '''
+
+  testCase '''
+    escaped punctuation in link target
+    ---
+    See [Texlish](https://texlish.org/foo\\)\\:bar).
+    ---
+    See \\protect\\href{https://texlish.org/foo):bar}{Texlish}.
+  '''
+
+  testCase '''
+    unbalanced parens in link target stay literal
+    ---
+    See [Texlish](https://texlish.org/foo(bar).
+    ---
+    See [Texlish](https://texlish.org/foo(bar).
+  '''
+
+  testCase '''
+    angle-wrapped link target permits unbalanced parens
+    ---
+    See [Texlish](<https://texlish.org/foo(bar>).
+    ---
+    See \\protect\\href{https://texlish.org/foo(bar}{Texlish}.
+  '''
+
+  testCase '''
+    angle-wrapped link target permits spaces
+    ---
+    See [Texlish](</my uri>).
+    ---
+    See \\protect\\href{/my uri}{Texlish}.
+  '''
+
+  testCase '''
+    angle-wrapped link target permits escaped angle bracket
+    ---
+    See [Texlish](<foo\\>bar>).
+    ---
+    See \\protect\\href{foo>bar}{Texlish}.
+  '''
+
+  testCase '''
+    inline markup in link text
+    ---
+    See [*Texlish* @docs](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{\\emph{Texlish} \\ref{docs}}.
+  '''
+
+  testCase '''
+    balanced brackets in link text
+    ---
+    See [Texlish [docs]](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish [docs]}.
+  '''
+
+  testCase '''
+    adjacent balanced brackets in link text
+    ---
+    See [foo[bar]baz](https://example.com).
+    ---
+    See \\protect\\href{https://example.com}{foo[bar]baz}.
+  '''
+
+  testCase '''
+    plain parens do not balance inside Markdown link text
+    ---
+    See [foo(a](https://first.example)b)](https://second.example).
+    ---
+    See \\protect\\href{https://first.example}{foo(a}b)](https://second.example).
+  '''
+
+  testCase '''
+    markup inside balanced brackets in link text
+    ---
+    See [Texlish [*docs*]](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish [\\emph{docs}]}.
+  '''
+
+  testCase '''
+    indented multiline link text
+    ---
+    See [Texlish
+      docs](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish
+      docs}.
+  '''
+
+  testCase '''
+    multiline balanced brackets in link text
+    ---
+    See [Texlish [docs
+      page]](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish [docs
+      page]}.
+  '''
+
+  testCase '''
+    same-indent multiline link text in nested body
+    ---
+    \\emph:
+      [foo
+      [bar]
+      baz](https://example.com)
+    ---
+    \\emph{%
+      \\protect\\href{https://example.com}{foo
+      [bar]
+      baz}}%
+  '''
+
+  testCase '''
+    unindented multiline link text
+    ---
+    See [Texlish
+    docs](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish
+    docs}.
+  '''
+
+  testCase '''
+    unindented multiline balanced brackets in link text
+    ---
+    [foo
+    [bar]
+    baz](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{foo
+    [bar]
+    baz}
+  '''
+
+  testCase '''
+    multiline link text does not grab next list item
+    ---
+    - See [Texlish
+    - docs](https://texlish.org/docs)
+    ---
+    \\begin{itemize}
+    \\item See [Texlish
+    \\item docs](https://texlish.org/docs)
+    \\end{itemize}
+  '''
+
+  testCase '''
+    multiline link text can continue on next top-level line
+    ---
+    See [Texlish
+    Next paragraph](https://texlish.org/docs).
+    ---
+    See \\protect\\href{https://texlish.org/docs}{Texlish
+    Next paragraph}.
+  '''
+
+  testCase '''
+    disabled by compiler option
+    ---
+    See [Texlish](https://texlish.org).
+    ---
+    See [Texlish](https://texlish.org).
+  ''', markdownLinks: false
+
+  testCase '''
+    disabled by in-file config shorthand
+    ---
+    [Texlish](https://texlish.org)
+    ::config -markdownLinks
+    [Texlish](https://texlish.org)
+    ---
+    \\protect\\href{https://texlish.org}{Texlish}
+    [Texlish](https://texlish.org)
+  '''
+
+  testCase '''
+    disabled by markdownCompat shorthand
+    ---
+    [Texlish](https://texlish.org)
+    ::config -markdownCompat
+    [Texlish](https://texlish.org)
+    ---
+    \\protect\\href{https://texlish.org}{Texlish}
+    [Texlish](https://texlish.org)
+  '''

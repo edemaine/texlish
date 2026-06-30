@@ -32,6 +32,7 @@ type {
 
 type ParserState
   indents: Indent[]
+  savedLineIndents: Indent[]
   compilerOptions: ActiveCompilerOptions
   thisLineIndent: Indent
   currentIndent: Indent
@@ -40,6 +41,7 @@ initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
 export state: ParserState := {
   indents: [ initialIndent ]
+  savedLineIndents: []
   compilerOptions: makeCompilerOptions()
   thisLineIndent: initialIndent
   get currentIndent(): Indent
@@ -81,6 +83,7 @@ Main ::AST[]
 Init
   "" ->
     state.indents = [ initialIndent ]
+    state.savedLineIndents = []
     state.thisLineIndent = initialIndent
 
 Content ::AST[]
@@ -104,6 +107,10 @@ EOL ::EOL
     }
 
 Statement ::AST
+  ActualStatement
+  TextLine
+
+ActualStatement ::AST
   Heading
   MetaBlock
   FootnoteDefinition
@@ -111,34 +118,35 @@ Statement ::AST
   CommandWithColonArgument
   UnorderedList
   OrderedList
-  TextLine
+
+# Detect whether the next line is an actual statement, for deciding whether
+# to continue a text field like a Markdown bracketed link.
+IsActualStatement
+  PushLineIndent (&ActualStatement)?:actual PopLineIndent ->
+    return $skip unless actual
 
 # One line of text at start of the line
 # (can be empty, no newline consumption)
+# except Markdown links [...](...) can consume multiple lines
 TextLine ::AST[]
   Indent Text ->
     return [ $1, ...$2 ]
 
 # One line of text, starting in the middle of a line, for inline uses
 # (can be empty, no newline consumption)
+# except Markdown links [...](...) can consume multiple lines
 Text ::AST[]
   TextPart* InlineCommandWithColonArgument? ->
     return $1 unless $2
     return [ ...$1, $2 ]
 
-ScriptGroupingNumeric
-  "" ->
-    return $skip unless state.compilerOptions.scriptGrouping is "numeric"
-
-ScriptGroupingAlpha
-  "" ->
-    return $skip unless state.compilerOptions.scriptGrouping is "alpha"
-
-ScriptGroupingAlphanumeric
-  "" ->
-    return $skip unless state.compilerOptions.scriptGrouping is "alphanumeric"
-
 TextPart ::AST
+  MainTextPart
+  [()\[\]]
+
+# MainTextPart excludes parens/brackets; the surrounding text productions
+# decide whether to parse those as balanced text or literal characters.
+MainTextPart ::AST
   BracedContent
   Comment
   FootnoteRef
@@ -149,22 +157,23 @@ TextPart ::AST
     return $skip unless prefix?
     return `${state.compilerOptions.styles[$1]}{${prefix}${label}}`
   # @ref without spaces and without grabbing trailing punctuation
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^\s'"{}=~][^\s{}~]*)(?<!\p{Punctuation})/ ->
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^()\[\]\s'"{}=~][^()\[\]\s{}~]*)(?<!\p{Punctuation})/ ->
     prefix := labelPrefix $1, $2
     return $skip unless prefix?
     return `${state.compilerOptions.styles[$1]}{${prefix}${$2}}`
   /\[\[(.*?)\]\]/ ->
     return `${state.compilerOptions.styles['[[']}{${$1}}`
   Autolink
+  MarkdownLinksEnabled MarkdownLink -> $2
   ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
     return `${script[1]}{${script[2]}}`
   ScriptGroupingAlpha /([\^_])([a-zA-Z]{2,})/:script ->
     return `${script[1]}{${script[2]}}`
   ScriptGroupingAlphanumeric /([\^_])([a-zA-Z0-9]{2,})/:script ->
     return `${script[1]}{${script[2]}}`
-  [\^_] ParenthesizedContent ->
-    // $2[1] strips the parens
-    return [ $1[0], '{', $2[1], '}' ]
+  ScriptParensEnabled [\^_]:script &/\((?![ \t]*[\^_])/ ParenthesizedText:body ->
+    // body[1] strips the parens
+    return [ script[0], '{', body[1], '}' ]
   # Left- *and* right-flanking delimiter according to below definitions.
   /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
     return {
@@ -203,7 +212,73 @@ TextPart ::AST
   # Leave trailing InlineCommandWithColonArgument for TextLine to parse
   !InlineCommandWithColonArgument Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\{}%][^\r\n@#<\[\\\^_{}()%\*]*/
+  /[^\r\n\\()\[\]{}%][^\r\n@#<\\\^_()\[\]{}%\*]*/
+
+ParenthesizedText ::AST[]
+  "(" ParenContent ")"
+
+ParenContent ::AST[]
+  ParenText:text ParenContinuation*:body -> [ text, ...body ]
+
+ParenContinuation ::AST[]
+  NonstrictlyNested !IsActualStatement Indent ParenText -> [ $1, $3, $4 ]
+
+ParenText ::AST[]
+  ParenTextPart*
+
+ParenTextPart ::AST
+  MainTextPart
+  [\[\]]
+  # Keep parentheses balanced
+  ParenthesizedText
+
+BracketedText ::AST[]
+  "[" BracketContent "]"
+
+BracketContent ::AST[]
+  BracketText:text BracketContinuation*:body -> [ text, ...body ]
+
+BracketContinuation ::AST[]
+  NonstrictlyNested !IsActualStatement Indent BracketText -> [ $1, $3, $4 ]
+
+BracketText ::AST[]
+  BracketTextPart*
+
+BracketTextPart ::AST
+  MainTextPart
+  [()]
+  # Keep brackets balanced
+  BracketedText
+
+MarkdownLink ::AST
+  BracketedText:body "(" MarkdownLinkDestination:url ")" ->
+    return {
+      children: [
+        "\\protect\\href{"
+        url
+        "}{"
+        // [1] strips the brackets
+        body[1]
+        "}"
+      ]
+    }
+
+MarkdownLinkDestination ::string
+  "<" MarkdownAngleLinkDestinationPart*:parts ">" -> parts.join ''
+  MarkdownBareLinkDestinationPart+:parts -> parts.join ''
+
+MarkdownAngleLinkDestinationPart ::string
+  MarkdownBackslashEscape
+  [^\x00-\x1f\x7f\r\n<>\\]+
+
+MarkdownBareLinkDestinationPart ::string
+  "(" MarkdownBareLinkDestinationPart*:parts ")" -> `(${parts.join ''})`
+  [^\x00-\x1f\x7f\s()<>\\]+
+  MarkdownBackslashEscape
+
+MarkdownBackslashEscape ::string
+  /\\([!-\/:-@\[-`{-~])/ -> $1
+  "\\"
 
 FootnoteRef ::FootnoteRef
   /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
@@ -286,13 +361,6 @@ StarredCommand ::Command
     return $1 unless $2
     return { ...$1, token: $1.token + $2[0] }
 
-ParenthesizedContent ::AST[]
-  "(" ParenBalancedContent ")"
-
-ParenBalancedContent ::AST
-  ParenthesizedContent
-  TextPart
-
 Heading ::Heading
   /(!+|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
     [, dot, hash, star] .= $1
@@ -333,9 +401,9 @@ Autolink ::AST
     return `\\protect\\href{mailto:${email}}{\\protect\\nolinkurl{${$1}}}`
 
 Environment ::Environment
-  # use NestedItem* instead of NestedBody so that we can PushIndent early
+  # use NestedStatement* instead of NestedBody so that we can PushIndent early
   # (in case ColonArgument involves multiple lines)
-  &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedItem* )?:content PopIndent ->
+  &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedStatement* )?:content PopIndent ->
     return $skip unless content
     [ envMatch, first, body ] .= content
     env := envMatch[1].trim()
@@ -580,9 +648,9 @@ NonEmptyNestedBody ::AST[]
 
 # can be empty; if not desired, use NonEmptyNestedBody
 NestedBody ::AST[]
-  PushIndent NestedItem* PopIndent -> $2
+  PushIndent NestedStatement* PopIndent -> $2
 
-NestedItem ::AST[]
+NestedStatement ::AST[]
   Nested Statement
 
 # Raw versions of above
@@ -680,6 +748,28 @@ ArgumentBullet ::AST[]
       comment
     ]
 
+## Config
+
+ScriptGroupingNumeric
+  "" ->
+    return $skip unless state.compilerOptions.scriptGrouping is "numeric"
+
+ScriptGroupingAlpha
+  "" ->
+    return $skip unless state.compilerOptions.scriptGrouping is "alpha"
+
+ScriptGroupingAlphanumeric
+  "" ->
+    return $skip unless state.compilerOptions.scriptGrouping is "alphanumeric"
+
+ScriptParensEnabled
+  "" ->
+    return $skip unless state.compilerOptions.scriptParens
+
+MarkdownLinksEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownLinks
+
 ## Indentation management, inspired by Civet's parser.hera
 
 Indentation ::Indent
@@ -733,5 +823,12 @@ IndentedNotLess ::Indent
     return $0
 
 SaveIndent ::Indent
-  "" ->
-    return state.thisLineIndent
+  "" -> state.thisLineIndent
+
+# When testing whether a rule matches via `&` or `!`, but the rule uses Indent
+# so sets state.thisLineIndent, use these to restore the previous value.
+PushLineIndent
+  "" -> state.savedLineIndents.push(state.thisLineIndent)
+
+PopLineIndent
+  "" -> state.thisLineIndent = state.savedLineIndents.pop()!

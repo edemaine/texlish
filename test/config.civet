@@ -34,9 +34,24 @@ describe 'project config', ->
       })
       config := await loadConfig configPath
       assert.equal config.scriptGrouping, 'none'
+      assert.equal config.scriptParens, false
       assert.equal config.styles!['*'], '\\textit'
       assert.equal config.styles!['@'], '\\cref'
       assert.equal config.styles!['**'], '\\textbf'
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'loads markdown compatibility flag', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        markdownCompat: false
+      })
+      config := await loadConfig configPath
+      assert.equal config.markdownLinks, false
     finally
       await fs.rm dir,
         recursive: true
@@ -53,6 +68,11 @@ describe '--config assignment', ->
       key: 'latexCompat'
       value: true
 
+  it 'parses -key shorthand with implicit false', ->
+    assert.deepEqual parseConfigAssignment('-markdownLinks'),
+      key: 'markdownLinks'
+      value: false
+
   it 'rejects invalid assignment syntax', ->
     assert.throws (
       => parseConfigAssignment('scriptGrouping alpha')
@@ -68,3 +88,14 @@ describe '--config assignment', ->
       key: 'styles'
       value:
         '*': '\\textit'
+
+  it 'parses boolean config options', ->
+    assert.deepEqual parseCompilerOption('scriptParens', false),
+      key: 'scriptParens'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownLinks', false),
+      key: 'markdownLinks'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownCompat', false),
+      key: 'markdownCompat'
+      value: false

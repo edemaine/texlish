@@ -59,6 +59,34 @@ describe 'unordered lists', ->
     \\end{itemize}
   '''
 
+  testCase '''
+    plain brackets do not consume indented bullets
+    ---
+    - [foo
+      - bar]
+    ---
+    \\begin{itemize}
+    \\item [foo
+      \\begin{itemize}
+      \\item bar]
+      \\end{itemize}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    plain parens do not consume indented bullets
+    ---
+    - (foo
+      - bar)
+    ---
+    \\begin{itemize}
+    \\item (foo
+      \\begin{itemize}
+      \\item bar)
+      \\end{itemize}
+    \\end{itemize}
+  '''
+
 describe 'ordered lists', ->
   testCase '''
     single-line bullets

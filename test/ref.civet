@@ -83,3 +83,11 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     Theorems~\\ref{a}~\\&~\\ref{b}
   '''
+
+  testCase '''
+    [ not in @ref
+    ---
+    See @thm:main[details](https://example.com)
+    ---
+    See \\ref{thm:main}\\protect\\href{https://example.com}{details}
+  '''

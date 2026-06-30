@@ -31,6 +31,8 @@ texlish filename.texlish
 texlish --config scriptGrouping=alpha filename.texlish
 # Enable LaTeX-compat mode
 texlish --config latexCompat filename.texlish
+# Disable Markdown-compatible syntax
+texlish --config -markdownCompat filename.texlish
 ```
 
 ## Configuration
@@ -47,7 +49,10 @@ YAML config example:
 
 ```yaml
 scriptGrouping: alphanumeric
+scriptParens: true
 latexCompat: false
+markdownCompat: true
+markdownLinks: true
 styles:
   "*": "\\textit"
 ```

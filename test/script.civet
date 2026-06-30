@@ -23,9 +23,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
     ---
     $x_{12} + x_{ij} + x_{i1} + x_{1i} + x^{12} + x^{ij} + x^{i1} + x^{1i}$
-  ''', {
-    scriptGrouping: "alphanumeric"
-  }
+  ''', scriptGrouping: "alphanumeric"
 
   testCase '''
     alpha mode
@@ -33,9 +31,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
     ---
     $x_12 + x_{ij} + x_i1 + x_1i + x^12 + x^{ij} + x^i1 + x^1i$
-  ''', {
-    scriptGrouping: "alpha"
-  }
+  ''', scriptGrouping: "alpha"
 
   testCase '''
     none mode
@@ -43,9 +39,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
     ---
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
-  ''', {
-    scriptGrouping: "none"
-  }
+  ''', scriptGrouping: "none"
 
   testCase '''
     numeric mode keeps mixed alphanumerics
@@ -53,19 +47,75 @@ describe 'sub/superscript autogrouping', ->
     $x_i1 + x_1i + x^i1 + x^1i$
     ---
     $x_i1 + x_1i + x^i1 + x^1i$
-  ''', {
-    scriptGrouping: "numeric"
-  }
+  ''', scriptGrouping: "numeric"
+
+  testCase '''
+    parenthesized script grouping
+    ---
+    $x_(ij) + x^(i+j)$
+    ---
+    $x_{ij} + x^{i+j}$
+  '''
+
+  testCase '''
+    nested parenthesized script grouping
+    ---
+    $x_(i(j+k))$
+    ---
+    $x_{i(j+k)}$
+  '''
+
+  testCase '''
+    multiline parenthesized script grouping
+    ---
+    $x_(foo
+      bar)$
+    ---
+    $x_{foo
+      bar}$
+  '''
+
+  testCase '''
+    plain brackets do not balance inside parenthesized script grouping
+    ---
+    $x_([a)b])$
+    ---
+    $x_{[a}b])$
+  '''
+
+  testCase '''
+    inline colon command wins over parenthesized script grouping
+    ---
+    $x_(\\emph: ij)
+    $
+    ---
+    $x_(\\emph{ij)}%
+    $
+  '''
+
+  testCase '''
+    parenthesized script grouping ignores nested script after space
+    ---
+    _(_{foo}) _( _{foo}) ^(^{foo}) ^( ^{foo})
+    ---
+    _(_{foo}) _( _{foo}) ^(^{foo}) ^( ^{foo})
+  '''
+
+  testCase '''
+    scriptParens option disables parenthesized script grouping
+    ---
+    $x_(ij) + x^(i+j)$
+    ---
+    $x_(ij) + x^(i+j)$
+  ''', scriptParens: false
 
   testCase '''
     latexCompat option disables autogrouping
     ---
-    $x_12 + x_ij + x_i1 + x^12 + x^ij + x^i1$
+    $x_12 + x_ij + x_i1 + x_(ij) + x^12 + x^ij + x^i1 + x^(ij)$
     ---
-    $x_12 + x_ij + x_i1 + x^12 + x^ij + x^i1$
-  ''', {
-    latexCompat: true
-  }
+    $x_12 + x_ij + x_i1 + x_(ij) + x^12 + x^ij + x^i1 + x^(ij)$
+  ''', latexCompat: true
 
   testCase '''
     in-file ::config
@@ -109,13 +159,13 @@ describe 'sub/superscript autogrouping', ->
   testCase '''
     in-file ::config latexCompat flag
     ---
-    $x_12$
+    $x_12 + x_(ij)$
     ::config
       latexCompat
-    $x_12$
+    $x_12 + x_(ij)$
     ---
-    $x_{12}$
-    $x_12$
+    $x_{12} + x_{ij}$
+    $x_12 + x_(ij)$
   '''
 
   testCase '''

@@ -6,11 +6,13 @@ export type CompilerOptions
   trace?: string
   fragment?: boolean
   scriptGrouping?: ScriptGrouping
+  scriptParens?: boolean
   latexCompat?: boolean
+  markdownCompat?: boolean
+  markdownLinks?: boolean
   styles?: Record<string, string>
 
 export type ActiveCompilerOptions = CompilerOptions & {
-  scriptGrouping: ScriptGrouping
   styles: Record<string, string>
 }
 
