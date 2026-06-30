@@ -152,7 +152,7 @@ the first marker with `[^id]`.
   [^true]: This is actually true.
 `}/>
 
-The first marker expands to `\footnote{\label{footnote:id} ...}`. Later markers
+The first marker expands to `\footnote{\protect\label{footnote:id} ...}`. Later markers
 re-use the same footnote number with `\footref{footnote:id}`, and
 `@^id` references that generated label directly as a number (no superscript).
 
@@ -173,6 +173,14 @@ paragraph re-use simple IDs like `[^1]`, without having to think up a name.
 
   Second paragraph[^1].
   [^1]: Second note.
+`}/>
+
+You can also use Texlish footnote notation to specify authors and affiliations
+(in default LaTeX document classes where `\footnote` works like `\thanks`).
+
+<Example src={`
+  \\author: Alice[^MIT] \\and Bob[^MIT]
+  [^MIT]: Massachusetts Institute of Technology
 `}/>
 
 ## Links

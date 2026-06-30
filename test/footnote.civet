@@ -11,11 +11,11 @@ describe 'Markdown footnotes', ->
     [^true]: This is actually true.
     ---
     This is a problem%
-    \\footnote{\\label{footnote:false}%
+    \\footnote{\\protect\\label{footnote:false}%
       This is actually not true.
       See Figure \\ref{fig:example}.}%
     , but not too bad%
-    \\footnote{\\label{footnote:true}This is actually true.}%
+    \\footnote{\\protect\\label{footnote:true}This is actually true.}%
     .
 
   '''
@@ -29,7 +29,7 @@ describe 'Markdown footnotes', ->
     See footnote @^false for details.[^false]
     ---
     This is first%
-    \\footnote{\\label{footnote:false}This is actually true.}%
+    \\footnote{\\protect\\label{footnote:false}This is actually true.}%
     .
 
     See footnote \\ref{footnote:false} for details.\\footref{footnote:false}
@@ -43,7 +43,7 @@ describe 'Markdown footnotes', ->
     Second.
     ---
     First%
-    \\footnote{\\label{footnote:x}Note.}%
+    \\footnote{\\protect\\label{footnote:x}Note.}%
     .
     Second.
   '''
@@ -56,8 +56,8 @@ describe 'Markdown footnotes', ->
     [^x]: Second note.
     ---
     First%
-    \\footnote{\\label{footnote:x}First note.
-    \\label{footnote:x}Second note.}%
+    \\footnote{\\protect\\label{footnote:x}First note.
+    \\protect\\label{footnote:x}Second note.}%
     .
 
   '''
@@ -72,11 +72,11 @@ describe 'Markdown footnotes', ->
     [^1]: Second note.
     ---
     First paragraph%
-    \\footnote{\\label{footnote:1}First note.}%
+    \\footnote{\\protect\\label{footnote:1}First note.}%
     , again\\footref{footnote:1}.
 
     Second paragraph%
-    \\footnote{\\label{footnote:2}Second note.}%
+    \\footnote{\\protect\\label{footnote:2}Second note.}%
     .
   '''
 
@@ -89,10 +89,10 @@ describe 'Markdown footnotes', ->
     [^1]: After note.
     ---
     Before%
-    \\footnote{\\label{footnote:1}Before note.}%
+    \\footnote{\\protect\\label{footnote:1}Before note.}%
     .
     After%
-    \\footnote{\\label{footnote:2}After note.}%
+    \\footnote{\\protect\\label{footnote:2}After note.}%
     .
   '''
 
@@ -104,7 +104,7 @@ describe 'Markdown footnotes', ->
     ---
     \\begin{itemize}
     \\item Item%
-    \\footnote{\\label{footnote:x}Note.}
+    \\footnote{\\protect\\label{footnote:x}Note.}
     \\end{itemize}
   '''
 
@@ -118,7 +118,7 @@ describe 'Markdown footnotes', ->
     \\begin{itemize}
     \\item Item
       nested%
-    \\footnote{\\label{footnote:x}Note.}
+    \\footnote{\\protect\\label{footnote:x}Note.}
     \\end{itemize}
   '''
 
@@ -131,9 +131,22 @@ describe 'Markdown footnotes', ->
     [^1]: foot
     ---
     foo%
-    \\footnote{\\label{footnote:1}foot}
+    \\footnote{\\protect\\label{footnote:1}foot}
     bar
 
+  '''
+
+  testCase '''
+    author footnote label
+    ---
+    \\title{Title}
+    \\author{First[^a]\\and Repeat[^a]}
+    [^a]: Affiliation note.
+    ---
+    \\title{Title}
+    \\author{First%
+    \\footnote{\\protect\\label{footnote:a}Affiliation note.}%
+    \\and Repeat\\footref{footnote:a}}
   '''
 
   testCase '''

@@ -132,7 +132,8 @@ function processFootnotes(root: AST[]): void
     for each definition, i of definitions
       children.push "\n" if i > 0
       // Re-use the same label for duplicate names so LaTeX reports it.
-      children.push `\\label{${label}}` if label?
+      // Protect labels because \author stores \footnote via \thanks.
+      children.push `\\protect\\label{${label}}` if label?
       children.push definition.body
     children.push "}"
     children.push "%\n" unless ref.eolNext
