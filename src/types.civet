@@ -11,6 +11,7 @@ export type CompilerOptions
   markdownCompat?: boolean
   markdownHorizontalRules?: boolean
   markdownLinks?: boolean
+  markdownLists?: boolean
   styles?: Record<string, string>
 
 export type ActiveCompilerOptions = CompilerOptions & {

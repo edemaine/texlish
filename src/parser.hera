@@ -117,8 +117,8 @@ ActualStatement ::AST
   FootnoteDefinition
   Environment
   CommandWithColonArgument
-  UnorderedList
-  OrderedList
+  MarkdownListsEnabled UnorderedList -> $2
+  MarkdownListsEnabled OrderedList -> $2
 
 # Detect whether the next line is an actual statement, for deciding whether
 # to continue a text field like a Markdown bracketed link.
@@ -785,6 +785,10 @@ MarkdownHorizontalRulesEnabled
 MarkdownLinksEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownLinks
+
+MarkdownListsEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownLists
 
 ## Indentation management, inspired by Civet's parser.hera
 

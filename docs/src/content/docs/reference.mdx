@@ -106,6 +106,9 @@ but with less strict requirements on indentation.
     * Continue
 `}/>
 
+Markdown-style lists can be disabled with `::config -markdownLists`
+or `::config -markdownCompat`.
+
 ## Label/Ref
 
 <Example src={`
@@ -493,11 +496,13 @@ Supported config options are:
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`
   and `scriptParens = false`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
-  currently `markdownHorizontalRules` and `markdownLinks`
+  currently `markdownHorizontalRules`, `markdownLinks`, and `markdownLists`
 * `markdownHorizontalRules`: whether horizontal rule lines like `---` compile to
   `\medskip\hrule\medskip`; enabled by default
 * `markdownLinks`: whether `[text](url)` compiles to
   `\protect\href{url}{text}`; enabled by default
+* `markdownLists`: whether top-level Markdown-style bullets and numbered
+  lists compile to LaTeX lists; enabled by default
 * `scriptParens`: whether `_(...)` and `^(...)` group sub/superscripts;
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,

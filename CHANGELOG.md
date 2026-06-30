@@ -25,6 +25,8 @@
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
   [[#21](https://github.com/edemaine/texlish/issues/21)]
+* Markdown-style lists can be disabled with `-markdownLists` or
+  `-markdownCompat`.
 * `::tex` passes raw TeX through unchanged,
   on the same line or in nested strictly indented lines.
   [[#2](https://github.com/edemaine/texlish/issues/2)]

@@ -3,6 +3,7 @@ import type { ActiveCompilerOptions, CompilerOptions, ScriptGrouping } from ./ty
 export const defaultConfig: ActiveCompilerOptions = {
   markdownHorizontalRules: true
   markdownLinks: true
+  markdownLists: true
   scriptParens: true
   scriptGrouping: "numeric"
   styles:
@@ -22,6 +23,7 @@ export const defaultConfig: ActiveCompilerOptions = {
   set markdownCompat(value: boolean)
     @markdownHorizontalRules = value
     @markdownLinks = value
+    @markdownLists = value
 }
 
 /**
@@ -62,6 +64,7 @@ type BooleanCompilerOption
   | "markdownCompat"
   | "markdownHorizontalRules"
   | "markdownLinks"
+  | "markdownLists"
 
 booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["scriptparens", "scriptParens"]
@@ -69,6 +72,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["markdowncompat", "markdownCompat"]
   . ["markdownhorizontalrules", "markdownHorizontalRules"]
   . ["markdownlinks", "markdownLinks"]
+  . ["markdownlists", "markdownLists"]
 
 function setCompilerOption<K extends keyof CompilerOptions>(
   options: CompilerOptions

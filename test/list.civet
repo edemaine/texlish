@@ -60,6 +60,27 @@ describe 'unordered lists', ->
   '''
 
   testCase '''
+    disabled by compiler option
+    ---
+    - one
+    * two
+    ---
+    - one
+    * two
+  ''', markdownLists: false
+
+  testCase '''
+    disabled by markdownCompat shorthand
+    ---
+    ::config -markdownCompat
+    - one
+    * two
+    ---
+    - one
+    * two
+  '''
+
+  testCase '''
     plain brackets do not consume indented bullets
     ---
     - [foo

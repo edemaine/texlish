@@ -53,6 +53,7 @@ describe 'project config', ->
       config := await loadConfig configPath
       assert.equal config.markdownHorizontalRules, false
       assert.equal config.markdownLinks, false
+      assert.equal config.markdownLists, false
     finally
       await fs.rm dir,
         recursive: true
@@ -96,6 +97,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('markdownLinks', false),
       key: 'markdownLinks'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownLists', false),
+      key: 'markdownLists'
       value: false
     assert.deepEqual parseCompilerOption('markdownHorizontalRules', false),
       key: 'markdownHorizontalRules'
