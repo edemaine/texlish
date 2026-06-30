@@ -60,6 +60,100 @@ describe 'unordered lists', ->
   '''
 
   testCase '''
+    same-line environment bullet
+    ---
+    - : environment
+        content
+    ---
+    \\begin{itemize}
+    \\item \\begin{environment}
+        content
+      \\end{environment}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    same-line environment bullet with tab marker
+    ---
+    -\t: environment
+    \t\tcontent
+    ---
+    \\begin{itemize}
+    \\item\t\\begin{environment}
+    \t\tcontent
+     \t\\end{environment}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    same-line environment bullet with list-item body
+    ---
+    - : environment
+      body
+    ---
+    \\begin{itemize}
+    \\item \\begin{environment}
+      \\end{environment}
+      body
+    \\end{itemize}
+  '''
+
+  testCase '''
+    same-line environment bullet with argument
+    ---
+    - : environment:
+        - arg
+        env body
+      body
+    ---
+    \\begin{itemize}
+    \\item \\begin{environment}
+         {arg}%
+        env body
+      \\end{environment}
+      body
+    \\end{itemize}
+  '''
+
+  testCase '''
+    same-line nested bullets
+    ---
+    - - x
+      - y
+    ---
+    \\begin{itemize}
+    \\item \\begin{itemize}
+      \\item x
+      \\item y
+      \\end{itemize}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    triple same-line nested bullet
+    ---
+    - - - x
+    ---
+    \\begin{itemize}
+    \\item \\begin{itemize}
+      \\item \\begin{itemize}
+        \\item x
+        \\end{itemize}
+      \\end{itemize}
+    \\end{itemize}
+  '''
+
+  testCase '''
+    same-line raw tex bullet
+    ---
+    - ::tex \\foo{*raw* [link](https://example.com) @ref}
+    ---
+    \\begin{itemize}
+    \\item \\foo{*raw* [link](https://example.com) @ref}
+    \\end{itemize}
+  '''
+
+  testCase '''
     commented-out bullets do not interrupt list
     ---
     - one

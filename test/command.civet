@@ -83,6 +83,89 @@ describe '\\command:', ->
   '''
 
   testCase '''
+    bulleted with same-line environment
+    ---
+    \\foo:
+      - argument 1
+      - : environment
+          content
+    ---
+    \\foo
+       {argument 1}%
+       {\\begin{environment}
+          content
+        \\end{environment}}%
+  '''
+
+  testCase '''
+    bulleted with same-line environment and list-item body
+    ---
+    \\foo:
+      - : environment
+        body
+    ---
+    \\foo
+       {\\begin{environment}
+        \\end{environment}
+        body}%
+  '''
+
+  testCase '''
+    bulleted with same-line environment and argument
+    ---
+    \\foo:
+      - : environment:
+          - arg
+          env body
+        body
+    ---
+    \\foo
+       {\\begin{environment}
+           {arg}%
+          env body
+        \\end{environment}
+        body}%
+  '''
+
+  testCase '''
+    bulleted with same-line nested list
+    ---
+    \\foo:
+      - - x
+        - y
+    ---
+    \\foo
+       {\\begin{itemize}
+        \\item x
+        \\item y
+        \\end{itemize}}%
+  '''
+
+  testCase '''
+    bulleted with triple same-line nested list
+    ---
+    \\foo:
+      - - - x
+    ---
+    \\foo
+       {\\begin{itemize}
+        \\item \\begin{itemize}
+          \\item x
+          \\end{itemize}
+        \\end{itemize}}%
+  '''
+
+  testCase '''
+    bulleted with same-line raw tex
+    ---
+    \\foo:
+      - ::tex \\bar{*raw* [link](https://example.com) @ref}
+    ---
+    \\foo
+       {\\bar{*raw* [link](https://example.com) @ref}}%
+  '''
+
+  testCase '''
     bulleted with nested \\command:
     ---
     \\subcaptionbox:

@@ -1,4 +1,4 @@
-type { AST, Comment } from ./types.civet
+type { AST, ASTParent, Comment, Indent } from ./types.civet
 
 export function isNumeric(value: string): boolean
   /^\d+/.test value
@@ -108,6 +108,20 @@ export function modifyEnd(node: AST, modify: (candidate: AST) => AST): AST
       }
     else
       node
+
+/**
+ * Copy an AST array or parent node with the leading emitted indent suppressed.
+ * Assumes/asserts the first array entry or first child is an Indent node.
+ */
+export function removeLeadingIndent<T extends AST[]>(node: T): T
+export function removeLeadingIndent<T extends ASTParent>(node: T): T
+export function removeLeadingIndent(node: AST[] | ASTParent): AST[] | ASTParent
+  if Array.isArray node
+    unless node[0] is like { type: "Indent" }
+      throw new Error "Expected leading indent"
+    [ { ...node[0] as Indent, token: "" }, ...node[>=1] ]
+  else
+    { ...node, children: removeLeadingIndent node.children }
 
 /** Trim end whitespace */
 export function trimEnd(node: AST[]): AST[]

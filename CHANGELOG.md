@@ -27,6 +27,9 @@
   [[#21](https://github.com/edemaine/texlish/issues/21)]
 * Markdown-style lists can be disabled with `-markdownLists` or
   `-markdownCompat`.
+* Markdown-style and command-argument list items can start with
+  same-line `:` environments, nested lists, or `::` meta commands.
+  [[#7](https://github.com/edemaine/texlish/issues/7)]
 * Commented-out list items no longer interrupt Markdown-style lists,
   command argument lists, or package argument lists.
   [[#22](https://github.com/edemaine/texlish/issues/22)]

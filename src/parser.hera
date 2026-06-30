@@ -3,6 +3,7 @@
 type {
   ActiveCompilerOptions,
   AST,
+  ASTParent,
   Braced,
   Comment,
   ConfigEntry,
@@ -28,24 +29,36 @@ type {
   commentForTextBody,
   getEndComment,
   isNumeric,
+  removeLeadingIndent,
 } from ./util.civet
 
 type ParserState
+  /** Stack of active indentation baselines for nested blocks. */
   indents: Indent[]
-  savedLineIndents: Indent[]
-  compilerOptions: ActiveCompilerOptions
-  thisLineIndent: Indent
+  /** Current block indentation baseline = top of `indents` stack. */
   currentIndent: Indent
+  /** Indentation most recently parsed or temporarily installed for this line. */
+  thisLineIndent: Indent
+  /** Stack for restoring `thisLineIndent` after temporary parser-state changes. */
+  savedLineIndents: Indent[]
+  /** Synthetic baseline immediately after the current list item marker. */
+  listItemIndent: Indent
+  /** One-shot override consumed by the next Indent parse. */
+  pendingLineIndent: Indent?
+  /** Active compiler options, including options changed by ::config. */
+  compilerOptions: ActiveCompilerOptions
 
 initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
 export state: ParserState := {
   indents: [ initialIndent ]
-  savedLineIndents: []
-  compilerOptions: makeCompilerOptions()
-  thisLineIndent: initialIndent
   get currentIndent(): Indent
     state.indents.-1
+  thisLineIndent: initialIndent
+  savedLineIndents: []
+  listItemIndent: initialIndent
+  pendingLineIndent: undefined
+  compilerOptions: makeCompilerOptions()
 }
 
 export function getCompilerOptions(): ActiveCompilerOptions
@@ -74,6 +87,17 @@ function applyConfigAssignments(body: ConfigEntry[]): void
   for [key, value] of body
     applyCompilerOption(state.compilerOptions, key, value)
 
+function visualWidth(text: string): number
+  numTabs := text.match(/\t/g)?# ?? 0
+  numTabs * 8 + (text# - numTabs)
+
+function setListItemIndent(marker: string): void
+  state.listItemIndent = {
+    ...state.thisLineIndent
+    token: state.thisLineIndent.token + marker.replace /[^\t]/g, " "
+    level: state.thisLineIndent.level + visualWidth marker
+  }
+
 export { ParseError }
 ```
 
@@ -83,8 +107,10 @@ Main ::AST[]
 Init
   "" ->
     state.indents = [ initialIndent ]
-    state.savedLineIndents = []
     state.thisLineIndent = initialIndent
+    state.savedLineIndents = []
+    state.listItemIndent = initialIndent
+    state.pendingLineIndent = undefined
 
 Content ::AST[]
   Statement ( EOL Statement )* ->
@@ -708,7 +734,7 @@ UnorderedList ::List
     }
 
 UnorderedBullet ::AST[]
-  Bullet:bullet Text:text NestedBody:body ->
+  Bullet:bullet ListItemLine:text NestedBody:body ->
     space := bullet[1]
     return [ '\\item', space, text, body ]
 
@@ -717,7 +743,9 @@ UnorderedListContinuation ::AST[]
     return [ comments, eol, indent, bullet ]
 
 Bullet
-  /([*\-~])([ \t]+|(?=[\r\n]))/ -> [ $1, $2 ]
+  /([*\-~])([ \t]+|(?=[\r\n]))/ ->
+    setListItemIndent $0
+    [ $1, $2 ]
 
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
@@ -738,13 +766,35 @@ OrderedList ::List
     }
 
 OrderedBullet ::AST[]
-  /\d+\.([ \t]+|(?=[\r\n]))/ Text:text NestedBody:body ->
-    space := $1[1]
+  NumberBullet:space ListItemLine:text NestedBody:body ->
     return [ '\\item', space, text, body ]
+
+NumberBullet ::string
+  /\d+\.([ \t]+|(?=[\r\n]))/ ->
+    setListItemIndent $0
+    $1
 
 OrderedListContinuation ::AST[]
   NonstrictlyNestedComment*:comments SameLevel:eol Indent:indent OrderedBullet:bullet ->
     return [ comments, eol, indent, bullet ]
+
+# First line of every list item, immediately after the bullet.
+ListItemLine ::AST[]
+  PushListItemIndent ListItemStatement?:statement PopLineIndent ->
+    return $skip unless statement
+    if Array.isArray statement
+      return removeLeadingIndent statement
+    throw new Error "Expected parent statement" unless statement is like { children }
+    [ removeLeadingIndent statement as ASTParent ]
+  Text
+
+ListItemStatement ::AST
+  # Alternatives must reject before Indent unless they are really matching:
+  # Indent consumes pendingLineIndent, which later alternatives need.
+  Environment
+  MetaBlock
+  MarkdownListsEnabled UnorderedList -> $2
+  MarkdownListsEnabled OrderedList -> $2
 
 NestedArgumentList ::AST[]
   PushIndent ArgumentList?:content PopIndent ->
@@ -761,7 +811,7 @@ ArgumentListContinuation ::AST[]
     return [ comments, eol, bullet ]
 
 ArgumentBullet ::AST[]
-  Indent:indent Bullet:bullet Text:text NestedBody:body ->
+  Indent:indent Bullet:bullet ListItemLine:text NestedBody:body ->
     [ symbol, space ] .= bullet
     let comment
     [text, body, comment] = commentForTextBody text, body
@@ -811,18 +861,19 @@ MarkdownListsEnabled
 
 Indentation ::Indent
   /[ \t]*/ ->
-    numTabs := $0.match(/\t/g)?# ?? 0
-    level := numTabs * 8 + ($0# - numTabs)
     return {
       type: "Indent"
       token: $0
-      level
+      level: visualWidth $0
       $loc
     }
 
 Indent ::Indent
-  Indentation ->
-    return state.thisLineIndent = $1
+  Indentation:indent ->
+    if pending := state.pendingLineIndent
+      indent = pending
+      state.pendingLineIndent = undefined
+    return state.thisLineIndent = indent
 
 PushIndent
   "" ->
@@ -870,4 +921,12 @@ PushLineIndent
   "" -> state.savedLineIndents.push(state.thisLineIndent)
 
 PopLineIndent
-  "" -> state.thisLineIndent = state.savedLineIndents.pop()!
+  "" ->
+    state.thisLineIndent = state.savedLineIndents.pop()!
+    state.pendingLineIndent = undefined
+
+PushListItemIndent
+  "" ->
+    state.savedLineIndents.push(state.thisLineIndent)
+    state.thisLineIndent = state.listItemIndent
+    state.pendingLineIndent = state.listItemIndent

@@ -32,6 +32,14 @@ uncacheable := new Set [
   "PushIndent"
   "PopIndent"
   "SaveIndent"
+  "PushLineIndent"
+  "PopLineIndent"
+  "PushListItemIndent"
+  // List item markers set state.listItemIndent for PushListItemIndent.
+  "Bullet"
+  "NumberBullet"
+  // ListItemLine installs and consumes pendingLineIndent.
+  "ListItemLine"
   // Parser config mutation
   "MetaStyles"
   "MetaConfig"
