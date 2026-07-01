@@ -1,23 +1,23 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '::tex', ->
-  testCase '''
+  testCase r'''
     same line raw tex
     ---
-    ::tex \\foo{*raw* [link](https://example.com) @ref}
+    ::tex \foo{*raw* [link](https://example.com) @ref}
     ---
-    \\foo{*raw* [link](https://example.com) @ref}
+    \foo{*raw* [link](https://example.com) @ref}
   '''
 
-  testCase '''
+  testCase r'''
     trims one separator space before content
     ---
-    ::tex  \\foo
+    ::tex  \foo
     ---
-     \\foo
+     \foo
   '''
 
-  testCase '''
+  testCase r'''
     trims separator space before same-line comment
     ---
     ::tex % raw comment
@@ -25,38 +25,38 @@ describe '::tex', ->
     % raw comment
   '''
 
-  testCase '''
+  testCase r'''
     nested raw tex
     ---
     ::tex
-      \\begin{raw}
+      \begin{raw}
         *not emphasis* [not link](https://example.com) @ref
-      \\end{raw}
+      \end{raw}
     ---
 
-      \\begin{raw}
+      \begin{raw}
         *not emphasis* [not link](https://example.com) @ref
-      \\end{raw}
+      \end{raw}
   '''
 
-  testCase '''
+  testCase r'''
     same line with nested raw tex
     ---
-    ::tex \\begin{raw}
+    ::tex \begin{raw}
       content
-    ::tex \\end{raw}
+    ::tex \end{raw}
     ---
-    \\begin{raw}
+    \begin{raw}
       content
-    \\end{raw}
+    \end{raw}
   '''
 
-  testCase '''
+  testCase r'''
     does not grab same-level next line
     ---
-    ::tex \\foo
+    ::tex \foo
     [link](https://example.com)
     ---
-    \\foo
-    \\protect\\href{https://example.com}{link}
+    \foo
+    \protect\href{https://example.com}{link}
   '''

@@ -1,15 +1,15 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'Markdown headers (#/##/...)', ->
-  testCase '''
+  testCase r'''
     single line
     ---
     # Heading
     ---
-    \\section{Heading}
+    \section{Heading}
   '''
 
-  testCase '''
+  testCase r'''
     several
     ---
     !!# Part
@@ -24,15 +24,15 @@ describe 'Markdown headers (#/##/...)', ->
     .## Subparagraph
     ## Subsection
     ---
-    \\part{Part}
-    \\part{Part}
-    \\chapter{Chapter}
-    \\section{Section}
-    \\subsection{Subsection}
-    \\subsubsection{Subsubsection}
-    \\subsubsection*{Subsubsection}
-    \\paragraph{Paragraph}
-    \\subparagraph{Subparagraph}
-    \\subparagraph{Subparagraph}
-    \\subsection{Subsection}
+    \part{Part}
+    \part{Part}
+    \chapter{Chapter}
+    \section{Section}
+    \subsection{Subsection}
+    \subsubsection{Subsubsection}
+    \subsubsection*{Subsubsection}
+    \paragraph{Paragraph}
+    \subparagraph{Subparagraph}
+    \subparagraph{Subparagraph}
+    \subsection{Subsection}
   '''

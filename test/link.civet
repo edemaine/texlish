@@ -1,73 +1,73 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '<autolink>', ->
   // examples from https://spec.commonmark.org/0.31.2/#autolinks
 
-  testCase '''
+  testCase r'''
     594
     ---
     <http://foo.bar.baz>
     ---
-    \\protect\\url{http://foo.bar.baz}
+    \protect\url{http://foo.bar.baz}
   '''
 
-  testCase '''
+  testCase r'''
     595
     ---
     <https://foo.bar.baz/test?q=hello&id=22&boolean>
     ---
-    \\protect\\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
+    \protect\url{https://foo.bar.baz/test?q=hello&id=22&boolean}
   '''
 
-  testCase '''
+  testCase r'''
     596
     ---
     <irc://foo.bar:2233/baz>
     ---
-    \\protect\\url{irc://foo.bar:2233/baz}
+    \protect\url{irc://foo.bar:2233/baz}
   '''
 
-  testCase '''
+  testCase r'''
     597
     ---
     <MAILTO:FOO@BAR.BAZ>
     ---
-    \\protect\\url{MAILTO:FOO@BAR.BAZ}
+    \protect\url{MAILTO:FOO@BAR.BAZ}
   '''
 
-  testCase '''
+  testCase r'''
     598
     ---
     <a+b+c:d>
     ---
-    \\protect\\url{a+b+c:d}
+    \protect\url{a+b+c:d}
   '''
 
-  testCase '''
+  testCase r'''
     599
     ---
     <made-up-scheme://foo,bar>
     ---
-    \\protect\\url{made-up-scheme://foo,bar}
+    \protect\url{made-up-scheme://foo,bar}
   '''
 
-  testCase '''
+  testCase r'''
     600
     ---
     <https://../>
     ---
-    \\protect\\url{https://../}
+    \protect\url{https://../}
   '''
 
-  testCase '''
+  testCase r'''
     601
     ---
     <localhost:5001/foo>
     ---
-    \\protect\\url{localhost:5001/foo}
+    \protect\url{localhost:5001/foo}
   '''
 
-  testCase '''
+  testCase r'''
     602
     ---
     <https://foo.bar/baz bim>
@@ -75,39 +75,39 @@ describe '<autolink>', ->
     <https://foo.bar/baz bim>
   '''
 
-  testCase '''
+  testCase r'''
     603
     ---
-    <https://example.com/\\[\\>
+    <https://example.com/\[\>
     ---
-    \\protect\\url{https://example.com/\\[\\}
+    \protect\url{https://example.com/\[\}
   '''
 
-  testCase '''
+  testCase r'''
     604
     ---
     <foo@bar.example.com>
     ---
-    \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}}
+    \protect\href{mailto:foo@bar.example.com}{\protect\nolinkurl{foo@bar.example.com}}
   '''
 
-  testCase '''
+  testCase r'''
     605
     ---
     <foo+special@Bar.baz-bar0.com>
     ---
-    \\protect\\href{mailto:foo+special@Bar.baz-bar0.com}{\\protect\\nolinkurl{foo+special@Bar.baz-bar0.com}}
+    \protect\href{mailto:foo+special@Bar.baz-bar0.com}{\protect\nolinkurl{foo+special@Bar.baz-bar0.com}}
   '''
 
-  testCase '''
+  testCase r'''
     606
     ---
-    <foo\\+@bar.example.com>
+    <foo\+@bar.example.com>
     ---
-    <foo\\+\\ref{bar.example.com>}
+    <foo\+\ref{bar.example.com>}
   '''
 
-  testCase '''
+  testCase r'''
     607
     ---
     <>
@@ -115,7 +115,7 @@ describe '<autolink>', ->
     <>
   '''
 
-  testCase '''
+  testCase r'''
     608
     ---
     < https://foo.bar >
@@ -123,7 +123,7 @@ describe '<autolink>', ->
     < https://foo.bar >
   '''
 
-  testCase '''
+  testCase r'''
     609
     ---
     <m:abc>
@@ -131,7 +131,7 @@ describe '<autolink>', ->
     <m:abc>
   '''
 
-  testCase '''
+  testCase r'''
     610
     ---
     <foo.bar.baz>
@@ -139,7 +139,7 @@ describe '<autolink>', ->
     <foo.bar.baz>
   '''
 
-  testCase '''
+  testCase r'''
     610
     ---
     https://example.com
@@ -147,7 +147,7 @@ describe '<autolink>', ->
     https://example.com
   '''
 
-  testCase '''
+  testCase r'''
     611
     ---
     foo@bar.example.com
@@ -155,22 +155,23 @@ describe '<autolink>', ->
     foo@bar.example.com
   '''
 
-  testCase '''
+  testCase r'''
     mid-line URL
     ---
     See <https://example.com> now.
     ---
-    See \\protect\\url{https://example.com} now.
+    See \protect\url{https://example.com} now.
   '''
 
-  testCase '''
+  testCase r'''
     mid-line email
     ---
     Email <foo@bar.example.com> now.
     ---
-    Email \\protect\\href{mailto:foo@bar.example.com}{\\protect\\nolinkurl{foo@bar.example.com}} now.
+    Email \protect\href{mailto:foo@bar.example.com}{\protect\nolinkurl{foo@bar.example.com}} now.
   '''
 
+  // No `r` because backticks are escaped when Civet transpiles raw strings.
   testCase '''
     escaping email
     ---
@@ -179,56 +180,56 @@ describe '<autolink>', ->
     \\protect\\href{mailto:!#$%25&amp;'*+/=?%5E_%60%7C~-@example.com}{\\protect\\nolinkurl{!#$%&'*+/=?^_`|~-@example.com}}
   '''
 
-  testCase '''
+  testCase r'''
     braced email ids
     ---
     <{one,two}@example.com>
     ---
-    \\protect\\href{mailto:one@example.com,two@example.com}{\\protect\\nolinkurl{{one,two}@example.com}}
+    \protect\href{mailto:one@example.com,two@example.com}{\protect\nolinkurl{{one,two}@example.com}}
   '''
 
 describe 'Markdown links', ->
-  testCase '''
+  testCase r'''
     plain link
     ---
     See [Texlish](https://texlish.org).
     ---
-    See \\protect\\href{https://texlish.org}{Texlish}.
+    See \protect\href{https://texlish.org}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     balanced parens in link target
     ---
     See [Texlish](https://texlish.org/foo(and(bar))).
     ---
-    See \\protect\\href{https://texlish.org/foo(and(bar))}{Texlish}.
+    See \protect\href{https://texlish.org/foo(and(bar))}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     escaped parens in link target
     ---
-    See [Texlish](\\(https://texlish.org\\)).
+    See [Texlish](\(https://texlish.org\)).
     ---
-    See \\protect\\href{(https://texlish.org)}{Texlish}.
+    See \protect\href{(https://texlish.org)}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     escaped unbalanced parens in link target
     ---
-    See [Texlish](https://texlish.org/foo\\(bar).
+    See [Texlish](https://texlish.org/foo\(bar).
     ---
-    See \\protect\\href{https://texlish.org/foo(bar}{Texlish}.
+    See \protect\href{https://texlish.org/foo(bar}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     escaped punctuation in link target
     ---
-    See [Texlish](https://texlish.org/foo\\)\\:bar).
+    See [Texlish](https://texlish.org/foo\)\:bar).
     ---
-    See \\protect\\href{https://texlish.org/foo):bar}{Texlish}.
+    See \protect\href{https://texlish.org/foo):bar}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     unbalanced parens in link target stay literal
     ---
     See [Texlish](https://texlish.org/foo(bar).
@@ -236,149 +237,149 @@ describe 'Markdown links', ->
     See [Texlish](https://texlish.org/foo(bar).
   '''
 
-  testCase '''
+  testCase r'''
     angle-wrapped link target permits unbalanced parens
     ---
     See [Texlish](<https://texlish.org/foo(bar>).
     ---
-    See \\protect\\href{https://texlish.org/foo(bar}{Texlish}.
+    See \protect\href{https://texlish.org/foo(bar}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     angle-wrapped link target permits spaces
     ---
     See [Texlish](</my uri>).
     ---
-    See \\protect\\href{/my uri}{Texlish}.
+    See \protect\href{/my uri}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     angle-wrapped link target permits escaped angle bracket
     ---
-    See [Texlish](<foo\\>bar>).
+    See [Texlish](<foo\>bar>).
     ---
-    See \\protect\\href{foo>bar}{Texlish}.
+    See \protect\href{foo>bar}{Texlish}.
   '''
 
-  testCase '''
+  testCase r'''
     inline markup in link text
     ---
     See [*Texlish* @docs](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{\\emph{Texlish} \\ref{docs}}.
+    See \protect\href{https://texlish.org/docs}{\emph{Texlish} \ref{docs}}.
   '''
 
-  testCase '''
+  testCase r'''
     balanced brackets in link text
     ---
     See [Texlish [docs]](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish [docs]}.
+    See \protect\href{https://texlish.org/docs}{Texlish [docs]}.
   '''
 
-  testCase '''
+  testCase r'''
     adjacent balanced brackets in link text
     ---
     See [foo[bar]baz](https://example.com).
     ---
-    See \\protect\\href{https://example.com}{foo[bar]baz}.
+    See \protect\href{https://example.com}{foo[bar]baz}.
   '''
 
-  testCase '''
+  testCase r'''
     plain parens do not balance inside Markdown link text
     ---
     See [foo(a](https://first.example)b)](https://second.example).
     ---
-    See \\protect\\href{https://first.example}{foo(a}b)](https://second.example).
+    See \protect\href{https://first.example}{foo(a}b)](https://second.example).
   '''
 
-  testCase '''
+  testCase r'''
     markup inside balanced brackets in link text
     ---
     See [Texlish [*docs*]](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish [\\emph{docs}]}.
+    See \protect\href{https://texlish.org/docs}{Texlish [\emph{docs}]}.
   '''
 
-  testCase '''
+  testCase r'''
     indented multiline link text
     ---
     See [Texlish
       docs](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish
+    See \protect\href{https://texlish.org/docs}{Texlish
       docs}.
   '''
 
-  testCase '''
+  testCase r'''
     multiline balanced brackets in link text
     ---
     See [Texlish [docs
       page]](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish [docs
+    See \protect\href{https://texlish.org/docs}{Texlish [docs
       page]}.
   '''
 
-  testCase '''
+  testCase r'''
     same-indent multiline link text in nested body
     ---
-    \\emph:
+    \emph:
       [foo
       [bar]
       baz](https://example.com)
     ---
-    \\emph{%
-      \\protect\\href{https://example.com}{foo
+    \emph{%
+      \protect\href{https://example.com}{foo
       [bar]
       baz}}%
   '''
 
-  testCase '''
+  testCase r'''
     unindented multiline link text
     ---
     See [Texlish
     docs](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish
+    See \protect\href{https://texlish.org/docs}{Texlish
     docs}.
   '''
 
-  testCase '''
+  testCase r'''
     unindented multiline balanced brackets in link text
     ---
     [foo
     [bar]
     baz](https://example.com)
     ---
-    \\protect\\href{https://example.com}{foo
+    \protect\href{https://example.com}{foo
     [bar]
     baz}
   '''
 
-  testCase '''
+  testCase r'''
     multiline link text does not grab next list item
     ---
     - See [Texlish
     - docs](https://texlish.org/docs)
     ---
-    \\begin{itemize}
-    \\item See [Texlish
-    \\item docs](https://texlish.org/docs)
-    \\end{itemize}
+    \begin{itemize}
+    \item See [Texlish
+    \item docs](https://texlish.org/docs)
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     multiline link text can continue on next top-level line
     ---
     See [Texlish
     Next paragraph](https://texlish.org/docs).
     ---
-    See \\protect\\href{https://texlish.org/docs}{Texlish
+    See \protect\href{https://texlish.org/docs}{Texlish
     Next paragraph}.
   '''
 
-  testCase '''
+  testCase r'''
     disabled by compiler option
     ---
     See [Texlish](https://texlish.org).
@@ -386,24 +387,24 @@ describe 'Markdown links', ->
     See [Texlish](https://texlish.org).
   ''', markdownLinks: false
 
-  testCase '''
+  testCase r'''
     disabled by in-file config shorthand
     ---
     [Texlish](https://texlish.org)
     ::config -markdownLinks
     [Texlish](https://texlish.org)
     ---
-    \\protect\\href{https://texlish.org}{Texlish}
+    \protect\href{https://texlish.org}{Texlish}
     [Texlish](https://texlish.org)
   '''
 
-  testCase '''
+  testCase r'''
     disabled by markdownCompat shorthand
     ---
     [Texlish](https://texlish.org)
     ::config -markdownCompat
     [Texlish](https://texlish.org)
     ---
-    \\protect\\href{https://texlish.org}{Texlish}
+    \protect\href{https://texlish.org}{Texlish}
     [Texlish](https://texlish.org)
   '''

@@ -1,7 +1,7 @@
 assert from assert
 { compile } from ../src/main.civet
 { satisfiesVersionRange, version } from ../src/version.civet
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'version ranges', ->
   it 'checks exact versions', ->
@@ -83,7 +83,7 @@ describe 'version ranges', ->
       => satisfiesVersionRange('1.2.3', '1.2.3-alpha.01')
     ), /numeric component 01 cannot contain leading zeroes/
 
-  testCase '''
+  testCase r'''
     accepts matching ::version
     ---
     ::version >=0.0.0

@@ -3,6 +3,8 @@
 { compile, type CompilerOptions } from ../src/main.civet
 assert from assert
 
+export r := String.raw
+
 export function compare(src: string, result: string, compilerOpts: CompilerOptions)
   { filename } := compilerOpts
   compileResult := await compile(src, {

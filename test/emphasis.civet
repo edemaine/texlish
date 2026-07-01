@@ -1,87 +1,87 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'Markdown emphasis (*/**/***)', ->
-  testCase '''
+  testCase r'''
     single word at the beginning
     ---
     *emphasized* text
     ---
-    \\emph{emphasized} text
+    \emph{emphasized} text
   '''
 
-  testCase '''
+  testCase r'''
     single word in the middle
     ---
     hello **world**!
     ---
-    hello \\textbf{world}!
+    hello \textbf{world}!
   '''
 
-  testCase '''
+  testCase r'''
     single word at the end
     ---
     that's ***it***
     ---
-    that's \\defn{it}
+    that's \defn{it}
   '''
 
-  testCase '''
+  testCase r'''
     multiple words
     ---
     *emphasized* and **really emphasized** and ***super emphasized***
     ---
-    \\emph{emphasized} and \\textbf{really emphasized} and \\defn{super emphasized}
+    \emph{emphasized} and \textbf{really emphasized} and \defn{super emphasized}
   '''
 
-  testCase '''
+  testCase r'''
     multiple lines
     ---
     *emphasized* and **really
     emphasized** and ***super
     emphasized***
     ---
-    \\emph{emphasized} and \\textbf{really
-    emphasized} and \\defn{super
+    \emph{emphasized} and \textbf{really
+    emphasized} and \defn{super
     emphasized}
   '''
 
-  testCase '''
+  testCase r'''
     custom style
     ---
     :: styles
-      * = \\textit
-      ** = \\textsf
-      *** = \\texttt
+      * = \textit
+      ** = \textsf
+      *** = \texttt
     *italic*
     **sans-serif**
     ***teletype***
     ---
-    \\textit{italic}
-    \\textsf{sans-serif}
-    \\texttt{teletype}
+    \textit{italic}
+    \textsf{sans-serif}
+    \texttt{teletype}
   '''
 
-  testCase '''
+  testCase r'''
     empty styles
     ---
     ::styles
     *italic*
     ---
-    \\emph{italic}
+    \emph{italic}
   '''
 
-  testCase '''
+  testCase r'''
     nested styles
     ---
     ::styles
       family:
-        serif = \\textrm
+        serif = \textrm
     *serif*
     ---
-    \\emph{serif}
+    \emph{serif}
   '''
 
-  testCase '''
+  testCase r'''
     {} escaping
     ---
     {*}not italic{*}
@@ -95,15 +95,15 @@ describe 'Markdown emphasis (*/**/***)', ->
 
   // https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
   describe 'commonmark spec examples', ->
-    testCase '''
+    testCase r'''
       350
       ---
       *foo bar*
       ---
-      \\emph{foo bar}
+      \emph{foo bar}
     '''
 
-    testCase '''
+    testCase r'''
       351
       ---
       a * foo bar*
@@ -111,7 +111,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       a * foo bar*
     '''
 
-    testCase '''
+    testCase r'''
       352
       ---
       a*"foo"*
@@ -119,7 +119,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       a*"foo"*
     '''
 
-    testCase '''
+    testCase r'''
       353
       ---
       a * a *
@@ -127,7 +127,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       a * a *
     '''
 
-    testCase '''
+    testCase r'''
       354
       ---
       *£*bravo.
@@ -135,31 +135,31 @@ describe 'Markdown emphasis (*/**/***)', ->
       *£*bravo.
     '''
 
-    testCase '''
+    testCase r'''
       355
       ---
       foo*bar*
       ---
-      foo\\emph{bar}
+      foo\emph{bar}
     '''
 
-    testCase '''
+    testCase r'''
       356
       ---
       5*6*78
       ---
-      5\\emph{6}78
+      5\emph{6}78
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       357
       ---
       _foo bar_
       ---
-      \\emph{foo bar}
+      \emph{foo bar}
     '''
 
-    testCase '''
+    testCase r'''
       358
       ---
       _ foo bar_
@@ -167,7 +167,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       _ foo bar_
     '''
 
-    testCase '''
+    testCase r'''
       359
       ---
       a_"foo"_
@@ -175,7 +175,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       a_"foo"_
     '''
 
-    testCase '''
+    testCase r'''
       360
       ---
       foo_bar_
@@ -183,7 +183,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo_bar_
     '''
 
-    testCase '''
+    testCase r'''
       361
       ---
       5_6_78
@@ -191,7 +191,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       5_6_{78}
     '''
 
-    testCase '''
+    testCase r'''
       362
       ---
       пристаням_стремятся_
@@ -199,7 +199,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       пристаням_стремятся_
     '''
 
-    testCase '''
+    testCase r'''
       363
       ---
       aa_"bb"_cc
@@ -207,15 +207,15 @@ describe 'Markdown emphasis (*/**/***)', ->
       aa_"bb"_cc
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       364
       ---
       foo-_(bar)_
       ---
-      foo-\\emph{bar}
+      foo-\emph{bar}
     '''
 
-    testCase '''
+    testCase r'''
       365
       ---
       _foo*
@@ -223,7 +223,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       _foo*
     '''
 
-    testCase '''
+    testCase r'''
       366
       ---
       *foo bar *
@@ -231,7 +231,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       *foo bar *
     '''
 
-    testCase '''
+    testCase r'''
       367
       ---
       *foo bar
@@ -241,7 +241,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       *
     '''
 
-    testCase '''
+    testCase r'''
       368
       ---
       *(*foo)
@@ -249,23 +249,23 @@ describe 'Markdown emphasis (*/**/***)', ->
       *(*foo)
     '''
 
-    testCase '''
+    testCase r'''
       369
       ---
       *(*foo*)*
       ---
-      \\emph{(\\emph{foo})}
+      \emph{(\emph{foo})}
     '''
 
-    testCase '''
+    testCase r'''
       370
       ---
       *foo*bar
       ---
-      \\emph{foo}bar
+      \emph{foo}bar
     '''
 
-    testCase '''
+    testCase r'''
       371
       ---
       _foo bar _
@@ -273,7 +273,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       _foo bar _
     '''
 
-    testCase '''
+    testCase r'''
       372
       ---
       _(_{foo})
@@ -281,15 +281,15 @@ describe 'Markdown emphasis (*/**/***)', ->
       _(_{foo})
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       373
       ---
       _(_foo_)_
       ---
-      \\emph{(\\emph{foo})}
+      \emph{(\emph{foo})}
     '''
 
-    testCase '''
+    testCase r'''
       374
       ---
       _foo_bar
@@ -297,7 +297,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       _foo_bar
     '''
 
-    testCase '''
+    testCase r'''
       375
       ---
       _пристаням_стремятся
@@ -305,31 +305,31 @@ describe 'Markdown emphasis (*/**/***)', ->
       _пристаням_стремятся
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       376
       ---
       _foo_bar_baz_
       ---
-      \\emph{foo_bar_baz}
+      \emph{foo_bar_baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       377
       ---
       _(bar)_
       ---
-      \\emph{(bar)}
+      \emph{(bar)}
     '''
 
-    testCase '''
+    testCase r'''
       378
       ---
       **foo bar**
       ---
-      \\textbf{foo bar}
+      \textbf{foo bar}
     '''
 
-    testCase '''
+    testCase r'''
       379
       ---
       ** foo bar**
@@ -337,7 +337,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ** foo bar**
     '''
 
-    testCase '''
+    testCase r'''
       380
       ---
       a**"foo"**
@@ -345,23 +345,23 @@ describe 'Markdown emphasis (*/**/***)', ->
       a**"foo"**
     '''
 
-    testCase '''
+    testCase r'''
       381
       ---
       foo**bar**
       ---
-      foo\\textbf{bar}
+      foo\textbf{bar}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       382
       ---
       __foo bar__
       ---
-      \\textbf{foo bar}
+      \textbf{foo bar}
     '''
 
-    testCase '''
+    testCase r'''
       383
       ---
       __ foo bar__
@@ -369,7 +369,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       __ foo bar__
     '''
 
-    testCase '''
+    testCase r'''
       384
       ---
       __
@@ -379,7 +379,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo bar__
     '''
 
-    testCase '''
+    testCase r'''
       385
       ---
       a__"foo"__
@@ -387,7 +387,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       a__"foo"__
     '''
 
-    testCase '''
+    testCase r'''
       386
       ---
       foo__bar__
@@ -395,7 +395,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo__bar__
     '''
 
-    testCase '''
+    testCase r'''
       387
       ---
       5__6__78
@@ -403,7 +403,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       5__6__{78}
     '''
 
-    testCase '''
+    testCase r'''
       388
       ---
       пристаням__стремятся__
@@ -411,23 +411,23 @@ describe 'Markdown emphasis (*/**/***)', ->
       пристаням__стремятся__
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       389
       ---
       __foo, __bar__, baz__
       ---
-      \\textbf{foo, \\textbf{bar}, baz}
+      \textbf{foo, \textbf{bar}, baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       390
       ---
       foo-__(bar)__
       ---
-      foo-\\textbf{(bar)}
+      foo-\textbf{(bar)}
     '''
 
-    testCase '''
+    testCase r'''
       391
       ---
       **foo bar **
@@ -435,7 +435,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       **foo bar **
     '''
 
-    testCase '''
+    testCase r'''
       392
       ---
       **(**foo)
@@ -443,39 +443,39 @@ describe 'Markdown emphasis (*/**/***)', ->
       **(**foo)
     '''
 
-    testCase '''
+    testCase r'''
       393
       ---
       *(**foo**)*
       ---
-      \\emph{(\\textbf{foo})}
+      \emph{(\textbf{foo})}
     '''
 
-    testCase '''
+    testCase r'''
       394
       ---
       **Gomphocarpus (*Gomphocarpus physocarpus*, syn. *Asclepias physocarpa*)**
       ---
-      \\textbf{Gomphocarpus (\\emph{Gomphocarpus physocarpus}, syn. \\emph{Asclepias physocarpa})}
+      \textbf{Gomphocarpus (\emph{Gomphocarpus physocarpus}, syn. \emph{Asclepias physocarpa})}
     '''
 
-    testCase '''
+    testCase r'''
       395
       ---
       **foo "*bar*" foo**
       ---
-      \\textbf{foo "\\emph{bar}" foo}
+      \textbf{foo "\emph{bar}" foo}
     '''
 
-    testCase '''
+    testCase r'''
       396
       ---
       **foo**bar
       ---
-      \\textbf{foo}bar
+      \textbf{foo}bar
     '''
 
-    testCase '''
+    testCase r'''
       397
       ---
       __foo bar __
@@ -483,7 +483,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       __foo bar __
     '''
 
-    testCase '''
+    testCase r'''
       398
       ---
       __(__foo)
@@ -491,15 +491,15 @@ describe 'Markdown emphasis (*/**/***)', ->
       __(__foo)
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       399
       ---
       _(__foo__)_
       ---
-      \\emph{(\\textbf{foo})}
+      \emph{(\textbf{foo})}
     '''
 
-    testCase '''
+    testCase r'''
       400
       ---
       __foo__bar
@@ -507,7 +507,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       __foo__bar
     '''
 
-    testCase '''
+    testCase r'''
       401
       ---
       __пристаням__стремятся
@@ -515,129 +515,129 @@ describe 'Markdown emphasis (*/**/***)', ->
       __пристаням__стремятся
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       402
       ---
       __foo__bar__baz__
       ---
-      \\textbf{foo__bar__baz}
+      \textbf{foo__bar__baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       403
       ---
       __(bar)__.
       ---
-      \\textbf{(bar)}.
+      \textbf{(bar)}.
     '''
 
-    testCase '''
+    testCase r'''
       404
       ---
-      *foo \\href{/url}{bar}*
+      *foo \href{/url}{bar}*
       ---
-      \\emph{foo \\href{/url}{bar}}
+      \emph{foo \href{/url}{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       405
       ---
       *foo
       bar*
       ---
-      \\emph{foo
+      \emph{foo
       bar}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       406
       ---
       _foo __bar__ baz_
       ---
-      \\emph{foo \\textbf{bar} baz}
+      \emph{foo \textbf{bar} baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       407
       ---
       _foo _bar_ baz_
       ---
-      \\emph{foo \\emph{bar} baz}
+      \emph{foo \emph{bar} baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       408
       ---
       __foo_ bar_
       ---
-      \\emph{\\emph{foo} bar}
+      \emph{\emph{foo} bar}
     '''
 
-    testCase '''
+    testCase r'''
       409
       ---
       *foo *bar**
       ---
-      \\emph{foo \\emph{bar}}
+      \emph{foo \emph{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       410
       ---
       *foo **bar** baz*
       ---
-      \\emph{foo \\textbf{bar} baz}
+      \emph{foo \textbf{bar} baz}
     '''
 
-    testCase '''
+    testCase r'''
       411
       ---
       *foo**bar**baz*
       ---
-      \\emph{foo\\textbf{bar}baz}
+      \emph{foo\textbf{bar}baz}
     '''
 
-    testCase '''
+    testCase r'''
       412
       ---
       *foo**bar*
       ---
-      \\emph{foo**bar}
+      \emph{foo**bar}
     '''
 
-    testCase '''
+    testCase r'''
       413
       ---
       ***foo** bar*
       ---
-      \\emph{\\textbf{foo} bar}
+      \emph{\textbf{foo} bar}
     '''
 
-    testCase '''
+    testCase r'''
       414
       ---
       *foo **bar***
       ---
-      \\emph{foo \\textbf{bar}}
+      \emph{foo \textbf{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       415
       ---
       *foo**bar***
       ---
-      \\emph{foo\\textbf{bar}}
+      \emph{foo\textbf{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       416
       ---
       foo***bar***baz
       ---
-      foo\\defn{bar}baz
+      foo\defn{bar}baz
     '''
 
-    testCase '''
+    testCase r'''
       417
       ---
       foo******bar*********baz
@@ -645,23 +645,23 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo{bar}***baz
     '''
 
-    testCase '''
+    testCase r'''
       418
       ---
       *foo **bar *baz* bim** bop*
       ---
-      \\emph{foo \\textbf{bar \\emph{baz} bim} bop}
+      \emph{foo \textbf{bar \emph{baz} bim} bop}
     '''
 
-    testCase '''
+    testCase r'''
       419
       ---
-      *foo \\href{/url}{*bar*}*
+      *foo \href{/url}{*bar*}*
       ---
-      \\emph{foo \\href{/url}{\\emph{bar}}}
+      \emph{foo \href{/url}{\emph{bar}}}
     '''
 
-    testCase '''
+    testCase r'''
       420
       ---
       ** is not an empty emphasis
@@ -669,7 +669,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ** is not an empty emphasis
     '''
 
-    testCase '''
+    testCase r'''
       421
       ---
       **** is not an empty strong emphasis
@@ -677,107 +677,107 @@ describe 'Markdown emphasis (*/**/***)', ->
       **** is not an empty strong emphasis
     '''
 
-    testCase '''
+    testCase r'''
       422
       ---
-      **foo \\href{/url}{bar}**
+      **foo \href{/url}{bar}**
       ---
-      \\textbf{foo \\href{/url}{bar}}
+      \textbf{foo \href{/url}{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       423
       ---
       **foo
       bar**
       ---
-      \\textbf{foo
+      \textbf{foo
       bar}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       424
       ---
       __foo _bar_ baz__
       ---
-      \\textbf{foo \\emph{bar} baz}
+      \textbf{foo \emph{bar} baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       425
       ---
       __foo __bar__ baz__
       ---
-      \\textbf{foo \\textbf{bar} baz}
+      \textbf{foo \textbf{bar} baz}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       426
       ---
       ____foo__ bar__
       ---
-      \\textbf{\\textbf{foo} bar}
+      \textbf{\textbf{foo} bar}
     '''
 
-    testCase '''
+    testCase r'''
       427
       ---
       **foo **bar****
       ---
-      \\textbf{foo \\textbf{bar}}
+      \textbf{foo \textbf{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       428
       ---
       **foo *bar* baz**
       ---
-      \\textbf{foo \\emph{bar} baz}
+      \textbf{foo \emph{bar} baz}
     '''
 
-    testCase '''
+    testCase r'''
       429
       ---
       **foo*bar*baz**
       ---
-      \\textbf{foo\\emph{bar}baz}
+      \textbf{foo\emph{bar}baz}
     '''
 
-    testCase '''
+    testCase r'''
       430
       ---
       ***foo* bar**
       ---
-      \\textbf{\\emph{foo} bar}
+      \textbf{\emph{foo} bar}
     '''
 
-    testCase '''
+    testCase r'''
       431
       ---
       **foo *bar***
       ---
-      \\textbf{foo \\emph{bar}}
+      \textbf{foo \emph{bar}}
     '''
 
-    testCase '''
+    testCase r'''
       432
       ---
       **foo *bar **baz**
       bim* bop**
       ---
-      \\textbf{foo \\emph{bar \\textbf{baz}
+      \textbf{foo \emph{bar \textbf{baz}
       bim} bop}
     '''
 
-    testCase '''
+    testCase r'''
       433
       ---
-      **foo \\href{/url}{*bar*}**
+      **foo \href{/url}{*bar*}**
       ---
-      \\textbf{foo \\href{/url}{\\emph{bar}}}
+      \textbf{foo \href{/url}{\emph{bar}}}
     '''
 
-    testCase '''
+    testCase r'''
       434
       ---
       __ is not an empty emphasis
@@ -785,7 +785,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       __ is not an empty emphasis
     '''
 
-    testCase '''
+    testCase r'''
       435
       ---
       ____ is not an empty strong emphasis
@@ -793,7 +793,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ____ is not an empty strong emphasis
     '''
 
-    testCase '''
+    testCase r'''
       436
       ---
       foo ***
@@ -804,23 +804,23 @@ describe 'Markdown emphasis (*/**/***)', ->
     // Markdown allows \* to precede a delimiter block.
     // This isn't useful in LaTeX (\* is a line-breakable multiplication).
     // Instead, {*} is how we write an escaped asterisk.
-    testCase '''
+    testCase r'''
       437
       ---
       foo *{*}*
       ---
-      foo \\emph{{*}}
+      foo \emph{{*}}
     '''
 
-    testCase '''
+    testCase r'''
       438
       ---
       foo *_*
       ---
-      foo \\emph{_}
+      foo \emph{_}
     '''
 
-    testCase '''
+    testCase r'''
       439
       ---
       foo *****
@@ -828,71 +828,71 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo *****
     '''
 
-    testCase '''
+    testCase r'''
       440
       ---
       foo **{*}**
       ---
-      foo \\textbf{{*}}
+      foo \textbf{{*}}
     '''
 
-    testCase '''
+    testCase r'''
       441
       ---
       foo **_**
       ---
-      foo \\textbf{_}
+      foo \textbf{_}
     '''
 
-    testCase '''
+    testCase r'''
       442
       ---
       **foo*
       ---
-      *\\emph{foo}
+      *\emph{foo}
     '''
 
-    testCase '''
+    testCase r'''
       443
       ---
       *foo**
       ---
-      \\emph{foo}*
+      \emph{foo}*
     '''
 
-    testCase '''
+    testCase r'''
       444
       ---
       ***foo**
       ---
-      *\\textbf{foo}
+      *\textbf{foo}
     '''
 
-    testCase '''
+    testCase r'''
       445
       ---
       ****foo*
       ---
-      ***\\emph{foo}
+      ***\emph{foo}
     '''
 
-    testCase '''
+    testCase r'''
       446
       ---
       **foo***
       ---
-      \\textbf{foo}*
+      \textbf{foo}*
     '''
 
-    testCase '''
+    testCase r'''
       447
       ---
       *foo****
       ---
-      \\emph{foo}***
+      \emph{foo}***
     '''
 
-    testCase '''
+    testCase r'''
       448
       ---
       foo ___
@@ -900,23 +900,23 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo ___
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       449
       ---
       foo _\__
       ---
-      foo \\emph{\_}
+      foo \emph{\_}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       450
       ---
       foo _*_
       ---
-      foo \\emph{*}
+      foo \emph{*}
     '''
 
-    testCase '''
+    testCase r'''
       451
       ---
       foo _____
@@ -924,103 +924,103 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo _____
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       452
       ---
       foo __\___
       ---
-      foo \\textbf{_}
+      foo \textbf{_}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       453
       ---
       foo __*__
       ---
-      foo \\textbf{*}
+      foo \textbf{*}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       454
       ---
       __foo_
       ---
-      _\\emph{foo}
+      _\emph{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       455
       ---
       _foo__
       ---
-      \\emph{foo}_
+      \emph{foo}_
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       456
       ---
       ___foo__
       ---
-      _\\textbf{foo}
+      _\textbf{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       457
       ---
       ____foo_
       ---
-      ___\\emph{foo}
+      ___\emph{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       458
       ---
       __foo___
       ---
-      \\textbf{foo}_
+      \textbf{foo}_
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       459
       ---
       _foo____
       ---
-      \\emph{foo}___
+      \emph{foo}___
     '''
 
-    testCase '''
+    testCase r'''
       460
       ---
       **foo**
       ---
-      \\textbf{foo}
+      \textbf{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       461
       ---
       *_foo_*
       ---
-      \\emph{\\emph{foo}}
+      \emph{\emph{foo}}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       462
       ---
       __foo__
       ---
-      \\textbf{foo}
+      \textbf{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       463
       ---
       _*foo*_
       ---
-      \\emph{\\emph{foo}}
+      \emph{\emph{foo}}
     '''
 
-    testCase '''
+    testCase r'''
       464
       ---
       ****foo****
@@ -1028,7 +1028,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       {foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       465
       ---
       ____foo____
@@ -1036,7 +1036,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       {foo}
     '''
 
-    testCase '''
+    testCase r'''
       466
       ---
       ******foo******
@@ -1044,15 +1044,15 @@ describe 'Markdown emphasis (*/**/***)', ->
       {foo}
     '''
 
-    testCase '''
+    testCase r'''
       467
       ---
       ***foo***
       ---
-      \\defn{foo}
+      \defn{foo}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       468
       ---
       _____foo_____
@@ -1060,106 +1060,106 @@ describe 'Markdown emphasis (*/**/***)', ->
       {foo}
     '''
 
-    testCase '''
+    testCase r'''
       469
       ---
       *foo _bar* baz_
       ---
-      \\emph{foo _bar} baz_
+      \emph{foo _bar} baz_
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       470
       ---
       *foo __bar *baz bim__ bam*
       ---
-      \\emph{foo \\textbf{bar *baz bim} bam}
+      \emph{foo \textbf{bar *baz bim} bam}
     '''
 
-    testCase '''
+    testCase r'''
       471
       ---
       **foo **bar baz**
       ---
-      **foo \\textbf{bar baz}
+      **foo \textbf{bar baz}
     '''
 
-    testCase '''
+    testCase r'''
       472
       ---
       *foo *bar baz*
       ---
-      *foo \\emph{bar baz}
+      *foo \emph{bar baz}
     '''
 
-    testCase '''
+    testCase r'''
       473
       ---
-      *\\href{/url}{bar*}
+      *\href{/url}{bar*}
       ---
-      *\\href{/url}{bar*}
+      *\href{/url}{bar*}
     '''
 
-    testCase '''
+    testCase r'''
       474
       ---
-      _foo \\href{/url}{bar*}
+      _foo \href{/url}{bar*}
       ---
-      _foo \\href{/url}{bar*}
+      _foo \href{/url}{bar*}
     '''
 
-    testCase '''
+    testCase r'''
       475
       ---
-      *\\includegraphics{*}
+      *\includegraphics{*}
       ---
-      *\\includegraphics{*}
+      *\includegraphics{*}
     '''
 
-    testCase '''
+    testCase r'''
       476
       ---
-      **\\url{**}
+      **\url{**}
       ---
-      **\\url{**}
+      **\url{**}
     '''
 
-    testCase '''
+    testCase r'''
       477
       ---
-      __\\url{__}
+      __\url{__}
       ---
-      __\\url{__}
+      __\url{__}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       478
       ---
-      *a \\verb|*|*
+      *a \verb|*|*
       ---
-      \\emph{a \\verb|*|}
+      \emph{a \verb|*|}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       479
       ---
-      _a \\verb|_|_
+      _a \verb|_|_
       ---
-      \\emph{a \\verb|_|}
+      \emph{a \verb|_|}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       480
       ---
-      **a\\url{https://foo.bar/?q=**}
+      **a\url{https://foo.bar/?q=**}
       ---
-      **a\\url{https://foo.bar/?q=**}
+      **a\url{https://foo.bar/?q=**}
     '''
 
-    testCase.skip '''
+    testCase.skip r'''
       481
       ---
-      __a\\url{https://foo.bar/?q=__}
+      __a\url{https://foo.bar/?q=__}
       ---
-      __a\\url{https://foo.bar/?q=__}
+      __a\url{https://foo.bar/?q=__}
     '''

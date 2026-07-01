@@ -1,7 +1,7 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'Markdown footnotes', ->
-  testCase '''
+  testCase r'''
     inline and nested definitions
     ---
     This is a problem[^false], but not too bad[^true].
@@ -11,16 +11,16 @@ describe 'Markdown footnotes', ->
     [^true]: This is actually true.
     ---
     This is a problem%
-    \\footnote{\\protect\\label{footnote:false}%
+    \footnote{\protect\label{footnote:false}%
       This is actually not true.
-      See Figure \\ref{fig:example}.}%
+      See Figure \ref{fig:example}.}%
     , but not too bad%
-    \\footnote{\\protect\\label{footnote:true}This is actually true.}%
+    \footnote{\protect\label{footnote:true}This is actually true.}%
     .
 
   '''
 
-  testCase '''
+  testCase r'''
     repeated footnote mark
     ---
     This is first[^false].
@@ -29,13 +29,13 @@ describe 'Markdown footnotes', ->
     See footnote @^false for details.[^false]
     ---
     This is first%
-    \\footnote{\\protect\\label{footnote:false}This is actually true.}%
+    \footnote{\protect\label{footnote:false}This is actually true.}%
     .
 
-    See footnote \\ref{footnote:false} for details.\\footref{footnote:false}
+    See footnote \ref{footnote:false} for details.\footref{footnote:false}
   '''
 
-  testCase '''
+  testCase r'''
     definition between lines
     ---
     First[^x].
@@ -43,12 +43,12 @@ describe 'Markdown footnotes', ->
     Second.
     ---
     First%
-    \\footnote{\\protect\\label{footnote:x}Note.}%
+    \footnote{\protect\label{footnote:x}Note.}%
     .
     Second.
   '''
 
-  testCase '''
+  testCase r'''
     duplicate named definitions
     ---
     First[^x].
@@ -56,13 +56,13 @@ describe 'Markdown footnotes', ->
     [^x]: Second note.
     ---
     First%
-    \\footnote{\\protect\\label{footnote:x}First note.
-    \\protect\\label{footnote:x}Second note.}%
+    \footnote{\protect\label{footnote:x}First note.
+    \protect\label{footnote:x}Second note.}%
     .
 
   '''
 
-  testCase '''
+  testCase r'''
     numeric ids are disposable
     ---
     First paragraph[^1], again[^1].
@@ -72,15 +72,15 @@ describe 'Markdown footnotes', ->
     [^1]: Second note.
     ---
     First paragraph%
-    \\footnote{\\protect\\label{footnote:1}First note.}%
-    , again\\footref{footnote:1}.
+    \footnote{\protect\label{footnote:1}First note.}%
+    , again\footref{footnote:1}.
 
     Second paragraph%
-    \\footnote{\\protect\\label{footnote:2}Second note.}%
+    \footnote{\protect\label{footnote:2}Second note.}%
     .
   '''
 
-  testCase '''
+  testCase r'''
     numeric ids bind forward
     ---
     Before[^1].
@@ -89,40 +89,40 @@ describe 'Markdown footnotes', ->
     [^1]: After note.
     ---
     Before%
-    \\footnote{\\protect\\label{footnote:1}Before note.}%
+    \footnote{\protect\label{footnote:1}Before note.}%
     .
     After%
-    \\footnote{\\protect\\label{footnote:2}After note.}%
+    \footnote{\protect\label{footnote:2}After note.}%
     .
   '''
 
-  testCase '''
+  testCase r'''
     list item definition
     ---
     * Item[^x]
       [^x]: Note.
     ---
-    \\begin{itemize}
-    \\item Item%
-    \\footnote{\\protect\\label{footnote:x}Note.}
-    \\end{itemize}
+    \begin{itemize}
+    \item Item%
+    \footnote{\protect\label{footnote:x}Note.}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     nested list item definition
     ---
     * Item
       nested[^x]
       [^x]: Note.
     ---
-    \\begin{itemize}
-    \\item Item
+    \begin{itemize}
+    \item Item
       nested%
-    \\footnote{\\protect\\label{footnote:x}Note.}
-    \\end{itemize}
+    \footnote{\protect\label{footnote:x}Note.}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     footnote ref at end of line
     ---
     foo[^1]
@@ -131,35 +131,35 @@ describe 'Markdown footnotes', ->
     [^1]: foot
     ---
     foo%
-    \\footnote{\\protect\\label{footnote:1}foot}
+    \footnote{\protect\label{footnote:1}foot}
     bar
 
   '''
 
-  testCase '''
+  testCase r'''
     author footnote label
     ---
-    \\title{Title}
-    \\author{First[^a]\\and Repeat[^a]}
+    \title{Title}
+    \author{First[^a]\and Repeat[^a]}
     [^a]: Affiliation note.
     ---
-    \\title{Title}
-    \\author{First%
-    \\footnote{\\protect\\label{footnote:a}Affiliation note.}%
-    \\and Repeat\\footref{footnote:a}}
+    \title{Title}
+    \author{First%
+    \footnote{\protect\label{footnote:a}Affiliation note.}%
+    \and Repeat\footref{footnote:a}}
   '''
 
-  testCase '''
+  testCase r'''
     quoted footnote ref
     ---
     See @^'long note'.
     [^long note]: A note.
     ---
-    See \\ref{footnote:long note}.
+    See \ref{footnote:long note}.
     [^long note]: A note.
   '''
 
-  testCase '''
+  testCase r'''
     numeric footnote refs are not labels
     ---
     See @^1.
@@ -169,7 +169,7 @@ describe 'Markdown footnotes', ->
     [^1]: A note.
   '''
 
-  testCase '''
+  testCase r'''
     undefined marker remains literal
     ---
     This remains[^missing].

@@ -1,27 +1,27 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe ': environments', ->
-  testCase '''
+  testCase r'''
     empty
     ---
     : theorem
     ---
-    \\begin{theorem}
-    \\end{theorem}
+    \begin{theorem}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     indented body
     ---
     : theorem
       Cool!
     ---
-    \\begin{theorem}
+    \begin{theorem}
       Cool!
-    \\end{theorem}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     indented body with blank line
     ---
     : theorem
@@ -29,85 +29,85 @@ describe ': environments', ->
 
       Right?
     ---
-    \\begin{theorem}
+    \begin{theorem}
       Cool!
 
       Right?
-    \\end{theorem}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     indented command body with blank line
     ---
     : figure
-      \\includegraphics: part1
+      \includegraphics: part1
 
-      \\includegraphics: part2
+      \includegraphics: part2
     ---
-    \\begin{figure}
-      \\includegraphics{part1}%
+    \begin{figure}
+      \includegraphics{part1}%
 
-      \\includegraphics{part2}%
-    \\end{figure}
+      \includegraphics{part2}%
+    \end{figure}
   '''
 
-  testCase '''
+  testCase r'''
     same-line argument
     ---
     : theorem: Hello
       Cool!
     ---
-    \\begin{theorem}{Hello}%
+    \begin{theorem}{Hello}%
       Cool!
-    \\end{theorem}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     optional argument
     ---
     : theorem:
       ~ Hello
       Cool!
     ---
-    \\begin{theorem}
+    \begin{theorem}
        [Hello]%
       Cool!
-    \\end{theorem}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     optional argument via square brackets
     ---
     : proof[sketch]
       By example.
     ---
-    \\begin{proof}[sketch]
+    \begin{proof}[sketch]
       By example.
-    \\end{proof}
+    \end{proof}
   '''
 
-  testCase '''
+  testCase r'''
     with nested commands
     ---
     : figure
-      \\subcaptionbox:
+      \subcaptionbox:
         - Subfigure 1
-        - \\includegraphics: example1
-      \\subcaptionbox:
+        - \includegraphics: example1
+      \subcaptionbox:
         - Subfigure 2
-        - \\includegraphics: example2
+        - \includegraphics: example2
     ---
-    \\begin{figure}
-      \\subcaptionbox
+    \begin{figure}
+      \subcaptionbox
          {Subfigure 1}%
-         {\\includegraphics{example1}}%
-      \\subcaptionbox
+         {\includegraphics{example1}}%
+      \subcaptionbox
          {Subfigure 2}%
-         {\\includegraphics{example2}}%
-    \\end{figure}
+         {\includegraphics{example2}}%
+    \end{figure}
   '''
 
-  testCase '''
+  testCase r'''
     with comment
     ---
     : theorem% Big Theorem
@@ -115,10 +115,10 @@ describe ': environments', ->
     : theorem % Big Theorem
       Cool!
     ---
-    \\begin{theorem}% Big Theorem
+    \begin{theorem}% Big Theorem
       Cool!
-    \\end{theorem}
-    \\begin{theorem}% Big Theorem
+    \end{theorem}
+    \begin{theorem}% Big Theorem
       Cool!
-    \\end{theorem}
+    \end{theorem}
   '''

@@ -1,41 +1,41 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'Markdown horizontal rules (---)', ->
   options := separator: "==="
 
-  testCase '''
+  testCase r'''
     three hyphens
     ===
     ---
     ===
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
   ''', options
 
-  testCase '''
+  testCase r'''
     comment after separator
     ===
     --- % comment
     ===
-    \\medskip\\hrule\\medskip% comment
+    \medskip\hrule\medskip% comment
   ''', options
 
-  testCase '''
+  testCase r'''
     four hyphens
     ---
     ----
     ---
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
   '''
 
-  testCase '''
+  testCase r'''
     spaced hyphens
     ---
     - - -
     ---
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
   '''
 
-  testCase '''
+  testCase r'''
     text before and after
     ---
     Before
@@ -43,81 +43,81 @@ describe 'Markdown horizontal rules (---)', ->
     After
     ---
     Before
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
     After
   '''
 
-  testCase '''
+  testCase r'''
     custom style
     ---
     ::styles
-      --- = \\bigskip\\hrule\\bigskip
+      --- = \bigskip\hrule\bigskip
     ----
     ---
-    \\bigskip\\hrule\\bigskip
+    \bigskip\hrule\bigskip
   '''
 
-  testCase '''
+  testCase r'''
     length-specific custom style
     ---
     ::styles
-      ---- = \\bigskip\\hrule\\bigskip
+      ---- = \bigskip\hrule\bigskip
     ----
     ---
-    \\bigskip\\hrule\\bigskip
+    \bigskip\hrule\bigskip
   '''
 
-  testCase '''
+  testCase r'''
     closest shorter custom style
     ---
     ::styles
-      ---- = \\bigskip\\hrule\\bigskip
+      ---- = \bigskip\hrule\bigskip
     -----
     ---
-    \\bigskip\\hrule\\bigskip
+    \bigskip\hrule\bigskip
   '''
 
-  testCase '''
+  testCase r'''
     spaced hyphens ignore length-specific styles
     ---
     ::styles
-      ---- = \\bigskip\\hrule\\bigskip
+      ---- = \bigskip\hrule\bigskip
     - - - -
     ---
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
   '''
 
-  testCase '''
+  testCase r'''
     exact spaced style
     ---
     ::styles
-      - - - - = \\bigskip\\hrule\\bigskip
+      - - - - = \bigskip\hrule\bigskip
     - - - -
     ---
-    \\bigskip\\hrule\\bigskip
+    \bigskip\hrule\bigskip
   '''
 
-  testCase '''
+  testCase r'''
     exact spaced default-length style
     ---
     ::styles
-      - - - = \\bigskip\\hrule\\bigskip
+      - - - = \bigskip\hrule\bigskip
     - - -
     ---
-    \\bigskip\\hrule\\bigskip
+    \bigskip\hrule\bigskip
   '''
 
-  testCase '''
+  testCase r'''
     spaced hyphens fall back to default style
     ---
     ::styles
-      - - - = \\bigskip\\hrule\\bigskip
+      - - - = \bigskip\hrule\bigskip
     - - - -
     ---
-    \\medskip\\hrule\\medskip
+    \medskip\hrule\medskip
   '''
 
-  testCase '''
+  testCase r'''
     disabled by compiler option
     ===
     ---
@@ -128,7 +128,7 @@ describe 'Markdown horizontal rules (---)', ->
     markdownHorizontalRules: false
   }
 
-  testCase '''
+  testCase r'''
     disabled by config shorthand
     ===
     ::config -markdownHorizontalRules
@@ -137,7 +137,7 @@ describe 'Markdown horizontal rules (---)', ->
     ---
   ''', options
 
-  testCase '''
+  testCase r'''
     disabled by markdownCompat shorthand
     ===
     ::config -markdownCompat
@@ -146,7 +146,7 @@ describe 'Markdown horizontal rules (---)', ->
     ---
   ''', options
 
-  testCase '''
+  testCase r'''
     nonbreak text
     ---
     -- text
@@ -154,7 +154,7 @@ describe 'Markdown horizontal rules (---)', ->
     -- text
   '''
 
-  testCase '''
+  testCase r'''
     nonbreak suffix
     ---
     ---x

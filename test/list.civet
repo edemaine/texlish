@@ -1,21 +1,21 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'unordered lists', ->
-  testCase '''
+  testCase r'''
     single-line bullets
     ---
     - one
     * two
     ~ three
     ---
-    \\begin{itemize}
-    \\item one
-    \\item two
-    \\item three
-    \\end{itemize}
+    \begin{itemize}
+    \item one
+    \item two
+    \item three
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     bullets with indentation
     ---
     - hello
@@ -24,16 +24,16 @@ describe 'unordered lists', ->
     *
       goodbye
     ---
-    \\begin{itemize}
-    \\item hello
+    \begin{itemize}
+    \item hello
       world
       !
-    \\item
+    \item
       goodbye
-    \\end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     nested bullets
     ---
     - hello
@@ -43,35 +43,36 @@ describe 'unordered lists', ->
       - cruel
         - world
     ---
-    \\begin{itemize}
-    \\item hello
-      \\begin{itemize}
-      \\item world
-      \\item you
-      \\end{itemize}
-    \\item goodbye
-      \\begin{itemize}
-      \\item cruel
-        \\begin{itemize}
-        \\item world
-        \\end{itemize}
-      \\end{itemize}
-    \\end{itemize}
+    \begin{itemize}
+    \item hello
+      \begin{itemize}
+      \item world
+      \item you
+      \end{itemize}
+    \item goodbye
+      \begin{itemize}
+      \item cruel
+        \begin{itemize}
+        \item world
+        \end{itemize}
+      \end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     same-line environment bullet
     ---
     - : environment
         content
     ---
-    \\begin{itemize}
-    \\item \\begin{environment}
+    \begin{itemize}
+    \item \begin{environment}
         content
-      \\end{environment}
-    \\end{itemize}
+      \end{environment}
+    \end{itemize}
   '''
 
+  // No `r` because this fixture relies on \t becoming real tabs.
   testCase '''
     same-line environment bullet with tab marker
     ---
@@ -85,20 +86,20 @@ describe 'unordered lists', ->
     \\end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     same-line environment bullet with list-item body
     ---
     - : environment
       body
     ---
-    \\begin{itemize}
-    \\item \\begin{environment}
-      \\end{environment}
+    \begin{itemize}
+    \item \begin{environment}
+      \end{environment}
       body
-    \\end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     same-line environment bullet with argument
     ---
     - : environment:
@@ -106,54 +107,54 @@ describe 'unordered lists', ->
         env body
       body
     ---
-    \\begin{itemize}
-    \\item \\begin{environment}
+    \begin{itemize}
+    \item \begin{environment}
          {arg}%
         env body
-      \\end{environment}
+      \end{environment}
       body
-    \\end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     same-line nested bullets
     ---
     - - x
       - y
     ---
-    \\begin{itemize}
-    \\item \\begin{itemize}
-      \\item x
-      \\item y
-      \\end{itemize}
-    \\end{itemize}
+    \begin{itemize}
+    \item \begin{itemize}
+      \item x
+      \item y
+      \end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     triple same-line nested bullet
     ---
     - - - x
     ---
-    \\begin{itemize}
-    \\item \\begin{itemize}
-      \\item \\begin{itemize}
-        \\item x
-        \\end{itemize}
-      \\end{itemize}
-    \\end{itemize}
+    \begin{itemize}
+    \item \begin{itemize}
+      \item \begin{itemize}
+        \item x
+        \end{itemize}
+      \end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     same-line raw tex bullet
     ---
-    - ::tex \\foo{*raw* [link](https://example.com) @ref}
+    - ::tex \foo{*raw* [link](https://example.com) @ref}
     ---
-    \\begin{itemize}
-    \\item \\foo{*raw* [link](https://example.com) @ref}
-    \\end{itemize}
+    \begin{itemize}
+    \item \foo{*raw* [link](https://example.com) @ref}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     commented-out bullets do not interrupt list
     ---
     - one
@@ -161,15 +162,15 @@ describe 'unordered lists', ->
     %- also two
     ~ three
     ---
-    \\begin{itemize}
-    \\item one
+    \begin{itemize}
+    \item one
     %* two
     %- also two
-    \\item three
-    \\end{itemize}
+    \item three
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     comments before first bullet stay outside list
     ---
     %* skip one
@@ -179,13 +180,13 @@ describe 'unordered lists', ->
     ---
     %* skip one
     %- skip two
-    \\begin{itemize}
-    \\item one
-    \\item two
-    \\end{itemize}
+    \begin{itemize}
+    \item one
+    \item two
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     disabled by compiler option
     ---
     - one
@@ -195,7 +196,7 @@ describe 'unordered lists', ->
     * two
   ''', markdownLists: false
 
-  testCase '''
+  testCase r'''
     disabled by markdownCompat shorthand
     ---
     ::config -markdownCompat
@@ -206,50 +207,50 @@ describe 'unordered lists', ->
     * two
   '''
 
-  testCase '''
+  testCase r'''
     plain brackets do not consume indented bullets
     ---
     - [foo
       - bar]
     ---
-    \\begin{itemize}
-    \\item [foo
-      \\begin{itemize}
-      \\item bar]
-      \\end{itemize}
-    \\end{itemize}
+    \begin{itemize}
+    \item [foo
+      \begin{itemize}
+      \item bar]
+      \end{itemize}
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     plain parens do not consume indented bullets
     ---
     - (foo
       - bar)
     ---
-    \\begin{itemize}
-    \\item (foo
-      \\begin{itemize}
-      \\item bar)
-      \\end{itemize}
-    \\end{itemize}
+    \begin{itemize}
+    \item (foo
+      \begin{itemize}
+      \item bar)
+      \end{itemize}
+    \end{itemize}
   '''
 
 describe 'ordered lists', ->
-  testCase '''
+  testCase r'''
     single-line bullets
     ---
     1. one
     2. two
     1. three
     ---
-    \\begin{enumerate}
-    \\item one
-    \\item two
-    \\item three
-    \\end{enumerate}
+    \begin{enumerate}
+    \item one
+    \item two
+    \item three
+    \end{enumerate}
   '''
 
-  testCase '''
+  testCase r'''
     commented-out bullets do not interrupt list
     ---
     1. one
@@ -257,15 +258,15 @@ describe 'ordered lists', ->
     %3. also two
     2. three
     ---
-    \\begin{enumerate}
-    \\item one
+    \begin{enumerate}
+    \item one
     %2. two
     %3. also two
-    \\item three
-    \\end{enumerate}
+    \item three
+    \end{enumerate}
   '''
 
-  testCase '''
+  testCase r'''
     comments before first bullet stay outside list
     ---
     %1. skip one
@@ -275,13 +276,13 @@ describe 'ordered lists', ->
     ---
     %1. skip one
     %2. skip two
-    \\begin{enumerate}
-    \\item one
-    \\item two
-    \\end{enumerate}
+    \begin{enumerate}
+    \item one
+    \item two
+    \end{enumerate}
   '''
 
-  testCase '''
+  testCase r'''
     bullets with indentation
     ---
     1. hello
@@ -290,16 +291,16 @@ describe 'ordered lists', ->
     2.
       goodbye
     ---
-    \\begin{enumerate}
-    \\item hello
+    \begin{enumerate}
+    \item hello
       world
       !
-    \\item
+    \item
       goodbye
-    \\end{enumerate}
+    \end{enumerate}
   '''
 
-  testCase '''
+  testCase r'''
     nested bullets
     ---
     1. hello
@@ -309,18 +310,18 @@ describe 'ordered lists', ->
       5. cruel
         - world
     ---
-    \\begin{enumerate}
-    \\item hello
-      \\begin{enumerate}
-      \\item world
-      \\item you
-      \\end{enumerate}
-    \\item goodbye
-      \\begin{enumerate}
-      \\item cruel
-        \\begin{itemize}
-        \\item world
-        \\end{itemize}
-      \\end{enumerate}
-    \\end{enumerate}
+    \begin{enumerate}
+    \item hello
+      \begin{enumerate}
+      \item world
+      \item you
+      \end{enumerate}
+    \item goodbye
+      \begin{enumerate}
+      \item cruel
+        \begin{itemize}
+        \item world
+        \end{itemize}
+      \end{enumerate}
+    \end{enumerate}
   '''

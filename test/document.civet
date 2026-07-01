@@ -1,321 +1,321 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '\\begin/\\end{document}', ->
-  testCase '''
+  testCase r'''
     add around text
     ---
     Hello, world!
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
+    \begin{document}
     Hello, world!
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     existing braced end
     ---
-    \\end{document}
+    \end{document}
     Hello, world!
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\end{document}
+    \begin{document}
+    \end{document}
     Hello, world!
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     existing braced end with space
     ---
-    \\end {document}
+    \end {document}
     Hello, world!
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\end {document}
+    \begin{document}
+    \end {document}
     Hello, world!
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     existing begin colon
     ---
-    \\begin: document
+    \begin: document
     Hello, world!
     ---
-    \\documentclass[11pt]{article}
-    \\begin{document}%
+    \documentclass[11pt]{article}
+    \begin{document}%
     Hello, world!
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     existing end colon
     ---
-    \\end: document
+    \end: document
     Hello, world!
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\end{document}%
+    \begin{document}
+    \end{document}%
     Hello, world!
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     existing environment
     ---
     : document
       Hello, world!
     ---
-    \\documentclass[11pt]{article}
-    \\begin{document}
+    \documentclass[11pt]{article}
+    \begin{document}
       Hello, world!
-    \\end{document}
+    \end{document}
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     begin placement
     ---
     % comment
       % comment
-    \\usepackage{foo}
+    \usepackage{foo}
     :: use foo
     :: preamble cheating
-    \\foo
+    \foo
       {bar}
     # Hello
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
     % comment
       % comment
-    \\usepackage{foo}
-    \\usepackage{foo}
+    \usepackage{foo}
+    \usepackage{foo}
     cheating
-    \\foo
+    \foo
       {bar}
 
-    \\begin{document}
-    \\section{Hello}
-    \\end{document}
+    \begin{document}
+    \section{Hello}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     begin placement before environment
     ---
     : theorem
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\begin{theorem}
-    \\end{theorem}
-    \\end{document}
+    \begin{document}
+    \begin{theorem}
+    \end{theorem}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     begin placement before list
     ---
     * hi
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\begin{itemize}
-    \\item hi
-    \\end{itemize}
-    \\end{document}
+    \begin{document}
+    \begin{itemize}
+    \item hi
+    \end{itemize}
+    \end{document}
 
   ''', fragment: false
 
 describe '\\maketitle', ->
-  testCase '''
-    begin placement before \\maketitle
+  testCase r'''
+    begin placement before \maketitle
     ---
-    \\maketitle
+    \maketitle
     Hello
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
-    \\begin{document}
-    \\maketitle
+    \begin{document}
+    \maketitle
     Hello
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
-    existing \\title and \\maketitle
+  testCase r'''
+    existing \title and \maketitle
     ---
-    \\title{Title}
-    \\maketitle
+    \title{Title}
+    \maketitle
     Hello
     ---
-    \\documentclass[11pt]{article}
-    \\title{Title}
+    \documentclass[11pt]{article}
+    \title{Title}
 
-    \\begin{document}
-    \\maketitle
+    \begin{document}
+    \maketitle
     Hello
-    \\end{document}
-
-  ''', fragment: false
-
-  testCase '''
-    \\title and no \\maketitle
-    ---
-    \\title{Title}
-    Hello
-    ---
-    \\documentclass[11pt]{article}
-    \\title{Title}
-
-    \\begin{document}
-    \\maketitle
-    Hello
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
-    \\title and existing document
+  testCase r'''
+    \title and no \maketitle
     ---
-    \\title{Title}
-    \\begin{document}
+    \title{Title}
     Hello
-    \\end{document}
     ---
-    \\documentclass[11pt]{article}
-    \\title{Title}
-    \\begin{document}
+    \documentclass[11pt]{article}
+    \title{Title}
+
+    \begin{document}
+    \maketitle
     Hello
-    \\end{document}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    \title and existing document
+    ---
+    \title{Title}
+    \begin{document}
+    Hello
+    \end{document}
+    ---
+    \documentclass[11pt]{article}
+    \title{Title}
+    \begin{document}
+    Hello
+    \end{document}
   ''', fragment: false
 
 describe '::preamble', ->
-  testCase '''
+  testCase r'''
     preamble after text
     ---
     Hello
-    :: preamble \\newtheorem{thm}{Theorem}
+    :: preamble \newtheorem{thm}{Theorem}
     : thm
-    ::preamble \\newtheorem{lem}{Lemma}
+    ::preamble \newtheorem{lem}{Lemma}
     : lem
     ::preamble
       %more text
     ::use foo
     ---
-    \\documentclass[11pt]{article}
-    \\newtheorem{thm}{Theorem}
-    \\newtheorem{lem}{Lemma}
+    \documentclass[11pt]{article}
+    \newtheorem{thm}{Theorem}
+    \newtheorem{lem}{Lemma}
 
       %more text
-    \\usepackage{foo}
+    \usepackage{foo}
 
-    \\begin{document}
+    \begin{document}
     Hello
-    \\begin{thm}
-    \\end{thm}
-    \\begin{lem}
-    \\end{lem}
-    \\end{document}
+    \begin{thm}
+    \end{thm}
+    \begin{lem}
+    \end{lem}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     preamble before text
     ---
-    :: preamble \\newtheorem{thm}{Theorem}
+    :: preamble \newtheorem{thm}{Theorem}
     ::preamble
       %more text
     ::use foo
     Hello
     ---
-    \\documentclass[11pt]{article}
-    \\newtheorem{thm}{Theorem}
+    \documentclass[11pt]{article}
+    \newtheorem{thm}{Theorem}
 
       %more text
-    \\usepackage{foo}
+    \usepackage{foo}
 
-    \\begin{document}
+    \begin{document}
     Hello
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     preamble before explicit begin
     ---
     Hello
-    :: preamble \\newtheorem{thm}{Theorem}
+    :: preamble \newtheorem{thm}{Theorem}
     ::preamble
       %more text
     ::use foo
-    \\begin{document}
+    \begin{document}
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
     Hello
-    \\newtheorem{thm}{Theorem}
+    \newtheorem{thm}{Theorem}
 
       %more text
-    \\usepackage{foo}
-    \\begin{document}
-    \\end{document}
+    \usepackage{foo}
+    \begin{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     preamble inside : document
     ---
     : document
-      :: preamble \\newtheorem{thm}{Theorem}
+      :: preamble \newtheorem{thm}{Theorem}
       ::preamble
         %more text
       ::use foo
       Hello
     ---
-    \\documentclass[11pt]{article}
-      \\newtheorem{thm}{Theorem}
+    \documentclass[11pt]{article}
+      \newtheorem{thm}{Theorem}
       
         %more text
-      \\usepackage{foo}
-    \\begin{document}
+      \usepackage{foo}
+    \begin{document}
       Hello
-    \\end{document}
+    \end{document}
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     ::preamble and ::uses
     ---
-    ::preamble \\newtheorem{thm}{Theorem}
+    ::preamble \newtheorem{thm}{Theorem}
     :: use
       amsthm
-    ::preamble \\newtheorem{lem}{Lemma}
-    \\newtheorem:
+    ::preamble \newtheorem{lem}{Lemma}
+    \newtheorem:
       - theorem
       - Theorem
     ---
-    \\documentclass[11pt]{article}
-    \\newtheorem{thm}{Theorem}
+    \documentclass[11pt]{article}
+    \newtheorem{thm}{Theorem}
 
-      \\usepackage{amsthm}
-    \\newtheorem{lem}{Lemma}
-    \\newtheorem
+      \usepackage{amsthm}
+    \newtheorem{lem}{Lemma}
+    \newtheorem
        {theorem}%
        {Theorem}%
-    \\begin{document}
+    \begin{document}
 
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
-  testCase '''
+  testCase r'''
     nested ::preamble
     ---
     Hello
@@ -324,23 +324,23 @@ describe '::preamble', ->
       ::preamble nested
       after
     ---
-    \\documentclass[11pt]{article}
+    \documentclass[11pt]{article}
 
       before
       nested
       after
 
-    \\begin{document}
+    \begin{document}
     Hello
-    \\end{document}
+    \end{document}
 
   ''', fragment: false
 
 describe '\\documentclass', ->
-  testCase '''
+  testCase r'''
     existing
     ---
-    \\documentclass[12pt,letterpaper]{article}
+    \documentclass[12pt,letterpaper]{article}
     ---
-    \\documentclass[12pt,letterpaper]{article}
+    \documentclass[12pt,letterpaper]{article}
   '''

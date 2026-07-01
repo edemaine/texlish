@@ -1,70 +1,70 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '@ shorthand for \\ref, \\label, etc.', ->
-  testCase '''
+  testCase r'''
     ref
     ---
     Theorem @thm:main
     Theorem~@thm:main
     ---
-    Theorem \\ref{thm:main}
-    Theorem~\\ref{thm:main}
+    Theorem \ref{thm:main}
+    Theorem~\ref{thm:main}
   '''
 
-  testCase '''
+  testCase r'''
     pageref
     ---
     Theorem @thm:main on page @#thm:main.
     ---
-    Theorem \\ref{thm:main} on page \\pageref{thm:main}.
+    Theorem \ref{thm:main} on page \pageref{thm:main}.
   '''
 
-  testCase '''
+  testCase r'''
     label
     ---
     @=thm:big
     ---
-    \\label{thm:big}
+    \label{thm:big}
   '''
 
-  testCase '''
+  testCase r'''
     label in theorem
     ---
     : theorem @=thm:big
     ---
-    \\begin{theorem}\\label{thm:big}
-    \\end{theorem}
+    \begin{theorem}\label{thm:big}
+    \end{theorem}
   '''
 
-  testCase '''
+  testCase r'''
     custom ref/label
     ---
     ::styles
-      @ = \\cref
-      @# = \\pagecref
-      @= = \\clabel
+      @ = \cref
+      @# = \pagecref
+      @= = \clabel
     @=thm:big
     @thm:big
     @#thm:big
     ---
-    \\clabel{thm:big}
-    \\cref{thm:big}
-    \\pagecref{thm:big}
+    \clabel{thm:big}
+    \cref{thm:big}
+    \pagecref{thm:big}
   '''
 
-  testCase '''
+  testCase r'''
     spaced
     ---
     @='big theorem'
     @"big theorem"
     @#{big theorem}
     ---
-    \\label{big theorem}
-    \\ref{big theorem}
-    \\pageref{big theorem}
+    \label{big theorem}
+    \ref{big theorem}
+    \pageref{big theorem}
   '''
 
-  testCase '''
+  testCase r'''
     {} escaping
     ---
     {@=}thm:main
@@ -76,18 +76,18 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     {@#}thm:main
   '''
 
-  testCase '''
+  testCase r'''
     ~ not in @ref
     ---
-    Theorems~@a~\\&~@b
+    Theorems~@a~\&~@b
     ---
-    Theorems~\\ref{a}~\\&~\\ref{b}
+    Theorems~\ref{a}~\&~\ref{b}
   '''
 
-  testCase '''
+  testCase r'''
     [ not in @ref
     ---
     See @thm:main[details](https://example.com)
     ---
-    See \\ref{thm:main}\\protect\\href{https://example.com}{details}
+    See \ref{thm:main}\protect\href{https://example.com}{details}
   '''

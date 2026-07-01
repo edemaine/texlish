@@ -1,7 +1,7 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe 'sub/superscript autogrouping', ->
-  testCase '''
+  testCase r'''
     digits only for subscripts
     ---
     $x_12 + x_ij$
@@ -9,7 +9,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{12} + x_ij$
   '''
 
-  testCase '''
+  testCase r'''
     digits only for superscripts
     ---
     $x^12 + x^ij$
@@ -17,7 +17,7 @@ describe 'sub/superscript autogrouping', ->
     $x^{12} + x^ij$
   '''
 
-  testCase '''
+  testCase r'''
     alphanumeric mode
     ---
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
@@ -25,7 +25,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{12} + x_{ij} + x_{i1} + x_{1i} + x^{12} + x^{ij} + x^{i1} + x^{1i}$
   ''', scriptGrouping: "alphanumeric"
 
-  testCase '''
+  testCase r'''
     alpha mode
     ---
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
@@ -33,7 +33,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_{ij} + x_i1 + x_1i + x^12 + x^{ij} + x^i1 + x^1i$
   ''', scriptGrouping: "alpha"
 
-  testCase '''
+  testCase r'''
     none mode
     ---
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
@@ -41,7 +41,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
   ''', scriptGrouping: "none"
 
-  testCase '''
+  testCase r'''
     numeric mode keeps mixed alphanumerics
     ---
     $x_i1 + x_1i + x^i1 + x^1i$
@@ -49,7 +49,7 @@ describe 'sub/superscript autogrouping', ->
     $x_i1 + x_1i + x^i1 + x^1i$
   ''', scriptGrouping: "numeric"
 
-  testCase '''
+  testCase r'''
     parenthesized script grouping
     ---
     $x_(ij) + x^(i+j)$
@@ -57,7 +57,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{ij} + x^{i+j}$
   '''
 
-  testCase '''
+  testCase r'''
     nested parenthesized script grouping
     ---
     $x_(i(j+k))$
@@ -65,7 +65,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{i(j+k)}$
   '''
 
-  testCase '''
+  testCase r'''
     multiline parenthesized script grouping
     ---
     $x_(foo
@@ -75,7 +75,7 @@ describe 'sub/superscript autogrouping', ->
       bar}$
   '''
 
-  testCase '''
+  testCase r'''
     plain brackets do not balance inside parenthesized script grouping
     ---
     $x_([a)b])$
@@ -83,17 +83,17 @@ describe 'sub/superscript autogrouping', ->
     $x_{[a}b])$
   '''
 
-  testCase '''
+  testCase r'''
     inline colon command wins over parenthesized script grouping
     ---
-    $x_(\\emph: ij)
+    $x_(\emph: ij)
     $
     ---
-    $x_(\\emph{ij)}%
+    $x_(\emph{ij)}%
     $
   '''
 
-  testCase '''
+  testCase r'''
     parenthesized script grouping ignores nested script after space
     ---
     _(_{foo}) _( _{foo}) ^(^{foo}) ^( ^{foo})
@@ -101,7 +101,7 @@ describe 'sub/superscript autogrouping', ->
     _(_{foo}) _( _{foo}) ^(^{foo}) ^( ^{foo})
   '''
 
-  testCase '''
+  testCase r'''
     scriptParens option disables parenthesized script grouping
     ---
     $x_(ij) + x^(i+j)$
@@ -109,7 +109,7 @@ describe 'sub/superscript autogrouping', ->
     $x_(ij) + x^(i+j)$
   ''', scriptParens: false
 
-  testCase '''
+  testCase r'''
     latexCompat option disables autogrouping
     ---
     $x_12 + x_ij + x_i1 + x_(ij) + x^12 + x^ij + x^i1 + x^(ij)$
@@ -117,7 +117,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_ij + x_i1 + x_(ij) + x^12 + x^ij + x^i1 + x^(ij)$
   ''', latexCompat: true
 
-  testCase '''
+  testCase r'''
     in-file ::config
     ---
     $x_ij$
@@ -133,7 +133,7 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_i1$
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::config compact assignment
     ---
     $x_ij$
@@ -145,7 +145,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{ij} + x_{i1}$
   '''
 
-  testCase '''
+  testCase r'''
     inline ::config
     ---
     $x_ij$
@@ -156,7 +156,7 @@ describe 'sub/superscript autogrouping', ->
     $x_{ij} + x_{i1}$
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::config latexCompat flag
     ---
     $x_12 + x_(ij)$
@@ -168,31 +168,31 @@ describe 'sub/superscript autogrouping', ->
     $x_12 + x_(ij)$
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::config styles section
     ---
     *foo*
     ::config
       styles:
-        * = \\textit
+        * = \textit
     *foo*
     ---
-    \\emph{foo}
-    \\textit{foo}
+    \emph{foo}
+    \textit{foo}
   '''
 
-  testCase '''
+  testCase r'''
     inline ::config dotted style
     ---
     *foo*
-    ::config styles.*=\\textit
+    ::config styles.*=\textit
     *foo*
     ---
-    \\emph{foo}
-    \\textit{foo}
+    \emph{foo}
+    \textit{foo}
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::config style values are raw
     ---
     ::config styles.*=[raw](https://example.com) @ref *text*
@@ -201,7 +201,7 @@ describe 'sub/superscript autogrouping', ->
     [raw](https://example.com) @ref *text*{foo}
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::styles values are raw
     ---
     ::styles
@@ -211,7 +211,7 @@ describe 'sub/superscript autogrouping', ->
     [raw](https://example.com) @ref *text*{foo}
   '''
 
-  testCase '''
+  testCase r'''
     in-file ::config empty styles section
     ---
     *foo*
@@ -219,29 +219,29 @@ describe 'sub/superscript autogrouping', ->
       styles:
     *foo*
     ---
-    \\emph{foo}
-    \\emph{foo}
+    \emph{foo}
+    \emph{foo}
   '''
 
-  testCase '''
+  testCase r'''
     inline ::config empty styles section
     ---
     *foo*
     ::config styles:
     *foo*
     ---
-    \\emph{foo}
-    \\emph{foo}
+    \emph{foo}
+    \emph{foo}
   '''
 
-  testCase '''
+  testCase r'''
     inline ::config nonempty styles section
     ---
     *foo*
     ::config styles:
-      * = \\textit
+      * = \textit
     *foo*
     ---
-    \\emph{foo}
-    \\textit{foo}
+    \emph{foo}
+    \textit{foo}
   '''

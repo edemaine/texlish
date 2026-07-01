@@ -1,343 +1,345 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '\\command:', ->
+  // No `r` because this test uses \x20 for an intentional trailing space.
   testCase '''
     empty
     ---
     \\emph:
-    \\emph: 
+    \\emph:\x20
     ---
     \\emph{}%
     \\emph{}%
   '''
 
-  testCase '''
+  testCase r'''
     one line
     ---
-    \\bibliography: bib
+    \bibliography: bib
     ---
-    \\bibliography{bib}%
+    \bibliography{bib}%
   '''
 
-  testCase '''
+  testCase r'''
     ignored after newline
     ---
-    \\
+    \
     : foo
     ---
-    \\
-    \\begin{foo}
-    \\end{foo}
+    \
+    \begin{foo}
+    \end{foo}
   '''
 
-  testCase '''
+  testCase r'''
     ignored in comment
     ---
-    % \\bibliography: bib
+    % \bibliography: bib
     ---
-    % \\bibliography: bib
+    % \bibliography: bib
   '''
 
-  testCase '''
+  testCase r'''
     indented
     ---
-    \\sqrt:
+    \sqrt:
       a + b
     ---
-    \\sqrt{%
+    \sqrt{%
       a + b}%
   '''
 
-  testCase '''
+  testCase r'''
     mixed
     ---
-    \\sqrt: a +
+    \sqrt: a +
       b + c
     ---
-    \\sqrt{a +
+    \sqrt{a +
       b + c}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted
     ---
-    \\subcaptionbox:
+    \subcaptionbox:
     - Caption
     - Figure
     ---
-    \\subcaptionbox
+    \subcaptionbox
      {Caption}%
      {Figure}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with strict indentation
     ---
-    \\foo:
+    \foo:
       - a
       - b
     ---
-    \\foo
+    \foo
        {a}%
        {b}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with same-line environment
     ---
-    \\foo:
+    \foo:
       - argument 1
       - : environment
           content
     ---
-    \\foo
+    \foo
        {argument 1}%
-       {\\begin{environment}
+       {\begin{environment}
           content
-        \\end{environment}}%
+        \end{environment}}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with same-line environment and list-item body
     ---
-    \\foo:
+    \foo:
       - : environment
         body
     ---
-    \\foo
-       {\\begin{environment}
-        \\end{environment}
+    \foo
+       {\begin{environment}
+        \end{environment}
         body}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with same-line environment and argument
     ---
-    \\foo:
+    \foo:
       - : environment:
           - arg
           env body
         body
     ---
-    \\foo
-       {\\begin{environment}
+    \foo
+       {\begin{environment}
            {arg}%
           env body
-        \\end{environment}
+        \end{environment}
         body}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with same-line nested list
     ---
-    \\foo:
+    \foo:
       - - x
         - y
     ---
-    \\foo
-       {\\begin{itemize}
-        \\item x
-        \\item y
-        \\end{itemize}}%
+    \foo
+       {\begin{itemize}
+        \item x
+        \item y
+        \end{itemize}}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with triple same-line nested list
     ---
-    \\foo:
+    \foo:
       - - - x
     ---
-    \\foo
-       {\\begin{itemize}
-        \\item \\begin{itemize}
-          \\item x
-          \\end{itemize}
-        \\end{itemize}}%
+    \foo
+       {\begin{itemize}
+        \item \begin{itemize}
+          \item x
+          \end{itemize}
+        \end{itemize}}%
   '''
 
-  testCase '''
+  testCase r'''
     bulleted with same-line raw tex
     ---
-    \\foo:
-      - ::tex \\bar{*raw* [link](https://example.com) @ref}
+    \foo:
+      - ::tex \bar{*raw* [link](https://example.com) @ref}
     ---
-    \\foo
-       {\\bar{*raw* [link](https://example.com) @ref}}%
+    \foo
+       {\bar{*raw* [link](https://example.com) @ref}}%
   '''
 
-  testCase '''
-    bulleted with nested \\command:
+  testCase r'''
+    bulleted with nested \command:
     ---
-    \\subcaptionbox:
+    \subcaptionbox:
     - Caption
       @=label
-    - \\includegraphics:
+    - \includegraphics:
         image.png
     ---
-    \\subcaptionbox
+    \subcaptionbox
      {Caption
-      \\label{label}}%
-     {\\includegraphics{%
+      \label{label}}%
+     {\includegraphics{%
         image.png}}%
   '''
 
-  testCase '''
+  testCase r'''
     optional bullet
     ---
-    \\includegraphics:
-    ~ width=0.5\\textwidth
+    \includegraphics:
+    ~ width=0.5\textwidth
     - image.png
-    \\includegraphics:
-      ~ width=0.5\\textwidth
+    \includegraphics:
+      ~ width=0.5\textwidth
       - image.png
     ---
-    \\includegraphics
-     [width=0.5\\textwidth]%
+    \includegraphics
+     [width=0.5\textwidth]%
      {image.png}%
-    \\includegraphics
-       [width=0.5\\textwidth]%
+    \includegraphics
+       [width=0.5\textwidth]%
        {image.png}%
   '''
 
-  testCase '''
+  testCase r'''
     commented-out argument bullets do not interrupt list
     ---
-    \\foo:
+    \foo:
     - one
     %~ two
     %- also two
     - three
     ---
-    \\foo
+    \foo
      {one}%
     %~ two
     %- also two
      {three}%
   '''
 
-  testCase '''
+  testCase r'''
     comments before first argument bullet
     ---
-    \\foo:
+    \foo:
       % skip one
         %- skip two
     - one
     - two
     ---
-    \\foo
+    \foo
       % skip one
         %- skip two
      {one}%
      {two}%
   '''
 
-  testCase '''
+  testCase r'''
     dedented bullets do not become arguments
     ---
     : env
-      \\foo:
+      \foo:
     - one
     : env
-      \\bar:
+      \bar:
         % skip
     - two
     ---
-    \\begin{env}
-      \\foo{}%
-    \\end{env}
-    \\begin{itemize}
-    \\item one
-    \\end{itemize}
-    \\begin{env}
-      \\bar{%
+    \begin{env}
+      \foo{}%
+    \end{env}
+    \begin{itemize}
+    \item one
+    \end{itemize}
+    \begin{env}
+      \bar{%
         }% skip
-    \\end{env}
-    \\begin{itemize}
-    \\item two
-    \\end{itemize}
+    \end{env}
+    \begin{itemize}
+    \item two
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     inline
     ---
     $$
-      -b \\pm \\sqrt:
+      -b \pm \sqrt:
         b^2 - 4 a c
     $$
     ---
     $$
-      -b \\pm \\sqrt{%
+      -b \pm \sqrt{%
         b^2 - 4 a c}%
     $$
   '''
 
-  testCase '''
+  testCase r'''
     nested command closes before parent argument
     ---
     : align*
-        C_\\mathrm{j} &= \\frac:
-            - C_\\mathrm{j0}
-            - \\sqrt:
-                - 1 + \\frac:
-                    - V_\\mathrm{D}
-                    - \\Phi_0
+        C_\mathrm{j} &= \frac:
+            - C_\mathrm{j0}
+            - \sqrt:
+                - 1 + \frac:
+                    - V_\mathrm{D}
+                    - \Phi_0
     ---
-    \\begin{align*}
-        C_\\mathrm{j} &= \\frac
-             {C_\\mathrm{j0}}%
-             {\\sqrt
-                 {1 + \\frac
-                     {V_\\mathrm{D}}%
-                     {\\Phi_0}}}%
-    \\end{align*}
+    \begin{align*}
+        C_\mathrm{j} &= \frac
+             {C_\mathrm{j0}}%
+             {\sqrt
+                 {1 + \frac
+                     {V_\mathrm{D}}%
+                     {\Phi_0}}}%
+    \end{align*}
   '''
 
-  testCase '''
+  testCase r'''
     in brace
     ---
-    {\\includegraphics:
+    {\includegraphics:
       image.png}
     ---
-    {\\includegraphics{%
+    {\includegraphics{%
       image.png}}
   '''
 
-  testCase '''
+  testCase r'''
     one line with comment
     ---
-    \\bibliography: bib % give to BibTeX
+    \bibliography: bib % give to BibTeX
     ---
-    \\bibliography{bib}% give to BibTeX
+    \bibliography{bib}% give to BibTeX
   '''
 
-  testCase '''
+  testCase r'''
     indented with first-line comment
     ---
-    \\bibliography:% give to BibTeX
+    \bibliography:% give to BibTeX
       bib
-    \\bibliography: % give to BibTeX
+    \bibliography: % give to BibTeX
       bib
     ---
-    \\bibliography{% give to BibTeX
+    \bibliography{% give to BibTeX
       bib}%
-    \\bibliography{% give to BibTeX
+    \bibliography{% give to BibTeX
       bib}%
   '''
 
-  testCase '''
+  testCase r'''
     indented with trailing comment
     ---
-    \\bibliography:
+    \bibliography:
       bib% give to BibTeX
-    \\bibliography:
+    \bibliography:
       bib % give to BibTeX
     ---
-    \\bibliography{%
+    \bibliography{%
       bib}% give to BibTeX
-    \\bibliography{%
+    \bibliography{%
       bib}% give to BibTeX
   '''
 
+  // No `r` because raw templates cannot end with a lone backslash.
   testCase '''
     at EOF
     ---
@@ -346,10 +348,10 @@ describe '\\command:', ->
     \\
   '''
 
-  testCase '''
+  testCase r'''
     starred
     ---
-    \\section*: Acknowledgements
+    \section*: Acknowledgements
     ---
-    \\section*{Acknowledgements}%
+    \section*{Acknowledgements}%
   '''

@@ -1,89 +1,89 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 
 describe '::use', ->
-  testCase '''
+  testCase r'''
     single package on one line
     ---
     ::use amsmath
     ---
-    \\usepackage{amsmath}
+    \usepackage{amsmath}
   '''
 
-  testCase '''
+  testCase r'''
     multiple packages on one line
     ---
     ::use amsmath, latexsym
     ---
-    \\usepackage{amsmath, latexsym}
+    \usepackage{amsmath, latexsym}
   '''
 
-  testCase '''
+  testCase r'''
     single package with argument on one line
     ---
     ::use geometry: margin = 1in
     ---
-    \\usepackage[margin = 1in]{geometry}
+    \usepackage[margin = 1in]{geometry}
   '''
 
-  testCase '''
+  testCase r'''
     package argument on one line is raw
     ---
     ::use hyperref: pdftitle = *Raw* [Link](https://example.com) @ref
     ---
-    \\usepackage[pdftitle = *Raw* [Link](https://example.com) @ref]{hyperref}
+    \usepackage[pdftitle = *Raw* [Link](https://example.com) @ref]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     single package on one line with nested argument
     ---
     ::use geometry:
       margin = 1in
     ---
-    \\usepackage[
+    \usepackage[
       margin = 1in]{geometry}
   '''
 
-  testCase '''
+  testCase r'''
     nested package argument is raw
     ---
     ::use hyperref:
       pdftitle = *Raw* [Link](https://example.com) @ref
     ---
-    \\usepackage[
+    \usepackage[
       pdftitle = *Raw* [Link](https://example.com) @ref]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     single package on one line with partially nested argument
     ---
     ::use geometry: letterpaper,
       margin = 1in
     ---
-    \\usepackage[letterpaper,
+    \usepackage[letterpaper,
       margin = 1in]{geometry}
   '''
 
-  testCase '''
+  testCase r'''
     single package on one line with comment
     ---
     ::use amsmath % for align environment
     ::use amsfonts% for mathbb
     ---
-    \\usepackage{amsmath} % for align environment
-    \\usepackage{amsfonts}% for mathbb
+    \usepackage{amsmath} % for align environment
+    \usepackage{amsfonts}% for mathbb
   '''
 
-  testCase '''
+  testCase r'''
     single package on one line with comment and nested argument
     ---
     ::use csquotes: % automatic " handling
       style=english
     ---
-    \\usepackage[% automatic " handling
+    \usepackage[% automatic " handling
       style=english]{csquotes}
   '''
 
-  testCase '''
+  testCase r'''
     multiple nested packages
     ---
     ::use
@@ -92,12 +92,12 @@ describe '::use', ->
       cleveref
     ---
 
-      \\usepackage{amsmath}
-      \\usepackage{colortbl}
-      \\usepackage{cleveref}
+      \usepackage{amsmath}
+      \usepackage{colortbl}
+      \usepackage{cleveref}
   '''
 
-  testCase '''
+  testCase r'''
     multiple nested packages with comments
     ---
     ::use
@@ -106,12 +106,12 @@ describe '::use', ->
       cleveref% clever references
     ---
 
-      \\usepackage{amsmath} % for align environment
-      \\usepackage{colortbl}% for row colors
-      \\usepackage{cleveref}% clever references
+      \usepackage{amsmath} % for align environment
+      \usepackage{colortbl}% for row colors
+      \usepackage{cleveref}% clever references
   '''
 
-  testCase '''
+  testCase r'''
     multiple nested packages with bullets
     ---
     ::use
@@ -120,12 +120,12 @@ describe '::use', ->
       ~ cleveref
     ---
 
-      \\usepackage{amsmath}
-      \\usepackage{colortbl}
-      \\usepackage{cleveref}
+      \usepackage{amsmath}
+      \usepackage{colortbl}
+      \usepackage{cleveref}
   '''
 
-  testCase '''
+  testCase r'''
     multiple nested packages with bullets and comments
     ---
     ::use
@@ -134,49 +134,49 @@ describe '::use', ->
       ~ cleveref% clever references
     ---
 
-      \\usepackage{amsmath} % for align environment
-      \\usepackage{colortbl}% for row colors
-      \\usepackage{cleveref}% clever references
+      \usepackage{amsmath} % for align environment
+      \usepackage{colortbl}% for row colors
+      \usepackage{cleveref}% clever references
   '''
 
-  testCase '''
+  testCase r'''
     same-line package with arguments
     ---
     ::use hyperref:
       - pdftitle = Hello World
       - pdfauthor = Me
     ---
-    \\usepackage[
+    \usepackage[
         pdftitle = Hello World
       , pdfauthor = Me]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     package argument bullets are raw
     ---
     ::use hyperref:
       - pdftitle = *Raw* [Link](https://example.com) @ref
       - pdfauthor = Me
     ---
-    \\usepackage[
+    \usepackage[
         pdftitle = *Raw* [Link](https://example.com) @ref
       , pdfauthor = Me]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     same-line package with arguments and comments
     ---
     ::use hyperref:
       - pdftitle = Hello World % working title
       - pdfauthor = Me% = myself
     ---
-    \\usepackage[
+    \usepackage[
         pdftitle = Hello World % working title
       , pdfauthor = Me% = myself
     ]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     commented-out package argument bullets do not interrupt list
     ---
     ::use hyperref:
@@ -185,14 +185,14 @@ describe '::use', ->
       %- hidelinks
       - pdfauthor = Me
     ---
-    \\usepackage[
+    \usepackage[
         pdftitle = Hello World
       %- colorlinks
       %- hidelinks
       , pdfauthor = Me]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     comments before first package argument bullet
     ---
     ::use hyperref:
@@ -201,14 +201,14 @@ describe '::use', ->
       - pdftitle = Hello World
       - pdfauthor = Me
     ---
-    \\usepackage[
+    \usepackage[
         % skip one
           %- skip two
         pdftitle = Hello World
       , pdfauthor = Me]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     dedented bullets do not become package arguments
     ---
     ::use
@@ -220,20 +220,20 @@ describe '::use', ->
     - colorlinks
     ---
 
-      \\usepackage[]{hyperref}
-    \\begin{itemize}
-    \\item xcolor
-    \\end{itemize}
+      \usepackage[]{hyperref}
+    \begin{itemize}
+    \item xcolor
+    \end{itemize}
 
-      \\usepackage[
+      \usepackage[
         % skip
       ]{geometry}
-    \\begin{itemize}
-    \\item colorlinks
-    \\end{itemize}
+    \begin{itemize}
+    \item colorlinks
+    \end{itemize}
   '''
 
-  testCase '''
+  testCase r'''
     nested packages with arguments
     ---
     ::use
@@ -245,15 +245,15 @@ describe '::use', ->
         - letterpaper
     ---
 
-      \\usepackage{amsmath}
-      \\usepackage{colortbl}
-      \\usepackage{cleveref}
-      \\usepackage[
+      \usepackage{amsmath}
+      \usepackage{colortbl}
+      \usepackage{cleveref}
+      \usepackage[
           margin = 1in
         , letterpaper]{geometry}
   '''
 
-  testCase '''
+  testCase r'''
     more nested packages with arguments
     ---
     ::use
@@ -263,13 +263,13 @@ describe '::use', ->
         - pdfauthor = Me
     ---
 
-      \\usepackage[margin=1in]{geometry}
-      \\usepackage[
+      \usepackage[margin=1in]{geometry}
+      \usepackage[
           pdftitle = Hello World
         , pdfauthor = Me]{hyperref}
   '''
 
-  testCase '''
+  testCase r'''
     more nested packages with arguments and comments
     ---
     ::use
@@ -281,11 +281,11 @@ describe '::use', ->
         - pdfauthor = Me% = myself
     ---
 
-      \\usepackage[margin=1in % 1-inch margins
+      \usepackage[margin=1in % 1-inch margins
       ]{geometry}
-      \\usepackage[% automatic " handling
+      \usepackage[% automatic " handling
         style=english]{csquotes}
-      \\usepackage[% metadata
+      \usepackage[% metadata
           pdftitle = Hello World % working title
         , pdfauthor = Me% = myself
       ]{hyperref}
