@@ -109,6 +109,21 @@ describe 'Markdown footnotes', ->
   '''
 
   testCase r'''
+    definition does not parse bulleted arguments
+    ---
+    First[^x].
+    [^x]:
+      - Note.
+    ---
+    First%
+    \footnote{\protect\label{footnote:x}%
+      \begin{itemize}
+      \item Note.
+      \end{itemize}}%
+    .
+  '''
+
+  testCase r'''
     nested list item definition
     ---
     * Item

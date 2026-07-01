@@ -298,6 +298,15 @@ Multiple arguments can be specified like a list:
     \\includegraphics: example
 `}/>
 
+The final required argument can omit the bullet, reducing indentation:
+
+<Example src={`
+  \\resizebox:
+    - \\linewidth
+    - !
+    Body
+`}/>
+
 `~` items get treated as optional arguments:
 
 <Example src={`

@@ -28,6 +28,7 @@ type {
   commentForBody,
   commentForTextBody,
   getEndComment,
+  getLeadingIndent,
   isNumeric,
   removeLeadingIndent,
 } from ./util.civet
@@ -142,7 +143,7 @@ ActualStatement ::AST
   MetaBlock
   FootnoteDefinition
   Environment
-  CommandWithColonArgument
+  CommandWithColonArguments
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
 
@@ -163,7 +164,7 @@ TextLine ::AST[]
 # (can be empty, no newline consumption)
 # except Markdown links [...](...) can consume multiple lines
 Text ::AST[]
-  TextPart* InlineCommandWithColonArgument? ->
+  TextPart* InlineCommandWithColonArguments? ->
     return $1 unless $2
     return [ ...$1, $2 ]
 
@@ -236,8 +237,8 @@ MainTextPart ::AST
       symbol: $1,
       token: $1,
     }
-  # Leave trailing InlineCommandWithColonArgument for TextLine to parse
-  !InlineCommandWithColonArgument Command -> $2
+  # Leave trailing InlineCommandWithColonArguments for TextLine to parse
+  !InlineCommandWithColonArguments Command -> $2
   # Skip to next interesting character
   /[^\r\n\\()\[\]{}%][^\r\n@#<\\\^_()\[\]{}%\*]*/
 
@@ -443,8 +444,8 @@ Autolink ::AST
 
 Environment ::Environment
   # use NestedStatement* instead of NestedBody so that we can PushIndent early
-  # (in case ColonArgument involves multiple lines)
-  &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( InlineColonArgument / TrimmedText ) NestedStatement* )?:content PopIndent ->
+  # (in case EnvironmentColonArguments involves multiple lines)
+  &/[ \t]*:[ \t]/ Indent:indent PushIndent ( /:[ \t]+([^:\s\[%]+)/ ( EnvironmentColonArguments / TrimmedText ) NestedStatement* )?:content PopIndent ->
     return $skip unless content
     [ envMatch, first, body ] .= content
     env := envMatch[1].trim()
@@ -462,19 +463,17 @@ Environment ::Environment
       ]
     }
 
-CommandWithColonArgument ::AST[]
-  Indent:indent StarredCommand:command ColonArgument:arg
+CommandWithColonArguments ::AST[]
+  Indent:indent StarredCommand:command Colon CommandArgumentsAfterColon:arg ->
+    [ indent, command, arg ] // drop Colon
 
 FootnoteDefinition ::FootnoteDefinition
   Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon ArgumentAfterColon:arg ->
     body: AST[] :=
-      if Array.isArray arg
-        arg
-      else // type: "Braced"
-        if Array.isArray arg.body
-          arg.body
-        else
-          [arg.body]
+      if Array.isArray arg.body
+        arg.body
+      else
+        [arg.body]
     return {
       type: "FootnoteDefinition"
       id: marker[1].trim()
@@ -491,21 +490,30 @@ FootnoteDefinition ::FootnoteDefinition
     }
 
 # Inline version prevents combining same-line and indented content
-InlineCommandWithColonArgument ::AST[]
-  StarredCommand InlineColonArgument
+InlineCommandWithColonArguments ::AST[]
+  StarredCommand:command Colon InlineCommandArgumentsAfterColon:arg ->
+    [ command, arg ] // drop Colon
 
-ColonArgument ::AST
-  Colon ArgumentAfterColon -> $2
-
-InlineColonArgument ::AST
-  Colon InlineArgumentAfterColon -> $2
+EnvironmentColonArguments ::AST
+  Colon EnvironmentArgumentsAfterColon -> $2
 
 # ":", but don't treat :: as :
 Colon
   /:(?!:)/
 
-ArgumentAfterColon ::AST[] | Braced
+CommandArgumentsAfterColon ::AST[] | Braced
+  NestedCommandArgumentList
+  ArgumentAfterColon
+
+InlineCommandArgumentsAfterColon ::AST
+  NestedCommandArgumentList
+  InlineArgumentAfterColon
+
+EnvironmentArgumentsAfterColon ::AST
   NestedArgumentList
+  InlineArgumentAfterColon
+
+ArgumentAfterColon ::Braced
   TrimmedText:text NestedBody:body ->
     // If nothing on first line, comment out the newline
     text = ["%"] if not text# and body#
@@ -524,10 +532,9 @@ ArgumentAfterColon ::AST[] | Braced
     }
 
 InlineArgumentAfterColon ::AST
-  NestedArgumentList
   NonEmptyNestedBody:body ->
     let comment
-    [body, comment] = commentForBody(body)
+    [body, comment] = commentForBody body
     return {
       type: "Braced"
       body
@@ -540,7 +547,7 @@ InlineArgumentAfterColon ::AST
     }
   TrimmedText:body ->
     let comment
-    [body, comment] = commentForBody(body)
+    [body, comment] = commentForBody body
     return {
       type: "Braced"
       body
@@ -565,15 +572,15 @@ MetaCommand ::AST
 
 MetaVersion ::AST
   "version" /[ \t]+([^\r\n%]+)/:range Comment? ->
-    assertTexlishVersion(range[1].trim())
+    assertTexlishVersion range[1].trim()
     return '\0'  // eat following newline
 
 MetaConfig ::AST
   "config" /[ \t]+/ ConfigAssignment:body ->
-    applyConfigAssignments(body)
+    applyConfigAssignments body
     return '\0'  // eat following newline
   "config" NestedConfigAssignments:body ->
-    applyConfigAssignments(body)
+    applyConfigAssignments body
     return '\0'  // eat following newline
 
 MetaStyles ::AST
@@ -593,9 +600,9 @@ NestedConfigAssignment ::ConfigEntry[]
 
 ConfigAssignment ::ConfigEntry[]
   $/[^:%\r\n]+(?==)/:key ConfigRHS:value ->
-    return value.map(([subpath, value]) => [[...key.trimEnd().split('.'), ...subpath], value])
+    return value.map [subpath, value] => [[...key.trimEnd().split('.'), ...subpath], value]
   $/[^\s:=%]+/:key NestedConfigRHS:value ->
-    return value.map(([subpath, value]) => [[...key.split('.'), ...subpath], value])
+    return value.map [subpath, value] => [[...key.split('.'), ...subpath], value]
 
 NestedConfigRHS ::ConfigEntry[]
   # `key:` for nested config
@@ -693,7 +700,7 @@ NonEmptyNestedBody ::AST[]
 NestedBody ::AST[]
   PushIndent NestedStatement* PopIndent -> $2
 
-NestedStatement ::AST[]
+NestedStatement ::[eols: AST[], statement: AST]
   Nested Statement
 
 # Raw versions of above
@@ -800,6 +807,30 @@ NestedArgumentList ::AST[]
   PushIndent ArgumentList?:content PopIndent ->
     return $skip unless content
     return content
+
+# Argument bullets plus an optional final nested body block,
+# which becomes another braced command argument.
+NestedCommandArgumentList ::AST[]
+  PushIndent ( ArgumentList NestedStatement*:body )?:content PopIndent ->
+    return $skip unless content
+    [ args, body ] := content
+    return args unless body#
+    // NestedStatement starts with EOL+, but the new argument needs one EOL.
+    [ [ eol ], firstStatement ] := body[0]
+    indent := getLeadingIndent firstStatement
+    [ finalBody, comment ] := commentForBody body
+    return [
+      ...args
+      [
+        eol
+        indent
+        " "
+        "{%"
+        finalBody
+        "}"
+        comment
+      ]
+    ]
 
 ArgumentList ::AST[]
   NonstrictlyNestedComment*:comments NonstrictlyNested:eol &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ArgumentListContinuation* )?:content PopIndent ->

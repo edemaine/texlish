@@ -110,6 +110,20 @@ export function modifyEnd(node: AST, modify: (candidate: AST) => AST): AST
       node
 
 /**
+ * Return the leading emitted indent.
+ * Assumes/asserts the first array entry or first child is an Indent node.
+ */
+export function getLeadingIndent(node: AST): Indent
+  if Array.isArray node
+    unless node[0] is like { type: "Indent" }
+      throw new Error "Expected leading indent"
+    node[0] as Indent
+  else if node is like { children }
+    getLeadingIndent node.children
+  else
+    throw new Error "Expected leading indent"
+
+/**
  * Copy an AST array or parent node with the leading emitted indent suppressed.
  * Assumes/asserts the first array entry or first child is an Indent node.
  */

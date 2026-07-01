@@ -33,6 +33,8 @@
 * Commented-out list items no longer interrupt Markdown-style lists,
   command argument lists, or package argument lists.
   [[#22](https://github.com/edemaine/texlish/issues/22)]
+* Command argument lists can omit the bullet for their final required argument.
+  [[#28](https://github.com/edemaine/texlish/issues/28)]
 * `::tex` passes raw TeX through unchanged,
   on the same line or in nested strictly indented lines.
   [[#2](https://github.com/edemaine/texlish/issues/2)]

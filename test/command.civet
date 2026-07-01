@@ -84,6 +84,67 @@ describe '\\command:', ->
   '''
 
   testCase r'''
+    bulleted with unbulleted final required argument
+    ---
+    \resizebox:
+      - \linewidth
+      - !
+      stuff
+    ---
+    \resizebox
+       {\linewidth}%
+       {!}%
+       {%
+      stuff}%
+  '''
+
+  testCase r'''
+    bulleted with blank line before unbulleted final required argument
+    ---
+    \resizebox:
+      - \linewidth
+      - !
+
+      stuff
+    ---
+    \resizebox
+       {\linewidth}%
+       {!}%
+       {%
+
+      stuff}%
+  '''
+
+  testCase r'''
+    bulleted with multiline unbulleted final required argument
+    ---
+    \foo:
+      - one
+      two
+        three
+      four
+    ---
+    \foo
+       {one}%
+       {%
+      two
+        three
+      four}%
+  '''
+
+  testCase r'''
+    unindented text after bulleted arguments stays outside
+    ---
+    \foo:
+    - one
+    two
+    ---
+    \foo
+     {one}%
+    two
+  '''
+
+  testCase r'''
     bulleted with same-line environment
     ---
     \foo:
@@ -270,6 +331,19 @@ describe '\\command:', ->
       -b \pm \sqrt{%
         b^2 - 4 a c}%
     $$
+  '''
+
+  testCase r'''
+    inline with unbulleted final required argument
+    ---
+    Text \foo:
+      - one
+      two
+    ---
+    Text \foo
+       {one}%
+       {%
+      two}%
   '''
 
   testCase r'''
