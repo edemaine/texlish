@@ -1,7 +1,8 @@
 type { AST, CompilerOptions, Delimiter, FootnoteDefinition, FootnoteRef } from ./types.civet
-{ isNumeric, iterate, iteratePrePost, iterateFlatArrays } from ./util.civet
+{ find, isNumeric, iterate, iteratePrePost, iterateFlatArrays } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
+defaultDefnCommand := "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
@@ -142,6 +143,20 @@ function processFootnotes(root: AST[]): void
 function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
 
+function isDefn(node: AST): boolean
+  node is like { type: "Command", token: "\\defn" }, /\\defn(?![a-zA-Z@])/
+function definesDefnCommand(root: AST[]): boolean
+  for parent of iterateFlatArrays root
+    for each child, let i of parent
+      continue unless child is like { type: "Command" }
+      continue unless child.token is like "\\newcommand", "\\renewcommand", "\\providecommand", "\\def"
+      while parent[++i] is like /^\s*$/
+      next := parent[i]
+      return true if isDefn next
+      if next is like { type: "Braced" }
+        return true if find next.body, isDefn
+  false
+
 /** Attach environment names to \begin and \end commands */
 function processBeginEnd(root: AST[]): void
   for parent of iterateFlatArrays root
@@ -164,7 +179,7 @@ function processBeginEnd(root: AST[]): void
 function processDocument(root: AST[]): void
   // Find any existing \begin{document}, \end{document}, \maketitle, \title,
   // \documentclass in the document, and put them in `document`.
-  // Collect any >>preamble and >>use blocks for possibly moving to preamble.
+  // Collect any ::preamble and ::use blocks for possibly moving to preamble.
   document: Record<string, AST> .= {}
   preamble: AST[][] .= []
   preambleDepth .= 0
@@ -203,7 +218,7 @@ function processDocument(root: AST[]): void
       switch line
         { type: "EOL" }
         [ { type: "Indent" } ]
-        [ { type: "Indent" }, "\0" ]  // >>styles
+        [ { type: "Indent" }, "\0" ]  // ::styles
         [ { type: "Indent" }, { type: "Comment" } ]
         [ { type: "Indent" }, { type: "Use" } ],
         [ { type: "Indent" }, { type: "Uses" } ],
@@ -222,11 +237,15 @@ function processDocument(root: AST[]): void
     if document["\\title"] and not document["\\maketitle"]
       document["\\begin"][0] += "\\maketitle\n"
 
+  // Provide \defn command if used, e.g. from default Markdown emphasis `***`.
+  // and not already obviously defined.
+  if find(root, isDefn) and not definesDefnCommand root
+    preamble.push [defaultDefnCommand]
+
   if preamble#
     copy :=
       for each line of preamble
-        [ line[..], '\n' ]
-      .flat()
+        line[..], '\n'
     (document["\\begin"] as AST[]).splice 0, 0, ...copy
     for each line of preamble
       line.splice 0, line#, "\0"

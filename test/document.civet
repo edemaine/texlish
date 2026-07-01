@@ -134,6 +134,153 @@ describe '\\begin/\\end{document}', ->
 
   ''', fragment: false
 
+describe 'automatic \\defn', ->
+  testCase r'''
+    add \defn definition when default *** style is used
+    ---
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    add \defn definition when explicit command is used
+    ---
+    That's \defn{important}.
+    ---
+    \documentclass[11pt]{article}
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no \defn definition when custom *** style is used
+    ---
+    ::styles
+      *** = \texttt
+    That's ***literal***.
+    ---
+    \documentclass[11pt]{article}
+
+    \begin{document}
+    That's \texttt{literal}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    add \defn definition after user preamble
+    ---
+    ::preamble \newcommand\foo{bar}
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \newcommand\foo{bar}
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no \defn definition after user \newcommand
+    ---
+    \newcommand\defn[1]{\emph{#1}}
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \newcommand\defn[1]{\emph{#1}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no \defn definition after user braced \newcommand
+    ---
+    \newcommand{\defn}[1]{\emph{#1}}
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \newcommand{\defn}[1]{\emph{#1}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no \defn definition after user \def
+    ---
+    \def\defn#1{\emph{#1}}
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \def\defn#1{\emph{#1}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no \defn definition after user ::preamble definition
+    ---
+    ::preamble \newcommand\defn[1]{\emph{#1}}
+    That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \newcommand\defn[1]{\emph{#1}}
+
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    add \defn definition before existing document environment
+    ---
+    : document
+      That's ***important***.
+    ---
+    \documentclass[11pt]{article}
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+    \begin{document}
+      That's \defn{important}.
+    \end{document}
+  ''', fragment: false
+
+  testCase r'''
+    add \defn definition before existing braced begin
+    ---
+    \begin{document}
+    That's ***important***.
+    \end{document}
+    ---
+    \documentclass[11pt]{article}
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+    \begin{document}
+    That's \defn{important}.
+    \end{document}
+  ''', fragment: false
+
 describe '\\maketitle', ->
   testCase r'''
     begin placement before \maketitle
