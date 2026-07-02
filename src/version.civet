@@ -85,7 +85,7 @@ function compareIdentifiers(a: PrereleaseIdentifier, b: PrereleaseIdentifier): -
 
 /** Compare two parsed versions according to SemVer precedence. */
 function compareVersions(a: Version, b: Version): -1 | 0 | +1
-  for key of ["major", "minor", "patch"] as const
+  for each key of ["major", "minor", "patch"] as const
     diff := a[key] - b[key]
     return Math.sign(diff) as -1 | 0 | +1 if diff
 
@@ -96,7 +96,7 @@ function compareVersions(a: Version, b: Version): -1 | 0 | +1
   return 1 unless aPrerelease#
   return -1 unless bPrerelease#
 
-  for aIdentifier?, bIdentifier? of aPrerelease, bPrerelease
+  for each aIdentifier?, bIdentifier? of aPrerelease, bPrerelease
     // "A larger set of pre-release fields has a higher precedence than a smaller set, if all of the preceding identifiers are equal."
     return -1 unless aIdentifier?
     return 1 unless bIdentifier?
@@ -106,7 +106,7 @@ function compareVersions(a: Version, b: Version): -1 | 0 | +1
 
 /** Parse || alternatives of whitespace-separated AND comparators. */
 function parseComparators(range: string): Comparator[][]
-  for alternative of range.split /\s*\|\|\s*/
+  for each alternative of range.split /\s*\|\|\s*/
     parseComparatorAlternative range, alternative
 
 /** Parse one whitespace-separated AND alternative. */
@@ -118,7 +118,7 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
     .replace /// (${comparisonOpsRE}) \s+ ///g, "$1"
     .trim()
     .split /\s+/
-  for let token of tokens
+  for each let token of tokens
     continue unless token
     op: Comparator["op"]? .= undefined
     if match := /// ^ (${comparisonOpsRE}) ///.exec token
@@ -138,7 +138,7 @@ function parseComparatorAlternative(range: string, alternative: string): Compara
     else
       wildcard .= false
       wild: Partial<Version> := {}
-      for key, i of ["major", "minor", "patch"] as const
+      for each key, i of ["major", "minor", "patch"] as const
         part := match[i + wildOffset]
         if part?
           if wildcardRE.test part
