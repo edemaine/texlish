@@ -189,6 +189,16 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
+    custom inline style falls back to shorter marker
+    ---
+    ::styles
+      `` = \\Verb
+    ```code```
+    ---
+    \\Verb`code`
+  '''
+
+  testCase '''
     non-verb custom inline style
     ---
     ::styles
@@ -207,6 +217,16 @@ describe 'Markdown backticks', ->
     ---
     \\begin{verbatim}
     x < y
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    empty fenced code block
+    ---
+    ```
+    ```
+    ---
+    \\begin{verbatim}
     \\end{verbatim}
   '''
 
@@ -333,6 +353,34 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
+    fenced code style falls back to shorter info marker
+    ---
+    ::styles
+      ````py = lstlisting[language=Python]
+    `````py
+    print("hello")
+    `````
+    ---
+    \\begin{lstlisting}[language=Python]
+    print("hello")
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    fenced code style falls back to shorter generic marker
+    ---
+    ::styles
+      ````* = lstlisting
+    `````
+    x
+    `````
+    ---
+    \\begin{lstlisting}
+    x
+    \\end{lstlisting}
+  '''
+
+  testCase '''
     inline and fenced code styles are distinct
     ---
     ::styles
@@ -419,16 +467,19 @@ describe 'Markdown backticks', ->
     \\end{lstlisting}
   '''
 
-  it 'fenced code rejects invalid block style', ->
-    assert.throws (
-      => compile """
-        ::styles
-          ```* =
-        ```
-        x
-        ```
-      """, fragment: true
-    ), /Invalid code block style/
+  testCase '''
+    empty fenced code style falls back to default
+    ---
+    ::styles
+      ```* =
+    ```
+    x
+    ```
+    ---
+    \\begin{verbatim}
+    x
+    \\end{verbatim}
+  '''
 
   testCase '''
     fenced code block disabled below threshold

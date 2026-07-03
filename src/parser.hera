@@ -322,8 +322,10 @@ CodeSpan ::string
     // CommonMark code spans strip exactly one leading/trailing space.
     if body.startsWith(" ") and body.endsWith(" ") and /[^ ]/.test body
       body = body[<..<]
-    style := state.compilerOptions.styles[marker] ??
-      state.compilerOptions.styles["`"]
+    style .= for first length of [marker# >=..1]
+      continue unless style := state.compilerOptions.styles["`".repeat length]
+      style
+    style ??= "\\verb"
     unless /\\[a-zA-Z@]*[vV]erb\*?$/.test style
       return `${style}{${body}}`
     // \verb uses matching before/after delimiters. Find one not in body.
@@ -365,9 +367,12 @@ CodeBlock ::AST[]
     info = info.trim()
     suffix := info or "*"
     option := if info.startsWith "[" then info else ""
-    style .= state.compilerOptions.styles[marker + suffix] ??
-      state.compilerOptions.styles[marker + "*"] ??
-      state.compilerOptions.styles["```*"]
+    style .= for first length of [marker# >=..3]
+      ticks := "`".repeat length
+      continue unless style := state.compilerOptions.styles[ticks + suffix] ??
+        state.compilerOptions.styles[ticks + "*"]
+      style
+    style ??= "\\begin{verbatim}"
     style = style.trim()
     style = style[>=2].trimStart() if /^:[ \t]/.test style
     let envOpen, envClose
@@ -390,7 +395,7 @@ CodeBlock ::AST[]
       envOpen
       "\n"
       content
-      if /(?:\r\n?|\n)$/.test content then "" else "\n"
+      if content# and not /(?:\r\n?|\n)$/.test content then "\n"
       envClose
     ]
 
