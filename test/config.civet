@@ -59,6 +59,20 @@ describe 'project config', ->
         recursive: true
         force: true
 
+  it 'loads markdown backtick threshold', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        markdownBackticks: 3
+      })
+      config := await loadConfig configPath
+      assert.equal config.markdownBackticks, 3
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
 describe '--config assignment', ->
   it 'parses key=value', ->
     assert.deepEqual parseConfigAssignment('scriptGrouping=alphanumeric'),
@@ -107,3 +121,28 @@ describe '--config assignment', ->
     assert.deepEqual parseCompilerOption('markdownCompat', false),
       key: 'markdownCompat'
       value: false
+
+  it 'parses markdown backtick threshold', ->
+    assert.deepEqual parseCompilerOption('markdownBackticks', '3'),
+      key: 'markdownBackticks'
+      value: 3
+    assert.deepEqual parseCompilerOption('markdownBackticks', true),
+      key: 'markdownBackticks'
+      value: 1
+    assert.deepEqual parseCompilerOption('markdownBackticks', false),
+      key: 'markdownBackticks'
+      value: 0
+    assert.deepEqual parseCompilerOption('markdownBackticks', 'ON'),
+      key: 'markdownBackticks'
+      value: 1
+    assert.deepEqual parseCompilerOption('markdownBackticks', 'OFF'),
+      key: 'markdownBackticks'
+      value: 0
+
+  it 'rejects invalid markdown backtick thresholds', ->
+    assert.throws (
+      => parseCompilerOption('markdownBackticks', '-1')
+    ), /nonnegative integer/
+    assert.throws (
+      => parseCompilerOption('markdownBackticks', '1.5')
+    ), /nonnegative integer/

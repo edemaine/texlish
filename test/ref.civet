@@ -53,6 +53,16 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
   '''
 
   testCase r'''
+    custom label without space after assignment
+    ---
+    ::styles
+      @= =\clabel
+    @=thm:big
+    ---
+    \clabel{thm:big}
+  '''
+
+  testCase r'''
     spaced
     ---
     @='big theorem'

@@ -25,24 +25,37 @@ export { version } from ./version.civet
 
 uncacheable := new Set [
   // Indentation
-  // We need to no-cache the state modifying rules up to the point where they
-  // balance within a parent so PushIndent needs to be marked no-cache even
-  // though it only calls TrackIndented which does the actual work.
+  // Push* and Pop* rules mutate the indentation stack or pending line indent;
+  // they must not be reused across parser states.
   "Indent"
   "PushIndent"
+  "PushStrictIndent"
+  "PushStrictCurrentIndent"
   "PopIndent"
   "SaveIndent"
   "PushLineIndent"
   "PopLineIndent"
   "PushListItemIndent"
+  "PushListItemPendingIndent"
+  "PopListItemIndent"
   // List item markers set state.listItemIndent for PushListItemIndent.
   "Bullet"
   "NumberBullet"
-  // ListItemLine installs and consumes pendingLineIndent.
+  // ListItemLine chooses between statement/text list-item setup, both stateful.
   "ListItemLine"
   // Parser config mutation
   "MetaStyles"
   "MetaConfig"
+  // Code spans/blocks temporarily record their opening marker/fence; body
+  // rules use marker-sensitive close checks.
+  "CodeSpan"
+  "CodeSpanOpen"
+  "CodeSpanBodyPart"
+  "CodeSpanClose"
+  "CodeBlock"
+  "CodeBlockOpen"
+  "CodeBlockBodyLine"
+  "CodeBlockClose"
 ]
 
 export function generate(ast: AST): string

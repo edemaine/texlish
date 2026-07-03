@@ -19,6 +19,15 @@
   compiling to `\protect\href{url}{text}`.
   They can be disabled with `-markdownLinks` or `-markdownCompat`.
   [[#32](https://github.com/edemaine/texlish/issues/32)]
+* Markdown-style backticks support inline code spans and fenced code blocks,
+  compiling by default to LaTeX `\verb` and `verbatim` environment,
+  but configurable for each number of ticks via `::styles`.
+  Fenced blocks can pass an optional argument to the environment,
+  such as `` ```[language=python] ``.
+  Indented fences strip up to the opening fence indentation from content lines.
+  The minimum enabled backtick run can be configured with `markdownBackticks`,
+  or disabled with `-markdownBackticks` or `-markdownCompat`.
+  [[#4](https://github.com/edemaine/texlish/issues/4)]
 * Markdown-style horizontal rules `---`, customizable through `::styles`.
   They can be disabled with `-markdownHorizontalRules` or `-markdownCompat`.
   [[#33](https://github.com/edemaine/texlish/issues/33)]

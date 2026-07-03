@@ -1,12 +1,15 @@
 import type { ActiveCompilerOptions, CompilerOptions, ScriptGrouping } from ./types.civet
 
 export const defaultConfig: ActiveCompilerOptions = {
+  markdownBackticks: 1
   markdownHorizontalRules: true
   markdownLinks: true
   markdownLists: true
   scriptParens: true
   scriptGrouping: "numeric"
   styles:
+    '`': '\\verb'
+    '```*': 'verbatim'
     '*': '\\emph'
     '**': '\\textbf'
     '***': '\\defn'
@@ -21,6 +24,7 @@ export const defaultConfig: ActiveCompilerOptions = {
       @scriptGrouping = "none"
     @scriptParens = not value
   set markdownCompat(value: boolean)
+    @markdownBackticks = if value then 1 else 0
     @markdownHorizontalRules = value
     @markdownLinks = value
     @markdownLists = value
@@ -33,6 +37,8 @@ export const defaultConfig: ActiveCompilerOptions = {
 export function makeCompilerOptions(options: CompilerOptions = {}): ActiveCompilerOptions
   merged := Object.create defaultConfig
   Object.assign merged, options
+  if options.markdownBackticks?
+    merged.markdownBackticks = parseBacktickThreshold "markdownBackticks", options.markdownBackticks
   merged.styles = {
     ...defaultConfig.styles
     ...options.styles
@@ -54,6 +60,7 @@ scriptGroupingValues := [
 scriptGroupingValueSet: Set<string> := new Set scriptGroupingValues
 
 type ParsedCompilerOption
+  | { key: "markdownBackticks", value: number }
   | { key: "scriptGrouping", value: ScriptGrouping }
   | { key: BooleanCompilerOption, value: boolean }
   | { key: "styles", value: Record<string, string> }
@@ -106,6 +113,24 @@ function parseString(key: string, value: ???): string
     throw new Error `Config option ${key} must be a string, got ${typeof value}`
   value
 
+export function parseBacktickThreshold(key: string, value: ???): number
+  return 1 if value is true
+  return 0 if value is false
+  number := switch value
+    <? "number"
+      value
+    /^\s*\d+\s*$/
+      Number value.trim()
+    /^\s*(?:true|yes|on)\s*$/i
+      1
+    /^\s*(?:false|no|off)\s*$/i
+      0
+    else
+      throw new Error `Config option ${key} must be a nonnegative integer, got ${typeof value}`
+  unless Number.isSafeInteger(number) and number >= 0
+    throw new Error `Invalid ${key} value: ${value}; expected a nonnegative integer`
+  number
+
 /**
  * Parse one already-tokenized config option key/value pair.
  * Checks that the option name is known, the path shape is valid, and the value
@@ -130,6 +155,10 @@ export function parseCompilerOption(key: string | string[], value: ???): ParsedC
       key: booleanKey
       value: parseBoolean booleanKey, value
   switch option
+    when "markdownbackticks"
+      rejectNestedOption()
+      key: "markdownBackticks"
+      value: parseBacktickThreshold "markdownBackticks", value
     when "scriptgrouping"
       rejectNestedOption()
       stringValue := parseString "scriptGrouping", value

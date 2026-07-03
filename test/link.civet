@@ -370,6 +370,22 @@ describe 'Markdown links', ->
   '''
 
   testCase r'''
+    multiline link text does not grab dedented list content
+    ---
+    - outer
+      - [a
+      b](https://example.com)
+    ---
+    \begin{itemize}
+    \item outer
+      \begin{itemize}
+      \item [a
+      \end{itemize}
+      b](https://example.com)
+    \end{itemize}
+  '''
+
+  testCase r'''
     multiline link text can continue on next top-level line
     ---
     See [Texlish

@@ -229,6 +229,93 @@ Texlish uses `\protect` in case links appear in a moving argument.
 Markdown links can be disabled with `::config -markdownLinks`
 or `::config -markdownCompat`.
 
+## Code
+
+Similar to Markdown
+[inline code](https://daringfireball.net/projects/markdown/syntax#code) /
+CommonMark [code spans](https://spec.commonmark.org/0.31.2/#code-spans),
+matching backtick runs compile to LaTeX `\verb`:
+
+<Example src={`
+  Write \`$x^2$\` to produce $x^2$.
+  Use \`\` \`literal backticks\` \`\` to write code.
+`}/>
+
+Code-span line endings and following indentation become a single space.
+If the code starts and ends with a space, exactly one space gets stripped
+from each end (like CommonMark), making it easier to write literal backticks.
+
+Fenced code blocks use three or more backticks and compile to a
+`verbatim` environment by default:
+
+<Example src={`
+  \`\`\`
+  x < y
+  \`\`\`
+`}/>
+
+If the opening fence is indented, up to that much indentation is removed from
+each content line, following CommonMark:
+
+<Example src={`
+  Example:
+    \`\`\`
+      if x:
+        y()
+    \`\`\`
+`}/>
+
+You can customize both using `::styles`. For inline code commands, the
+`::styles` key is the backtick run. For fenced blocks, add a `*`.
+
+<Example src={`
+  ::styles
+    \`\` = \\Verb
+    \`\`\`\`* = lstlisting
+  \`\`inline\`\`
+  \`\`\`\`
+  block
+  \`\`\`\`
+`}/>
+
+Fenced code blocks can specify an info string, such as a language name.
+Then you can customize the environment for that info string with `::styles`.
+Style values can be a plain environment, a Texlish-style `: environment`,
+or a LaTeX-style `\begin{environment}`:
+
+<Example src={`
+  ::styles
+    \`\`\`py = : lstlisting[language=Python]
+  \`\`\`py
+  print("hello")
+  \`\`\`
+`}/>
+
+If a fenced code block starts with an optional argument, Texlish passes it to
+the selected environment:
+
+<Example src={`
+  ::styles
+    \`\`\`* = lstlisting
+  \`\`\`[numbers=left]
+  x
+  \`\`\`
+`}/>
+
+Backticks can be disabled with `::config -markdownBackticks`
+or `::config -markdownCompat`.
+Set `markdownBackticks` to an integer `n`
+to enable only runs of `n` or more backticks:
+For example, you use one or two backticks for opening quotes
+and three or more for code:
+
+<Example src={`
+  ::config markdownBackticks=3
+  \`single quotes'
+  \`\`double quotes''
+  \`\`\`code\`\`\`
+`}/>
+
 ## Horizontal Rules
 
 Similar to Markdown
@@ -505,7 +592,11 @@ Supported config options are:
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`
   and `scriptParens = false`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
-  currently `markdownHorizontalRules`, `markdownLinks`, and `markdownLists`
+  currently `markdownBackticks`, `markdownHorizontalRules`, `markdownLinks`,
+  and `markdownLists`
+* `markdownBackticks`: minimum number of backticks that enables
+  [code spans and fenced code blocks](#code), or `0` to disable them;
+  enabled by default as `1`
 * `markdownHorizontalRules`: whether horizontal rule lines like `---` compile to
   `\medskip\hrule\medskip`; enabled by default
 * `markdownLinks`: whether `[text](url)` compiles to
@@ -516,12 +607,12 @@ Supported config options are:
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
-* `styles`: styles for [emphasis](#emphasis), [horizontal rules](#horizontal-rules),
-  or [label/ref](#label-ref);
+* `styles`: styles for [emphasis](#emphasis), [code](#code),
+  [horizontal rules](#horizontal-rules), or [label/ref](#label-ref);
   equivalent to `::styles`
 
 You can also set config options globally in a
-[project config file](start#configuration).
+[project config file](/start#configuration).
 
 ## Script Grouping
 

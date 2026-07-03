@@ -1,0 +1,449 @@
+{ testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+assert from assert
+
+describe 'Markdown backticks', ->
+  // No `r` because backticks are escaped when Civet transpiles raw strings.
+  testCase '''
+    inline code span
+    ---
+    Use `\\verb` for inline verbatim.
+    ---
+    Use \\verb`\\verb` for inline verbatim.
+  '''
+
+  testCase '''
+    code span containing backtick
+    ---
+    ``There is a literal backtick (`) here.``
+    ---
+    \\verb|There is a literal backtick (`) here.|
+  '''
+
+  testCase '''
+    code span trims one padding space
+    ---
+    A single backtick: `` ` ``
+    ---
+    A single backtick: \\verb|`|
+  '''
+
+  testCase '''
+    code span only trims one padding space
+    ---
+    `  ``  `
+    ---
+    \\verb| `` |
+  '''
+
+  testCase '''
+    code span keeps one-sided padding
+    ---
+    ` a` and `b `
+    ---
+    \\verb` a` and \\verb`b `
+  '''
+
+  testCase '''
+    code span line endings become spaces
+    ---
+    ``foo
+    bar
+    baz``
+    ---
+    \\verb`foo bar baz`
+  '''
+
+  testCase '''
+    code span line indentation becomes one space
+    ---
+    `foo
+        bar`
+    ---
+    \\verb`foo bar`
+  '''
+
+  testCase '''
+    code span does not cross blank line
+    ---
+    `foo
+
+    bar`
+    ---
+    `foo
+
+    bar`
+  '''
+
+  testCase '''
+    dedented code span continuation stays literal
+    ---
+    - outer
+      - inner `foo
+    bar`
+    ---
+    \\begin{itemize}
+    \\item outer
+      \\begin{itemize}
+      \\item inner `foo
+      \\end{itemize}
+    \\end{itemize}
+    bar`
+  '''
+
+  testCase '''
+    code span uses backtick delimiter before pipe
+    ---
+    `a|b`
+    ---
+    \\verb`a|b`
+  '''
+
+  testCase '''
+    code span chooses delimiter not in body
+    ---
+    ``a`|b``
+    ---
+    \\verb!a`|b!
+  '''
+
+  testCase '''
+    code span chooses later printable delimiter
+    ---
+    ``a`|!b``
+    ---
+    \\verb"a`|!b"
+  '''
+
+  it 'code span throws when no printable verb delimiter is available', ->
+    allPrintable .= ""
+    for i of [33..126]
+      allPrintable += String.fromCharCode i
+    assert.throws (
+      => compile "``" + allPrintable + "``"
+    ), /printable ASCII delimiter/
+
+  testCase '''
+    unmatched code span is literal
+    ---
+    ```foo``
+    ---
+    ```foo``
+  '''
+
+  testCase '''
+    threshold leaves shorter spans literal
+    ---
+    `one` and ```three```
+    ---
+    `one` and \\verb`three`
+  ''', markdownBackticks: 3
+
+  testCase '''
+    disabled by compiler option
+    ---
+    `code`
+    ---
+    `code`
+  ''', markdownBackticks: false
+
+  testCase '''
+    disabled by in-file config shorthand
+    ---
+    `before`
+    ::config -markdownBackticks
+    `after`
+    ---
+    \\verb`before`
+    `after`
+  '''
+
+  testCase '''
+    enabled for larger backtick runs by in-file config
+    ---
+    ::config markdownBackticks=2
+    `one` and ``two``
+    ---
+    `one` and \\verb`two`
+  '''
+
+  testCase '''
+    disabled by markdownCompat shorthand
+    ---
+    `before`
+    ::config -markdownCompat
+    `after`
+    ---
+    \\verb`before`
+    `after`
+  '''
+
+  testCase '''
+    custom inline style
+    ---
+    ::styles
+      `` = \\Verb
+    ``code``
+    ---
+    \\Verb`code`
+  '''
+
+  testCase '''
+    non-verb custom inline style
+    ---
+    ::styles
+      `` = \\texttt
+    ``code``
+    ---
+    \\texttt{code}
+  '''
+
+  testCase '''
+    fenced code block
+    ---
+    ```
+    x < y
+    ```
+    ---
+    \\begin{verbatim}
+    x < y
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    fenced code block allows blank lines
+    ---
+    ```
+    foo
+
+    bar
+    ```
+    ---
+    \\begin{verbatim}
+    foo
+
+    bar
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    fenced code block can be followed by statement
+    ---
+    ```
+    x
+    ```
+    next
+    ---
+    \\begin{verbatim}
+    x
+    \\end{verbatim}
+    next
+  '''
+
+  testCase '''
+    fenced code block can close with longer fence
+    ---
+    ```
+    x
+    ````
+    ---
+    \\begin{verbatim}
+    x
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    longer fenced code block can contain shorter fence
+    ---
+    ````
+    ```
+    x
+    ```
+    ````
+    ---
+    \\begin{verbatim}
+    ```
+    x
+    ```
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    indented fenced code block removes opening fence indent
+    ---
+      ```
+        if x:
+          y()
+    ```
+    ---
+      \\begin{verbatim}
+      if x:
+        y()
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    indented fenced code block preserves unindented content lines
+    ---
+      ```
+    left
+       right
+    ```
+    ---
+      \\begin{verbatim}
+    left
+     right
+    \\end{verbatim}
+  '''
+
+  testCase '''
+    fenced code block does not grab dedented list content
+    ---
+    - outer
+      - item
+        ```
+        x
+      y
+        ```
+    ---
+    \\begin{itemize}
+    \\item outer
+      \\begin{itemize}
+      \\item item
+        ```
+        x
+      \\end{itemize}
+      y
+        ```
+    \\end{itemize}
+  '''
+
+  testCase '''
+    custom fenced code block style
+    ---
+    ::styles
+      ````* = lstlisting
+    ````
+    x
+    ````
+    ---
+    \\begin{lstlisting}
+    x
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    inline and fenced code styles are distinct
+    ---
+    ::styles
+      ``` = \\Verb
+      ```* = lstlisting
+    ```inline```
+    ```
+    block
+    ```
+    ---
+    \\Verb`inline`
+    \\begin{lstlisting}
+    block
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    fenced code style by info string
+    ---
+    ::styles
+      ```py = : lstlisting[language=Python]
+    ```py
+    print("hello")
+    ```
+    ---
+    \\begin{lstlisting}[language=Python]
+    print("hello")
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    fenced code style accepts plain environment spec
+    ---
+    ::styles
+      ```js = lstlisting[language=JavaScript]
+    ```js
+    console.log("hello")
+    ```
+    ---
+    \\begin{lstlisting}[language=JavaScript]
+    console.log("hello")
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    fenced code style accepts begin environment
+    ---
+    ::styles
+      ```cpp = \\begin{lstlisting}[language=C++]
+    ```cpp
+    int main() {}
+    ```
+    ---
+    \\begin{lstlisting}[language=C++]
+    int main() {}
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    fenced code optional argument passes to environment
+    ---
+    ::styles
+      ```* = lstlisting
+    ```[numbers=left]
+    x
+    ```
+    ---
+    \\begin{lstlisting}[numbers=left]
+    x
+    \\end{lstlisting}
+  '''
+
+  testCase '''
+    unknown fenced code info falls back to generic style
+    ---
+    ::styles
+      ```* = lstlisting
+    ```python
+    x
+    ```
+    ---
+    \\begin{lstlisting}
+    x
+    \\end{lstlisting}
+  '''
+
+  it 'fenced code rejects invalid block style', ->
+    assert.throws (
+      => compile """
+        ::styles
+          ```* =
+        ```
+        x
+        ```
+      """, fragment: true
+    ), /Invalid code block style/
+
+  testCase '''
+    fenced code block disabled below threshold
+    ---
+    ```
+    x
+    ```
+    ````
+    y
+    ````
+    ---
+    ```
+    x
+    ```
+    \\begin{verbatim}
+    y
+    \\end{verbatim}
+  ''', markdownBackticks: 4

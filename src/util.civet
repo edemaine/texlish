@@ -3,6 +3,24 @@ type { AST, ASTParent, Comment, Indent } from ./types.civet
 export function isNumeric(value: string): boolean
   /^\d+/.test value
 
+export function visualWidth(text: string): number
+  numTabs := text.match(/\t/g)?# ?? 0
+  numTabs * 8 + (text# - numTabs)
+
+export function reduceVisualIndent(text: string, amount: number): string
+  return text unless amount > 0
+  for each char, i of text
+    return text[>= i] unless amount > 0
+    if char is "\t"
+      amount -= 8
+      if amount < 0
+        return " ".repeat(-amount) + text[>= i + 1]
+    else if char is " "
+      amount--
+    else
+      return text[>= i]
+  ""
+
 /** Generate all nodes in the tree in prefix order. */
 export function iterate(node: AST): Generator<AST>
   yield node
