@@ -1,12 +1,28 @@
-import type { ActiveCompilerOptions, CompilerOptions, ScriptGrouping } from ./types.civet
+import type {
+  ActiveCompilerOptions,
+  CompilerOptions,
+  PartialQuoteConfig,
+  QuoteChar,
+  QuoteConfig,
+  QuoteRole,
+  ScriptGrouping,
+} from ./types.civet
 
 export const defaultConfig: ActiveCompilerOptions = {
   markdownBackticks: 1
   markdownHorizontalRules: true
   markdownLinks: true
   markdownLists: true
+  smartQuotes: true
   scriptParens: true
   scriptGrouping: "numeric"
+  quotes:
+    '"':
+      open: "``"
+      close: "''"
+    "'":
+      open: "`"
+      close: "'"
   styles:
     '`': '\\verb'
     '```*': 'verbatim'
@@ -22,12 +38,14 @@ export const defaultConfig: ActiveCompilerOptions = {
   set latexCompat(value: boolean)
     if value
       @scriptGrouping = "none"
+      @smartQuotes = false
     @scriptParens = not value
   set markdownCompat(value: boolean)
     @markdownBackticks = if value then 1 else 0
     @markdownHorizontalRules = value
     @markdownLinks = value
     @markdownLists = value
+    @smartQuotes = value
 }
 
 /**
@@ -39,11 +57,24 @@ export function makeCompilerOptions(options: CompilerOptions = {}): ActiveCompil
   Object.assign merged, options
   if options.markdownBackticks?
     merged.markdownBackticks = parseBacktickThreshold "markdownBackticks", options.markdownBackticks
+  merged.quotes = mergeQuotes options.quotes
   merged.styles = {
     ...defaultConfig.styles
     ...options.styles
   }
   merged
+
+function mergeQuotes(quotes?: PartialQuoteConfig): QuoteConfig
+  {
+    for each quote of quoteChars
+      [quote]: {
+        for each role of quoteRoles
+          [role]: quoteOutput quotes?[quote]?[role] ?? defaultConfig.quotes[quote][role]
+      }
+  } as QuoteConfig
+
+function quoteOutput(output: string): string
+  output.replace /\\[A-Za-z@]+$/u, "$&{}"
 
 function normalizeWord(word: string): string
   word
@@ -58,9 +89,12 @@ scriptGroupingValues := [
   "none"
 ] satisfies ScriptGrouping[]
 scriptGroupingValueSet: Set<string> := new Set scriptGroupingValues
+quoteChars := ['"', "'"] satisfies QuoteChar[]
+quoteRoles := ["open", "close"] satisfies QuoteRole[]
 
 type ParsedCompilerOption
   | { key: "markdownBackticks", value: number }
+  | { key: "quotes", value: PartialQuoteConfig }
   | { key: "scriptGrouping", value: ScriptGrouping }
   | { key: BooleanCompilerOption, value: boolean }
   | { key: "styles", value: Record<string, string> }
@@ -72,6 +106,7 @@ type BooleanCompilerOption
   | "markdownHorizontalRules"
   | "markdownLinks"
   | "markdownLists"
+  | "smartQuotes"
 
 booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["scriptparens", "scriptParens"]
@@ -80,6 +115,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["markdownhorizontalrules", "markdownHorizontalRules"]
   . ["markdownlinks", "markdownLinks"]
   . ["markdownlists", "markdownLists"]
+  . ["smartquotes", "smartQuotes"]
 
 function setCompilerOption<K extends keyof CompilerOptions>(
   options: CompilerOptions
@@ -112,6 +148,21 @@ function parseString(key: string, value: ???): string
   unless value <? "string"
     throw new Error `Config option ${key} must be a string, got ${typeof value}`
   value
+
+function isQuoteChar(value: string): value is QuoteChar
+  value is '"' or value is "'"
+
+function isQuoteRole(value: string): value is QuoteRole
+  value is "open" or value is "close"
+
+function parseQuoteOption(path: string[], value: ???): ParsedCompilerOption
+  [, quote, role] := path
+  unless path# is 3 and isQuoteChar(quote) and isQuoteRole(role)
+    throw new Error `Unknown config option: ${path.join '.'}`
+  stringValue := parseString `quotes.${quote}.${role}`, value
+  return
+    key: "quotes"
+    value: { [quote]: { [role]: stringValue } }
 
 export function parseBacktickThreshold(key: string, value: ???): number
   return 1 if value is true
@@ -166,6 +217,8 @@ export function parseCompilerOption(key: string | string[], value: ???): ParsedC
         throw new Error `Invalid scriptGrouping value: ${stringValue}; expected ${scriptGroupingValues.join ', '}`
       key: "scriptGrouping"
       value: stringValue as ScriptGrouping
+    when "quotes"
+      parseQuoteOption path, value
     when "styles"
       if path# < 2
         throw new Error `Config option ${path.join '.'} must include a style key`
@@ -187,6 +240,14 @@ export function applyCompilerOption(options: CompilerOptions, key: string | stri
     options.styles ?= {}
     for subkey, subvalue in option.value
       options.styles[subkey] = subvalue
+  else if option.key is "quotes"
+    options.quotes ?= {}
+    for each quote of quoteChars
+      continue unless quoteStyle := option.value[quote]
+      options.quotes[quote] ?= {}
+      for each role of quoteRoles
+        if output := quoteStyle[role]
+          options.quotes[quote][role] = quoteOutput output
   else
     setCompilerOption options, option
 

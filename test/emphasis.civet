@@ -111,12 +111,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       a * foo bar*
     '''
 
-    testCase r'''
+    testCase '''
       352
       ---
       a*"foo"*
       ---
-      a*"foo"*
+      a*``foo''*
     '''
 
     testCase r'''
@@ -167,12 +167,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       _ foo bar_
     '''
 
-    testCase r'''
+    testCase '''
       359
       ---
       a_"foo"_
       ---
-      a_"foo"_
+      a_``foo''_
     '''
 
     testCase r'''
@@ -199,12 +199,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       пристаням_стремятся_
     '''
 
-    testCase r'''
+    testCase '''
       363
       ---
       aa_"bb"_cc
       ---
-      aa_"bb"_cc
+      aa_``bb''_cc
     '''
 
     testCase.skip r'''
@@ -337,12 +337,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       ** foo bar**
     '''
 
-    testCase r'''
+    testCase '''
       380
       ---
       a**"foo"**
       ---
-      a**"foo"**
+      a**``foo''**
     '''
 
     testCase r'''
@@ -379,12 +379,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       foo bar__
     '''
 
-    testCase r'''
+    testCase '''
       385
       ---
       a__"foo"__
       ---
-      a__"foo"__
+      a__``foo''__
     '''
 
     testCase r'''
@@ -459,12 +459,12 @@ describe 'Markdown emphasis (*/**/***)', ->
       \textbf{Gomphocarpus (\emph{Gomphocarpus physocarpus}, syn. \emph{Asclepias physocarpa})}
     '''
 
-    testCase r'''
+    testCase '''
       395
       ---
       **foo "*bar*" foo**
       ---
-      \textbf{foo "\emph{bar}" foo}
+      \\textbf{foo ``\\emph{bar}'' foo}
     '''
 
     testCase r'''

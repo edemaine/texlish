@@ -1,4 +1,11 @@
-type { AST, CompilerOptions, Delimiter, FootnoteDefinition, FootnoteRef } from ./types.civet
+type {
+  AST,
+  CompilerOptions,
+  Delimiter,
+  FootnoteDefinition,
+  FootnoteRef,
+  SmartQuote,
+} from ./types.civet
 { find, isNumeric, iterate, iteratePrePost, iterateFlatArrays } from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
@@ -6,11 +13,120 @@ defaultDefnCommand := "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
+  processSmartQuotes root
   processMarkdown root
   processFootnotes root
   processBeginEnd root
   processDocument root unless options.fragment
   root
+
+/**
+ * Convert source smart quotes ' and " to TeX quote ligatures ``/''/etc.
+ * Markdown-style smart quotes usually classify from local flanking context:
+ * whitespace, punctuation, and whether the quote can open or close.
+ * csquotes acts when TeX sees an active quote token, with quote-level state
+ * and limited output-level lookbehind for adjoining marks, but not source-text
+ * lookbehind for orientation. Texlish can wait until after parsing, so it
+ * combines flanking context with a stack of unmatched openers, letting later
+ * close-looking quotes match earlier openers before falling back to literal
+ * measurement marks or unmatched closers.
+ */
+function processSmartQuotes(root: AST[]): void
+  for parent of iterateFlatArrays root
+    opens: SmartQuote[] := []
+
+    for each child, i of parent
+      continue unless { type: "SmartQuote", quote } := child
+      previousNode := parent[i-1]
+      previous := nodeText(previousNode).-1
+      next := nodeText(parent[i+1]).0
+      // Missing context counts as whitespace at line/array boundaries.
+      previousIsWhitespace := not previous or previous is like /\s/u
+      nextIsWhitespace := not next or next is like /\s/u
+      // Punctuation and symbols can flank quotes without becoming word content.
+      previousIsPunctuation := previous is like /[\p{Punctuation}\p{Symbol}]/u
+      nextIsPunctuation := next is like /[\p{Punctuation}\p{Symbol}]/u
+
+      function rewriteQuote(node: SmartQuote, output: string): void
+        // Separate adjacent source quotes so TeX cannot combine their
+        // rewritten fragments into a different quote ligature. For example,
+        // `'"` would otherwise produce `'''`, which TeX reads as {''}{'}.
+        if (previous is '"' or previous is "'") and previousNode is not like { token: /\{\}$/ }
+          output = "{}" + output
+        node.token = output
+
+      canOpen .= true
+      canClose .= true
+      if nextIsWhitespace
+        canOpen = false
+      else if nextIsPunctuation
+        canOpen = previousIsWhitespace or previousIsPunctuation
+      if previousIsWhitespace
+        canClose = false
+      else if previousIsPunctuation
+        canClose = nextIsWhitespace or nextIsPunctuation
+
+      // In "length is 1"", the first quote after 1 is an inch mark;
+      // leave the second quote to close the quotation.
+      continue if quote is '"' and next is '"' and /^\d$/u.test(previous ?? "")
+      // Runs like f'' or h''' are probably prime marks, especially in math.
+      continue if quote is "'" and (
+        previous is "'" or (next is "'" and not previousIsWhitespace))
+
+      if canOpen and canClose
+        // Middle-of-word quotes are not quotation marks. Quotes in punctuation
+        // runs can still open/close, following CommonMark-style flanking logic.
+        canOpen = previousIsPunctuation
+        canClose = nextIsPunctuation
+
+      // Single quotes in word-like contexts are apostrophes/possessives.
+      // Leave them literal instead of applying configured close quotes.
+      continue unless canOpen or canClose
+
+      if canClose
+        // Prefer matching an earlier opener of the same quote character.
+        // This lets `"the number is 1"` close normally despite ending in
+        // a digit, while still leaving unmatched measurements like 5" literal.
+        continue if for some j of [opens# >..0] when opens[j].quote is quote
+          rewriteQuote child, child.close
+          opens[j..] = []
+          true
+        // A quote after a digit is probably a foot/inch measurement mark
+        // (unless we already matched it with an opener above).
+        beforePrevious := nodeText(parent[i-2]).-1
+        if previous is like /^\d$/u or (quote is previous and beforePrevious is like /^\d$/u)
+          continue
+        unless canOpen
+          // No opener was waiting, but local context is close-only.
+          rewriteQuote child, child.close
+          continue
+
+      if canOpen
+        // If this quote can open and did not close above, rewrite it as open
+        // now. For example, this handles incomplete input like `"unfinished`.
+        rewriteQuote child, child.open
+        // Add this opener to the stack so a later quote can close it.
+        opens.push child
+
+/**
+ * Text used for smart-quote lookaround.
+ * Empty string means no text, including from a child boundary.
+ */
+function nodeText(node: AST): string
+  unless node?
+    ""
+  else if node <? "string"
+    node.replace /\0/g, ""
+  else if { type: "SmartQuote", quote } := node
+    quote
+  else if node is like { type: "Braced" }
+    "{}"
+  else if { token } := node
+    // Delimiter can have both token and children
+    return "" if "children" in node
+    token.replace /\0/g, ""
+  else
+    ""
 
 /** Process Markdown delimiters, based on CommonMark spec:
 https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis

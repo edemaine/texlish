@@ -1,4 +1,9 @@
 export type ScriptGrouping = "numeric" | "alphanumeric" | "alpha" | "none"
+export type QuoteChar = '"' | "'"
+export type QuoteRole = "open" | "close"
+export type QuoteStyle = Record QuoteRole, string
+export type QuoteConfig = Record QuoteChar, QuoteStyle
+export type PartialQuoteConfig = Partial Record QuoteChar, Partial QuoteStyle
 
 export type CompilerOptions
   filename?: string
@@ -13,10 +18,13 @@ export type CompilerOptions
   markdownHorizontalRules?: boolean
   markdownLinks?: boolean
   markdownLists?: boolean
+  smartQuotes?: boolean
+  quotes?: PartialQuoteConfig
   styles?: Record<string, string>
 
-export type ActiveCompilerOptions = Omit<CompilerOptions, "markdownBackticks" | "styles"> & {
+export type ActiveCompilerOptions = Omit<CompilerOptions, "markdownBackticks" | "quotes" | "styles"> & {
   markdownBackticks: number
+  quotes: QuoteConfig
   styles: Record<string, string>
 }
 
@@ -52,6 +60,7 @@ export type ASTNode
   | Indent
   | List
   | Preamble
+  | SmartQuote
   | Use
   | Uses
 
@@ -117,6 +126,15 @@ export interface List extends ASTParent
 export interface Preamble extends ASTParent
   type: "Preamble"
   textBody: AST[]
+
+export interface SmartQuote extends ASTToken
+  type: "SmartQuote"
+  /** Original source quote; token is rewritten to the configured output. */
+  quote: QuoteChar
+  /** Configured replacement if the quote is opening. */
+  open: string
+  /** Configured replacement if the quote is closing. */
+  close: string
 
 export interface Use extends ASTParent
   type: "Use"

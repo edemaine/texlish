@@ -1,0 +1,239 @@
+{ testCase } from ./helper.civet
+
+describe 'Markdown smart quotes', ->
+  testCase '''
+    double quotes become TeX quotes
+    ---
+    "Hello," she said.
+    ---
+    ``Hello,'' she said.
+  '''
+
+  testCase '''
+    single quotes become TeX quotes
+    ---
+    'Hello,' she said.
+    ---
+    `Hello,' she said.
+  '''
+
+  testCase '''
+    British punctuation after double quotes
+    ---
+    She called it "correct".
+    ---
+    She called it ``correct''.
+  '''
+
+  testCase """
+    British punctuation after nested quotes
+    ---
+    She wrote "the word 'correct'".
+    ---
+    She wrote ``the word `correct'{}''.
+  """
+
+  testCase """
+    adjacent single then double open quotes are separated
+    ---
+    '"nested"'
+    ---
+    `{}``nested''{}'
+  """
+
+  testCase """
+    adjacent double then single open quotes are separated
+    ---
+    "'nested'"
+    ---
+    ``{}`nested'{}''
+  """
+
+  testCase '''
+    apostrophes stay apostrophes
+    ---
+    Don't break Bob's examples or dogs' names.
+    ---
+    Don't break Bob's examples or dogs' names.
+  '''
+
+  testCase """
+    primes in math stay literal
+    ---
+    $f' + g'' + h'''$
+    ---
+    $f' + g'' + h'''$
+  """
+
+  testCase """
+    primes in math stay literal around operators
+    ---
+    $f'+g''+h'''$
+    ---
+    $f'+g''+h'''$
+  """
+
+  testCase """
+    primes in math stay literal before punctuation
+    ---
+    Let $f'(x) + g''(x) + h'''(x)$ be formal.
+    ---
+    Let $f'(x) + g''(x) + h'''(x)$ be formal.
+  """
+
+  testCase '''
+    unmatched double quotes after digits stay literal
+    ---
+    Cut 5" pieces.
+    ---
+    Cut 5" pieces.
+  '''
+
+  testCase '''
+    matched double quotes after digits still close
+    ---
+    "Version 5"
+    ---
+    ``Version 5''
+  '''
+
+  testCase '''
+    quoted inch measurements close on second quote
+    ---
+    "Length is 1""
+    ---
+    ``Length is 1"{}''
+  '''
+
+  testCase '''
+    nested quotes use explicit quote characters
+    ---
+    "Outer 'inner' outer."
+    ---
+    ``Outer `inner' outer.''
+  '''
+
+  testCase '''
+    quotes work around Markdown emphasis
+    ---
+    "*Important*" and '**urgent**'
+    ---
+    ``\\emph{Important}'' and `\\textbf{urgent}'
+  '''
+
+  testCase '''
+    unmatched opening quote can be forced
+    ---
+    before "{} after
+    ---
+    before ``{} after
+  '''
+
+  testCase '''
+    incomplete opening quotes become open quotes
+    ---
+    "unfinished and 'partial
+    ---
+    ``unfinished and `partial
+  '''
+
+  testCase '''
+    unmatched closing quote can be forced
+    ---
+    before{}" after
+    ---
+    before{}'' after
+  '''
+
+  testCase '''
+    disabled by compiler option
+    ---
+    "Hello" and 'goodbye'
+    ---
+    "Hello" and 'goodbye'
+  ''', smartQuotes: false
+
+  testCase '''
+    disabled by latexCompat
+    ---
+    "Hello" and 'goodbye'
+    ---
+    "Hello" and 'goodbye'
+  ''', latexCompat: true
+
+  testCase '''
+    disabled by in-file config shorthand
+    ---
+    "before"
+    ::config -smartQuotes
+    "after"
+    ---
+    ``before''
+    "after"
+  '''
+
+  testCase '''
+    disabled by markdownCompat shorthand
+    ---
+    "before"
+    ::config -markdownCompat
+    "after"
+    ---
+    ``before''
+    "after"
+  '''
+
+  testCase '''
+    custom quotes with character-first nested config
+    ---
+    ::config
+      quotes:
+        ":
+          open = <<
+          close = >>
+        ':
+          open = <
+          close = >
+    "double" and 'single'
+    ---
+    <<double>> and <single>
+  '''
+
+  testCase '''
+    custom quotes with dotted config
+    ---
+    ::config quotes.".open=<<
+    ::config quotes.".close=>>
+    "double"
+    ---
+    <<double>>
+  '''
+
+  testCase '''
+    custom quote macros get empty arguments
+    ---
+    ::config
+      quotes:
+        ":
+          open = \\quotedblbase
+          close = \\textquotedblleft
+        ':
+          open = \\quotesinglbase
+          close = \\textquoteleft
+    "double 'single'"
+    ---
+    \\quotedblbase{}double \\quotesinglbase{}single\\textquoteleft{}\\textquotedblleft{}
+  '''
+
+  testCase '''
+    custom single quote foot marks stay literal
+    ---
+    ::config
+      quotes:
+        ':
+          open = \\textquoteleft
+          close = \\textquoteright
+    Cut 5' pieces, then quote 'Version 5'
+    ---
+    Cut 5' pieces, then quote \\textquoteleft{}Version 5\\textquoteright{}
+  '''

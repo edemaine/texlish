@@ -16,6 +16,8 @@ type {
   Indent,
   List,
   Preamble,
+  QuoteChar,
+  SmartQuote,
   Use,
   Uses,
 } from ./types.civet
@@ -197,6 +199,8 @@ MainTextPart ::AST
     return `${state.compilerOptions.styles['[[']}{${$1}}`
   Autolink
   MarkdownLinksEnabled MarkdownLink -> $2
+  SmartQuotesEnabled SmartQuote -> $2
+  /['"]/
   ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
     return `${script[1]}{${script[2]}}`
   ScriptGroupingAlpha /([\^_])([a-zA-Z]{2,})/:script ->
@@ -244,7 +248,19 @@ MainTextPart ::AST
   # Leave trailing InlineCommandWithColonArguments for TextLine to parse
   !InlineCommandWithColonArguments Command -> $2
   # Skip to next interesting character
-  /[^\r\n\\()\[\]{}%][^\r\n@#<`\\\^_()\[\]{}%\*]*/
+  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\\^_()\[\]{}%\*]*/
+
+SmartQuote ::SmartQuote
+  ['"] ->
+    quote := $0 as QuoteChar
+    style := state.compilerOptions.quotes[quote]
+    {
+      type: "SmartQuote"
+      token: quote
+      quote
+      style.{open,close}
+      $loc
+    }
 
 ParenthesizedText ::AST[]
   "(" ParenContent ")"
@@ -1006,6 +1022,10 @@ MarkdownLinksEnabled
 MarkdownListsEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownLists
+
+SmartQuotesEnabled
+  "" ->
+    return $skip unless state.compilerOptions.smartQuotes
 
 ## Indentation management, inspired by Civet's parser.hera
 

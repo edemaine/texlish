@@ -54,6 +54,7 @@ describe 'project config', ->
       assert.equal config.markdownHorizontalRules, false
       assert.equal config.markdownLinks, false
       assert.equal config.markdownLists, false
+      assert.equal config.smartQuotes, false
     finally
       await fs.rm dir,
         recursive: true
@@ -68,6 +69,83 @@ describe 'project config', ->
       })
       config := await loadConfig configPath
       assert.equal config.markdownBackticks, 3
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'loads nested quote config', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        quotes:
+          '"':
+            open: '<<'
+            close: '>>'
+      })
+      config := await loadConfig configPath
+      doubleQuotes := config.quotes!['"']!
+      singleQuotes := config.quotes!["'"]!
+      assert.equal doubleQuotes.open, '<<'
+      assert.equal doubleQuotes.close, '>>'
+      assert.equal singleQuotes.open, '`'
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'terminates trailing quote macros in project config', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        quotes:
+          '"':
+            open: '\\quotedblbase'
+            close: '\\textquotedblleft{}'
+          "'":
+            open: '\\quotesinglbase'
+            close: "\\textquoteleft\\,"
+      })
+      config := await loadConfig configPath
+      doubleQuotes := config.quotes!['"']!
+      singleQuotes := config.quotes!["'"]!
+      assert.equal doubleQuotes.open, '\\quotedblbase{}'
+      assert.equal doubleQuotes.close, '\\textquotedblleft{}'
+      assert.equal singleQuotes.open, '\\quotesinglbase{}'
+      assert.equal singleQuotes.close, "\\textquoteleft\\,"
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'loads YAML quote-first dotted quote config', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.yaml'
+      await fs.writeFile configPath, "quotes:\n  '\".open': \"``\"\n  '\".close': \"''\"\n"
+      config := await loadConfig configPath
+      doubleQuotes := config.quotes!['"']!
+      assert.equal doubleQuotes.open, '``'
+      assert.equal doubleQuotes.close, "''"
+    finally
+      await fs.rm dir,
+        recursive: true
+        force: true
+
+  it 'loads project config dotted key shorthand', ->
+    dir := await fs.mkdtemp path.join(os.tmpdir(), 'texlish-config-')
+    try
+      configPath := path.join dir, 'texlishconfig.json'
+      await fs.writeFile configPath, JSON.stringify({
+        'styles.*': '\\textit'
+        'quotes."':
+          close: '>>'
+      })
+      config := await loadConfig configPath
+      assert.equal config.styles!['*'], '\\textit'
+      assert.equal config.quotes!['"']!.close, '>>'
     finally
       await fs.rm dir,
         recursive: true
@@ -115,12 +193,30 @@ describe '--config assignment', ->
     assert.deepEqual parseCompilerOption('markdownLists', false),
       key: 'markdownLists'
       value: false
+    assert.deepEqual parseCompilerOption('smartQuotes', false),
+      key: 'smartQuotes'
+      value: false
     assert.deepEqual parseCompilerOption('markdownHorizontalRules', false),
       key: 'markdownHorizontalRules'
       value: false
     assert.deepEqual parseCompilerOption('markdownCompat', false),
       key: 'markdownCompat'
       value: false
+
+  it 'parses quote config options', ->
+    assert.deepEqual parseCompilerOption(['quotes', '"', 'open'], '<<'),
+      key: 'quotes'
+      value:
+        '"':
+          open: '<<'
+    assert.deepEqual parseCompilerOption(['quotes', '"', 'close'], '>>'),
+      key: 'quotes'
+      value:
+        '"':
+          close: '>>'
+    assert.throws (
+      => parseCompilerOption(['quotes', 'open', '"'], '<<')
+    ), /Unknown config option/
 
   it 'parses markdown backtick threshold', ->
     assert.deepEqual parseCompilerOption('markdownBackticks', '3'),

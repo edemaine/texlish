@@ -19,14 +19,22 @@
   compiling to `\protect\href{url}{text}`.
   They can be disabled with `-markdownLinks` or `-markdownCompat`.
   [[#32](https://github.com/edemaine/texlish/issues/32)]
-* Markdown-style backticks support inline code spans and fenced code blocks,
+* Smart quotes convert straight `'` and `"` characters to TeX
+  opening/closing quote ligatures, while preserving apostrophes in words.
+  This frees up backticks for Markdown-style code.
+  Smart quotes can be customized with `::config quotes` and disabled with
+  `-smartQuotes`, `-markdownCompat`, or `latexCompat`.
+  [[#4](https://github.com/edemaine/texlish/issues/4)]
+* Markdown-style backticks support inline code spans `` `...` `` and
+  fenced code blocks ` ```...``` `,
   compiling by default to LaTeX `\verb` and `verbatim` environment,
   but configurable for each number of ticks via `::styles`.
   Fenced blocks can pass an optional argument to the environment,
   such as `` ```[language=python] ``.
   Indented fences strip up to the opening fence indentation from content lines.
   The minimum enabled backtick run can be configured with `markdownBackticks`,
-  or disabled with `-markdownBackticks` or `-markdownCompat`.
+  so you can restrict to 3+ backticks for code and use 1-2 for open quotes,
+  or disable entirely with `-markdownBackticks` or `-markdownCompat`.
   [[#4](https://github.com/edemaine/texlish/issues/4)]
 * Markdown-style horizontal rules `---`, customizable through `::styles`.
   They can be disabled with `-markdownHorizontalRules` or `-markdownCompat`.

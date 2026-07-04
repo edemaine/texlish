@@ -74,6 +74,65 @@ To use the LaTeX character `*`, wrap it in braces
   {**}not bold{**}
 `}/>
 
+## Smart Quotes
+
+ASCII single and double quote characters `'`/`"` become TeX opening/closing
+quote ligatures, while apostrophes in words stay apostrophes:
+
+<Example src={`
+  "Double quotes"
+  'Single quotes'
+  "Outer 'inner'"
+  Don't change apostrophes' directions.
+`}/>
+
+If you need a lone opening or closing quote, use an empty group to simulate
+the surrounding context:
+
+<Example src={`
+  before "{} after
+  before {}" after
+`}/>
+
+In more complex settings, you can use explicit `\lq` (`‘`), `\rq` (`’`),
+`\ldq` (`“`), and `\rdq` (`”`) commands to choose your quote.
+
+You can customize the output for opening and closing quote characters
+using `::config quotes`.  For example, to use French guillemets like
+«&nbsp;Bonjour&nbsp;»:
+
+<Example src={`
+  ::config
+    quotes:
+      ":
+        open = \\guillemotleft~
+        close = ~\\guillemotright
+  "Bonjour"
+`}/>
+
+Or to get German low/high quotes like „Er sagte ‚Hallo‘.“:
+
+<Example src={`
+  ::config
+    quotes:
+      ":
+        open = \\quotedblbase
+        close = \\textquotedblleft
+      ':
+        open = \\quotesinglbase
+        close = \\textquoteleft
+  "Er sagte 'Hallo'"
+`}/>
+
+Quote output ending in a LaTeX control word automatically gets `{}` appended.
+The same settings can be written with dotted keys like `quotes.".open`.
+
+Smart quotes can be fully disabled with `::config -smartQuotes`,
+`::config -markdownCompat`, or `::config latexCompat`.
+When disabling, you probably also want to disable or customize
+[Markdown-style code](#code) to restrict to three or more backticks,
+so that one or two backticks can be used for opening quotes.
+
 ## Lists
 
 Similar to Markdown [lists](https://daringfireball.net/projects/markdown/syntax#list) /
@@ -231,6 +290,9 @@ or `::config -markdownCompat`.
 
 ## Code
 
+LaTeX normally uses `` ` `` for opening quotes. In Texlish,
+[smart quotes](#smart-quotes) let you use straight ASCII quotes `'`/`"`
+instead, freeing up backticks `` ` `` for Markdown-style code.
 Similar to Markdown
 [inline code](https://daringfireball.net/projects/markdown/syntax#code) /
 CommonMark [code spans](https://spec.commonmark.org/0.31.2/#code-spans),
@@ -306,8 +368,9 @@ Backticks can be disabled with `::config -markdownBackticks`
 or `::config -markdownCompat`.
 Set `markdownBackticks` to an integer `n`
 to enable only runs of `n` or more backticks:
-For example, you use one or two backticks for opening quotes
-and three or more for code:
+For example, if you prefer traditional TeX backtick quotes instead of
+[smart quotes](#smart-quotes), you can keep one or two backticks for opening
+quotes and use three or more for code:
 
 <Example src={`
   ::config markdownBackticks=3
@@ -559,6 +622,7 @@ For a single option, `::config` can also be written on one line:
   $x_ij$
   ::config latexCompat
   $x_12$
+  "straight quotes"
 `}/>
 
 Boolean options can be enabled with `optionName` and
@@ -589,11 +653,11 @@ or inline form with dots:
 
 Supported config options are:
 
-* `latexCompat`: flag setting equivalent to `scriptGrouping = none`
-  and `scriptParens = false`
+* `latexCompat`: flag setting equivalent to `scriptGrouping = none`,
+  `-scriptParens`, and `-smartQuotes`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
   currently `markdownBackticks`, `markdownHorizontalRules`, `markdownLinks`,
-  and `markdownLists`
+  `markdownLists`, and `smartQuotes`
 * `markdownBackticks`: minimum number of backticks that enables
   [code spans and fenced code blocks](#code), or `0` to disable them;
   enabled by default as `1`
@@ -603,6 +667,10 @@ Supported config options are:
   `\protect\href{url}{text}`; enabled by default
 * `markdownLists`: whether top-level Markdown-style bullets and numbered
   lists compile to LaTeX lists; enabled by default
+* `smartQuotes`: whether straight `'` and `"` characters compile to
+  TeX opening/closing quote ligatures; enabled by default
+* `quotes`: output strings for opening/closing straight quote characters,
+  used by [smart quotes](#smart-quotes)
 * `scriptParens`: whether `_(...)` and `^(...)` group sub/superscripts;
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,

@@ -82,7 +82,7 @@ function parseConfigObject(options: CompilerOptions, data: ???, source: string, 
   unless isObject data
     throw new Error `${source} must export an object`
   for rawKey, rawValue in data
-    keyPath := [...path, rawKey]
+    keyPath := [...path, ...rawKey.split '.']
     if rawValue? <? "object" and not Array.isArray rawValue
       parseConfigObject options, rawValue, source, keyPath
     else
