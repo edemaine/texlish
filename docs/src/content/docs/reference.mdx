@@ -4,6 +4,23 @@ description: Description and examples of all features
 ---
 import Example from '../../components/example.astro'
 
+* Markdown features: [`# Section`](#sections),
+  [`*emphasis*`](#emphasis), [`"smart quotes"`](#smart-quotes),
+  [`- lists`](#lists), [`[^footnote]`](#footnotes),
+  [`<url>`](#links), [`[text](url)`](#links),
+  [`` `code` ``](#code), and [`---`](#horizontal-rules).
+* Cross-references: [`@=label`, `@ref`](#label-ref) and [`[[citation]]`](#cite).
+* Math mode: [`x^123` script grouping](#script-grouping)
+* Indentation-based LaTeX: [`\command: arg`](#latex-commands),
+  [`: environment`](#latex-environments),
+  and [`::tex raw`](#raw-tex).
+* Document/config:
+  [`::use package`](#use-packages),
+  [`::preamble`](#preamble),
+  [automatic `\documentclass`/`\begin{document}`](#automatic-document-boilerplate),
+  [`::config key=value`](#config), and
+  [`::version >=0.1.1`](#version-requirements).
+
 ## Sections
 
 Similar to Markdown
@@ -411,6 +428,44 @@ You can customize with `::styles`.
 Horizontal rules can be disabled with `::config -markdownHorizontalRules`
 or `::config -markdownCompat`.
 
+## Script Grouping
+
+By default, Texlish auto-groups multi-digit sub/superscripts.
+
+<Example src={`
+  $x^12y^42$
+`}/>
+
+Texlish also groups parenthesized sub/superscripts in math mode:
+
+<Example src={`
+  $x_(ij) + x^(i+j)$
+`}/>
+
+To change this behavior for the rest of the file, use [`::config`](#config):
+
+<Example src={`
+  ::config scriptGrouping = alphanumeric
+  $x_12 + x_ij + x^12 + x^ij$
+  ::config -scriptParens
+  $x_(ij) + x^(i+j)$
+`}/>
+
+Allowed values for `scriptGrouping` are:
+
+* `numeric` (default)
+* `alphanumeric` (letters and digits group together)
+* `alpha` (letters group together)
+* `none` (no grouping, like LaTeX)
+
+In LaTeX-compat mode, `scriptGrouping` gets set to `none`
+and `scriptParens` gets set to `false`:
+
+<Example src={`
+  ::config latexCompat
+  $x_12 + x_ij + x_(ij) + x^12 + x^ij + x^(ij)$
+`}/>
+
 ## LaTeX Commands
 
 `\command:` makes it easier to specify commands with arguments.
@@ -498,6 +553,17 @@ from the content):
     $p$ is prime.
 `}/>
 
+## Raw TeX
+
+`::tex` passes TeX through unchanged. Content can be on the same line
+and/or on strictly indented lines.
+
+<Example src={`
+  ::tex \\foo{*raw* [text](url)}
+  ::tex
+    \\bar{@raw}
+`}/>
+
 ## Use Packages
 
 `::use` is shorthand for putting `\usepackage{...}` in the preamble.
@@ -530,17 +596,6 @@ If you put `::use` after `\begin{document}`, it gets hoisted up to the preamble.
   ::use amsthm
   : proof
   \\end{document}
-`}/>
-
-## Raw TeX
-
-`::tex` passes TeX through unchanged. Content can be on the same line
-and/or on strictly indented lines.
-
-<Example src={`
-  ::tex \\foo{*raw* [text](url)}
-  ::tex
-    \\bar{@raw}
 `}/>
 
 ## Preamble
@@ -681,44 +736,6 @@ Supported config options are:
 
 You can also set config options globally in a
 [project config file](/start#configuration).
-
-## Script Grouping
-
-By default, Texlish auto-groups multi-digit sub/superscripts:
-
-<Example src={`
-  $x^12y^42$
-`}/>
-
-Texlish also groups parenthesized sub/superscripts:
-
-<Example src={`
-  $x_(ij) + x^(i+j)$
-`}/>
-
-To change this behavior for the rest of the file, use [`::config`](#config):
-
-<Example src={`
-  ::config scriptGrouping = alphanumeric
-  $x_12 + x_ij + x^12 + x^ij$
-  ::config -scriptParens
-  $x_(ij) + x^(i+j)$
-`}/>
-
-Allowed values for `scriptGrouping` are:
-
-* `numeric` (default)
-* `alphanumeric` (letters and digits group together)
-* `alpha` (letters group together)
-* `none` (no grouping, like LaTeX)
-
-In LaTeX-compat mode, `scriptGrouping` gets set to `none`
-and `scriptParens` gets set to `false`:
-
-<Example src={`
-  ::config latexCompat
-  $x_12 + x_ij + x_(ij) + x^12 + x^ij + x^(ij)$
-`}/>
 
 ## Version Requirements
 
