@@ -1,7 +1,7 @@
 type { AST, ASTParent, Comment, Indent } from ./types.civet
 
 export function isNumeric(value: string): boolean
-  /^\d+/.test value
+  /^\d+$/.test value
 
 export function visualWidth(text: string): number
   numTabs := text.match(/\t/g)?# ?? 0

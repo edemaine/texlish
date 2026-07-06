@@ -185,6 +185,17 @@ describe 'Markdown footnotes', ->
   '''
 
   testCase r'''
+    digit-prefixed named footnote refs are labels
+    ---
+    See note[^1a] and @^1a.
+    [^1a]: A note.
+    ---
+    See note%
+    \footnote{\protect\label{footnote:1a}A note.}%
+     and \ref{footnote:1a}.
+  '''
+
+  testCase r'''
     undefined marker remains literal
     ---
     This remains[^missing].
