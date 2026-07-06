@@ -1,0 +1,296 @@
+{ r, testCase } from ./helper.civet
+
+describe 'math mode', ->
+  testCase r'''
+    latex inline math delimiters
+    ---
+    \(x_12 + *y*\) and \[z^12 + "q"\]
+    ---
+    \(x_{12} + *y*\) and \[z^{12} + "q"\]
+  '''
+
+  testCase r'''
+    dollar math includes nested continuation lines
+    ---
+    Before $x_12
+      + y_34
+    $ after
+    ---
+    Before $x_{12}
+      + y_{34}
+    $ after
+  '''
+
+  testCase r'''
+    display math includes nested continuation lines
+    ---
+    \[
+      x_12 + *y*
+      z_34
+    \]
+    ---
+    \[
+      x_{12} + *y*
+      z_{34}
+    \]
+  '''
+
+  testCase r'''
+    math lines are not Markdown lists
+    ---
+    $$
+    * x
+    $$
+    ---
+    $$
+    * x
+    $$
+  '''
+
+  testCase r'''
+    asterisks in math are not emphasis
+    ---
+    $G^*$ and $v_{\vec x} \in V^*$
+    ---
+    $G^*$ and $v_{\vec x} \in V^*$
+  '''
+
+  testCase r'''
+    emphasis resumes after math
+    ---
+    $x^*$ and *text*
+    ---
+    $x^*$ and \emph{text}
+  '''
+
+  testCase '''
+    quotes in math stay literal
+    ---
+    $x" + y'$ and "text"
+    ---
+    $x" + y'$ and ``text''
+  '''
+
+  testCase r'''
+    refs in math stay literal
+    ---
+    $@thm:main + @#page$
+    See @thm:main and @#page.
+    ---
+    $@thm:main + @#page$
+    See \ref{thm:main} and \pageref{page}.
+  '''
+
+  testCase r'''
+    citations in math stay literal
+    ---
+    $[[citation]]$ and [[citation]]
+    ---
+    $[[citation]]$ and \cite{citation}
+  '''
+
+  testCase r'''
+    footnote refs in math stay literal
+    ---
+    $E[^x]$
+    [^x]: Not in math.
+    ---
+    $E[^x]$
+    [^x]: Not in math.
+  '''
+
+  testCase r'''
+    math content includes nested statements
+    ---
+    \[
+      ::tex \foo{*raw* [link](https://example.com)}
+      x_12
+    \]
+    ---
+    \[
+      \foo{*raw* [link](https://example.com)}
+      x_{12}
+    \]
+  '''
+
+  testCase r'''
+    math braces include nested continuation lines
+    ---
+    $\frac{
+      x_12
+    }{
+      y_34
+    }$
+    ---
+    $\frac{
+      x_{12}
+    }{
+      y_{34}
+    }$
+  '''
+
+  testCase r'''
+    math braces allow dedented lines
+    ---
+    : align
+      \sqrt{
+    x_12
+      }
+    ---
+    \begin{align}
+      \sqrt{
+    x_{12}
+      }
+    \end{align}
+  '''
+
+  testCase '''
+    text commands re-enter text mode in math
+    ---
+    $x_12 + \\text{*speed* "now" [go](https://example.com) y_12} + z_34$
+    ---
+    $x_{12} + \\text{\\emph{speed} ``now'' \\protect\\href{https://example.com}{go} y_12} + z_{34}$
+  '''
+
+  testCase '''
+    text command family re-enters text mode in math
+    ---
+    $\\textbf{*fast* x_12} + \\textrm{"slow"}$
+    ---
+    $\\textbf{\\emph{fast} x_12} + \\textrm{``slow''}$
+  '''
+
+  testCase '''
+    text script commands re-enter text mode in math
+    ---
+    $\\textsuperscript{*fast* x_12} + \\textsubscript{"slow" y_34}$
+    ---
+    $\\textsuperscript{\\emph{fast} x_12} + \\textsubscript{``slow'' y_34}$
+  '''
+
+  testCase '''
+    text commands re-enter text mode after spaces
+    ---
+    $\\text {*fast* x_12} + \\textbf {"slow"}$
+    ---
+    $\\text {\\emph{fast} x_12} + \\textbf {``slow''}$
+  '''
+
+  testCase r'''
+    starred text command stays in math mode
+    ---
+    $\text*{*fast* x_12}$
+    ---
+    $\text*{*fast* x_{12}}$
+  '''
+
+  testCase r'''
+    textstyle stays in math mode
+    ---
+    $\textstyle{x_12 + *y*}$
+    ---
+    $\textstyle{x_{12} + *y*}$
+  '''
+
+  testCase r'''
+    textcolor stays in math mode
+    ---
+    $\textcolor{red}{*fast* x_12}$
+    ---
+    $\textcolor{red}{*fast* x_{12}}$
+  '''
+
+  testCase r'''
+    latex math environment
+    ---
+    \begin{align}
+    x_12 + *y* \\
+    \end{align}
+    ---
+    \begin{align}
+    x_{12} + *y* \\
+    \end{align}
+  '''
+
+  testCase r'''
+    latex math environment can appear mid-line
+    ---
+    Before \begin{align}
+    x_12 + *y* \\
+    \end{align} after
+    ---
+    Before \begin{align}
+    x_{12} + *y* \\
+    \end{align} after
+  '''
+
+  testCase r'''
+    starred latex math environment can appear mid-line
+    ---
+    before \begin{align*}x_12\end{align*} after
+    ---
+    before \begin{align*}x_{12}\end{align*} after
+  '''
+
+  testCase r'''
+    longer latex environment names are not math environments
+    ---
+    before \begin{alignment}x_12\end{alignment} after
+    ---
+    before \begin{alignment}x_12\end{alignment} after
+  '''
+
+  testCase r'''
+    latex math environment allows whitespace after begin
+    ---
+    before \begin {align}x_12\end {align} after
+    ---
+    before \begin {align}x_{12}\end {align} after
+  '''
+
+  testCase r'''
+    equation math environment
+    ---
+    \begin{equation}
+    x^(ij)
+    \end{equation}
+    ---
+    \begin{equation}
+    x^{ij}
+    \end{equation}
+  '''
+
+  testCase r'''
+    colon math environment
+    ---
+    : align
+      x_12 + *y* \\
+    ---
+    \begin{align}
+      x_{12} + *y* \\
+    \end{align}
+  '''
+
+  testCase r'''
+    longer colon environment names are not math environments
+    ---
+    : alignment
+      x_12
+    ---
+    \begin{alignment}
+      x_12
+    \end{alignment}
+  '''
+
+  testCase r'''
+    colon math environment includes nested continuation lines
+    ---
+    : align
+      x_12 \\
+      y_34
+    ---
+    \begin{align}
+      x_{12} \\
+      y_{34}
+    \end{align}
+  '''

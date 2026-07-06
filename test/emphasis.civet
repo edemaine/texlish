@@ -188,7 +188,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       5_6_78
       ---
-      5_6_{78}
+      5_6_78
     '''
 
     testCase r'''
@@ -400,7 +400,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       5__6__78
       ---
-      5__6__{78}
+      5__6__78
     '''
 
     testCase r'''

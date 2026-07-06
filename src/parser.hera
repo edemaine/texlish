@@ -125,8 +125,7 @@ Content ::AST[]
 # First line starts mid-line, so uses Text; following lines assume start of line
 # No Nested requirement; used in BracedContent where indentation doesn't matter
 TextAndContent ::AST[]
-  Text ( EOL Statement )* ->
-    return [ $1, ...$2.flat() ]
+  Text:first ( EOL Statement )*:rest -> [ first, ...rest.flat() ]
   "" -> []
 
 EOL ::EOL
@@ -138,25 +137,29 @@ EOL ::EOL
     }
 
 Statement ::AST
-  ActualStatement
+  TextStatement
   TextLine
 
-ActualStatement ::AST
+TextStatement ::AST
+  TextOrMathStatement
   Heading
   MarkdownBackticksEnabled CodeBlock -> $2
   MarkdownHorizontalRulesEnabled HorizontalRule -> $2
-  MetaBlock
   FootnoteDefinition
-  Environment
-  CommandWithColonArguments
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
 
-# Detect whether the next line is an actual statement, for deciding whether
+# Statement forms valid in both text and math mode.
+TextOrMathStatement ::AST
+  MetaBlock
+  Environment
+  CommandWithColonArguments
+
+# Detect whether the next line is a text-mode statement, for deciding whether
 # to continue a text field like a Markdown bracketed link.
-IsActualStatement
-  PushLineIndent (&ActualStatement)?:actual PopLineIndent ->
-    return $skip unless actual
+IsTextStatement
+  PushLineIndent (&TextStatement)?:statement PopLineIndent ->
+    return $skip unless statement
 
 # One line of text at start of the line
 # (can be empty, no newline consumption)
@@ -173,15 +176,24 @@ Text ::AST[]
     return $1 unless $2
     return [ ...$1, $2 ]
 
+# TextPart treats parens/brackets as literal; BracketTextPart balances nested
+# brackets for Markdown link text.
 TextPart ::AST
-  MainTextPart
+  EnterMathMode
+  TextOrMathPart
+  TextOnlyPart
   [()\[\]]
 
-# MainTextPart excludes parens/brackets; the surrounding text productions
-# decide whether to parse those as balanced text or literal characters.
-MainTextPart ::AST
+EnterMathMode ::AST[]
+  BeginEndMathEnvironment
+  "$$" MathContent "$$"
+  "$" MathContent "$"
+  "\\(" MathContent "\\)"
+  "\\[" MathContent "\\]"
+
+# Rules for TextPart that apply only in text mode.
+TextOnlyPart ::AST
   BracedContent
-  Comment
   FootnoteRef
   MarkdownBackticksEnabled CodeSpan -> $2
   # @'long ref'
@@ -201,15 +213,6 @@ MainTextPart ::AST
   MarkdownLinksEnabled MarkdownLink -> $2
   SmartQuotesEnabled SmartQuote -> $2
   /['"]/
-  ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
-    return `${script[1]}{${script[2]}}`
-  ScriptGroupingAlpha /([\^_])([a-zA-Z]{2,})/:script ->
-    return `${script[1]}{${script[2]}}`
-  ScriptGroupingAlphanumeric /([\^_])([a-zA-Z0-9]{2,})/:script ->
-    return `${script[1]}{${script[2]}}`
-  ScriptParensEnabled [\^_]:script &/\((?![ \t]*[\^_])/ ParenthesizedText:body ->
-    // body[1] strips the parens
-    return [ script[0], '{', body[1], '}' ]
   # Left- *and* right-flanking delimiter according to below definitions.
   /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
     return {
@@ -245,40 +248,100 @@ MainTextPart ::AST
       symbol: $1,
       token: $1,
     }
+  # Skip to next interesting text-mode character.
+  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\()\[\]{}%$*]*/
+
+# Inline tokens shared between text mode (TextPart) and math mode (MathPart).
+TextOrMathPart ::AST
+  Comment
   # Leave trailing InlineCommandWithColonArguments for TextLine to parse
   !InlineCommandWithColonArguments Command -> $2
-  # Skip to next interesting character
-  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\\^_()\[\]{}%\*]*/
 
-SmartQuote ::SmartQuote
-  ['"] ->
-    quote := $0 as QuoteChar
-    style := state.compilerOptions.quotes[quote]
-    {
-      type: "SmartQuote"
-      token: quote
-      quote
-      style.{open,close}
-      $loc
-    }
+# Content inside e.g. `$...$` that respects indentation
+MathContent ::AST[]
+  MathText:text NestedMathStatement*:body -> [ text, ...body.flat() ]
 
-ParenthesizedText ::AST[]
-  "(" ParenContent ")"
+# No Nested requirement; used in MathBracedContent where braces delimit the
+# argument and indentation should not matter.
+MathAndContent ::AST[]
+  MathText:text ( EOL MathStatement )*:body ->
+    [ text, ...body.flat() ]
+  "" -> []
 
-ParenContent ::AST[]
-  ParenText:text ParenContinuation*:body -> [ text, ...body ]
+NestedMathStatement ::AST[]
+  Nested MathStatement
 
-ParenContinuation ::AST[]
-  Nested !IsActualStatement Indent ParenText -> [ $1, $3, $4 ]
+MathStatement ::AST
+  # Currently we have no math-specific statements
+  TextOrMathStatement
+  Indent MathText
 
-ParenText ::AST[]
-  ParenTextPart*
+# Detect whether the next line is a math-mode statement, for deciding whether
+# to continue balanced parenthesized script content.
+IsMathStatement
+  PushLineIndent (&TextOrMathStatement)?:statement PopLineIndent ->
+    return $skip unless statement
 
-ParenTextPart ::AST
-  MainTextPart
+MathText ::AST[]
+  MathPart*:body InlineCommandWithColonArguments?:command ->
+    return body unless command
+    return [ ...body, command ]
+
+MathPart ::AST
+  # Must precede TextOrMathPart so `\text...` commands can re-enter text mode
+  MathOnlyPart
+  !MathCloseDelimiter TextOrMathPart -> $2
+  MathLiteral
+  [()\[\]]
+
+MathCloseDelimiter
+  # These closers could otherwise parse as Commands.
+  "\\)"
+  "\\]"
+  EndMathEnvironment
+  # `$` cannot be consumed by MathPart, so dollar math stops without lookahead.
+
+MathLiteral ::string
+  # Skip to next interesting math-mode character.
+  /[^\r\n\\()\[\]{}%$][^\r\n\\\^_()\[\]{}%$]*/
+
+# Rules for MathPart that apply only in math mode.
+MathOnlyPart ::AST
+  MathTextCommand
+  MathBracedContent
+  ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
+  ScriptGroupingAlpha /([\^_])([a-zA-Z]{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
+  ScriptGroupingAlphanumeric /([\^_])([a-zA-Z0-9]{2,})/:script ->
+    return `${script[1]}{${script[2]}}`
+  ScriptParensEnabled [\^_]:script &/\((?![ \t]*[\^_])/ MathParenthesizedText:body ->
+    // body[1] strips the parens
+    return [ script[0], '{', body[1], '}' ]
+
+MathTextCommand ::AST[]
+  &/\\text(?:normal|rm|sf|tt|bf|md|it|sl|sc|up|superscript|subscript)?(?![a-zA-Z@])/ CommandWithoutNewline:command $/[ \t]*/:space BracedContent:body ->
+    [ command, space, body ]
+
+MathParenthesizedText ::AST[]
+  "(" MathParenContent ")"
+
+MathParenContent ::AST[]
+  MathParenText:text MathParenContinuation*:body -> [ text, ...body ]
+
+MathParenContinuation ::AST[]
+  Nested !IsMathStatement Indent MathParenText -> [ $1, $3, $4 ]
+
+MathParenText ::AST[]
+  MathParenPart*
+
+MathParenPart ::AST
+  MathOnlyPart
+  !MathCloseDelimiter TextOrMathPart -> $2
+  MathLiteral
   [\[\]]
   # Keep parentheses balanced
-  ParenthesizedText
+  MathParenthesizedText
 
 BracketedText ::AST[]
   "[" BracketContent "]"
@@ -287,13 +350,15 @@ BracketContent ::AST[]
   BracketText:text BracketContinuation*:body -> [ text, ...body ]
 
 BracketContinuation ::AST[]
-  Nested !IsActualStatement Indent BracketText -> [ $1, $3, $4 ]
+  Nested !IsTextStatement Indent BracketText -> [ $1, $3, $4 ]
 
 BracketText ::AST[]
   BracketTextPart*
 
 BracketTextPart ::AST
-  MainTextPart
+  EnterMathMode
+  TextOrMathPart
+  TextOnlyPart
   [()]
   # Keep brackets balanced
   BracketedText
@@ -327,6 +392,18 @@ MarkdownBareLinkDestinationPart ::string
 MarkdownBackslashEscape ::string
   /\\([!-\/:-@\[-`{-~])/ -> $1
   "\\"
+
+SmartQuote ::SmartQuote
+  ['"] ->
+    quote := $0 as QuoteChar
+    style := state.compilerOptions.quotes[quote]
+    {
+      type: "SmartQuote"
+      token: quote
+      quote
+      style.{open,close}
+      $loc
+    }
 
 CodeSpan ::string
   CodeSpanOpen:marker CodeSpanBody:body CodeSpanClose ->
@@ -379,7 +456,7 @@ CodeSpanClose ::string
 CodeBlock ::AST[]
   CodeBlockOpen:blockOpen CodeBlockBody:content CodeBlockClose ->
     state.codeMarker = undefined
-    [ indent, marker, info ] .= blockOpen
+    { indent, marker, info } .= blockOpen
     info = info.trim()
     suffix := info or "*"
     option := if info.startsWith "[" then info else ""
@@ -415,10 +492,11 @@ CodeBlock ::AST[]
       envClose
     ]
 
-CodeBlockOpen ::[indent: Indent, marker: string, info: string]
+CodeBlockOpen ::{indent: Indent, marker: string, info: string}
   Indent:indent /// (`{${Math.max(3, state.compilerOptions.markdownBackticks)},}) [ \t]* ([^\r\n`]*) [ \t]* (?:\r\n?|\n|$) ///:match ->
-    state.codeMarker = match[1]
-    [indent, match[1], match[2]]
+    [, marker, info] := match
+    state.codeMarker = marker
+    { indent, marker, info }
 
 CodeBlockBody ::string
   CodeBlockBodyLine*:lines -> lines.join ''
@@ -442,20 +520,32 @@ FootnoteRef ::FootnoteRef
     }
 
 TrimmedText ::AST[]
-  Text:t ->
-    t = [...t]
-    t[0] = t[0].trimStart() if t[0] <? 'string'
-    last := t# - 1
-    t[last] = t[last].trimEnd() if t[last] <? 'string'
-    return t
+  Text:t -> trimContent t
+
+TrimmedMathText ::AST[]
+  MathText:t -> trimContent t
+
+```
+function trimContent(t: AST[]): AST[]
+  t = [...t]
+  t[0] = t[0].trimStart() if t[0] <? 'string'
+  last := t# - 1
+  t[last] = t[last].trimEnd() if t[last] <? 'string'
+  t
+```
 
 # Analog of Text but with no Texlish processing, used e.g. for ::tex
-RawText ::[string, Comment | undefined]
-  /[^%\r\n]*/:text Comment?:comment -> [ text[0], comment ]
+RawText ::{text: string, comment: Comment | undefined, children: AST[]}
+  $/[^%\r\n]*/:text Comment?:comment ->
+    {
+      text
+      comment
+      children: $0
+    }
 
 TrimmedRawText ::AST[]
   RawText:t ->
-    [ text, comment ] .= t
+    { text, comment } := t
     [
       if comment then text.trimStart() else text.trim()
       comment
@@ -463,20 +553,28 @@ TrimmedRawText ::AST[]
 
 BracedContent ::Braced
   "{":open TextAndContent:body "}":close ->
-    let comment
-    [body, comment] = commentForBody(body)
-    // Drop single %
-    comment = undefined if comment is like { token: "%" }
-    return {
-      type: "Braced"
+    buildBracedContent open, body, close, true
+
+MathBracedContent ::Braced
+  "{":open MathAndContent:body "}":close ->
+    buildBracedContent open, body, close, true
+
+```
+function buildBracedContent(open: string, body: AST[], close: string, dropImplicitComment: boolean = false): Braced
+  let comment
+  [body, comment] = commentForBody body
+  comment = undefined if dropImplicitComment and comment.implicit
+  {
+    type: "Braced"
+    body
+    children: [
+      open
       body
-      children: [
-        open
-        body
-        close
-        comment
-      ]
-    }
+      close
+      comment
+    ]
+  }
+```
 
 Comment ::Comment
   /%[^\r\n]*/ ->
@@ -485,9 +583,6 @@ Comment ::Comment
       token: $0,
       $loc,
     }
-
-CommentEOL ::AST[]
-  Comment EOL
 
 NestedComment ::AST[]
   Nested Indent Comment -> $0
@@ -569,23 +664,47 @@ Autolink ::AST
 Environment ::Environment
   # use NestedStatement* instead of NestedBody so that we can PushIndent early
   # (in case EnvironmentColonArguments involves multiple lines)
-  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent ( /:[ \t]+([^:\s\[%]+)/ ( EnvironmentColonArguments / TrimmedText ) NestedStatement* )?:content PopIndent ->
+  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent EnvironmentContent?:content PopIndent ->
     return $skip unless content
-    [ envMatch, first, body ] .= content
-    env := envMatch[1].trim()
+    { env, children } := content
     return {
       type: "Environment",
       env,
       children: [
-        indent,
-        `\\begin{${env}}`,
-        first,
-        body,
-        "\n",
-        indent,
-        `\\end{${env}}`,
+        indent
+        `\\begin{${env}}`
+        children
+        "\n"
+        indent
+        `\\end{${env}}`
       ]
     }
+
+EnvironmentContent ::{env: string, children: AST[]}
+  MathEnvironmentHeader:env ( EnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  !MathEnvironmentHeader EnvironmentHeader:env ( EnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+
+EnvironmentHeader ::string
+  /:[ \t]+([^:\s\[%]+)/ -> $1.trim()
+
+MathEnvironmentHeader ::string
+  /:[ \t]+/ MathEnvironmentName:env /(?=[:\s\[%]|$)/ -> env
+
+MathEnvironmentName ::string
+  /(equation|alignat|align|gather|multline|flalign|eqnarray)(?![a-zA-Z@])\*?/
+
+BeginEndMathEnvironment ::AST[]
+  BeginMathEnvironment:open MathContent EndMathEnvironment:close ->
+    return $skip unless open.env is close.env
+    $0
+
+BeginMathEnvironment ::{env: string, children: AST[]}
+  $/\\begin[ \t]*\{/ MathEnvironmentName:env "}" -> { env, children: $0 }
+
+EndMathEnvironment ::{env: string, children: AST[]}
+  $/\\end[ \t]*\{/ MathEnvironmentName:env "}" -> { env, children: $0 }
 
 CommandWithColonArguments ::AST[]
   Indent:indent StarredCommand:command Colon CommandArgumentsAfterColon:arg ->
@@ -657,31 +776,9 @@ ArgumentAfterColon ::Braced
 
 InlineArgumentAfterColon ::AST
   NonEmptyNestedBody:body ->
-    let comment
-    [body, comment] = commentForBody body
-    return {
-      type: "Braced"
-      body
-      children: [
-        "{%"
-        body
-        "}"
-        comment
-      ]
-    }
+    buildBracedContent "{%", body, "}"
   TrimmedText:body ->
-    let comment
-    [body, comment] = commentForBody body
-    return {
-      type: "Braced"
-      body
-      children: [
-        "{"
-        body
-        "}"
-        comment
-      ]
-    }
+    buildBracedContent "{", body, "}"
 
 MetaBlock ::AST[]
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
@@ -827,8 +924,13 @@ NonEmptyNestedBody ::AST[]
 NestedBody ::AST[]
   PushStrictIndent NestedStatement* PopIndent -> $2
 
-NestedStatement ::[eols: AST[], statement: AST]
-  Nested Statement
+NestedStatement ::{eols: AST[], statement: AST, children: AST[]}
+  Nested:eols Statement:statement ->
+    {
+      eols
+      statement
+      children: $0
+    }
 
 # Raw versions of above
 NonEmptyRawNestedBody ::AST[]
@@ -944,7 +1046,7 @@ NestedCommandArgumentList ::AST[]
     [ args, body ] := content
     return args unless body#
     // NestedStatement starts with EOL+, but the new argument needs one EOL.
-    [ [ eol ], firstStatement ] := body[0]
+    { eols: [ eol ], statement: firstStatement } := body[0]
     indent := getLeadingIndent firstStatement
     [ finalBody, comment ] := commentForBody body
     return [
@@ -960,7 +1062,7 @@ NestedCommandArgumentList ::AST[]
       ]
     ]
 
-StrictNestedStatements ::[eols: AST[], statement: AST][]
+StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
   PushStrictCurrentIndent NestedStatement*:body PopIndent -> body
 
 ArgumentList ::AST[]

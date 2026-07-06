@@ -9,8 +9,9 @@
 * Compiler configuration via in-file `::config`, CLI `--config`, and
   project config files.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
-* Configurable sub/superscript grouping, with new default behavior
-  correctly handling polynomials like `x^12y^42`.
+* Configurable sub/superscript grouping in math mode, with new default
+  behavior correctly handling polynomials like `x^12y^42`,
+  while leaving text-mode underscores literal.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
 * Parenthesized sub/superscripts like `x_(ij)` and `x^(i+j)` more
   correctly compile to braced LaTeX groups.
@@ -47,6 +48,13 @@
 * Markdown-style and command-argument list items can start with
   same-line `:` environments, nested lists, or `::` meta commands.
   [[#7](https://github.com/edemaine/texlish/issues/7)]
+* Math mode delimited by `$...$`, `$$...$$`, `\(...\)`, `\[...\]`,
+  standard display-math environments, or Texlish shorthand such as `: align`
+  suppresses text-only Markdown markup such as headings, emphasis,
+  smart quotes, links, backticks, lists, and horizontal rules;
+  enables script grouping; and lets `\text{...}` and related font commands
+  like `\textrm{...}` re-enter text mode for their braced argument.
+  [[#6](https://github.com/edemaine/texlish/issues/6)]
 * Commented-out list items no longer interrupt Markdown-style lists,
   command argument lists, or package argument lists.
   [[#22](https://github.com/edemaine/texlish/issues/22)]

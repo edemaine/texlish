@@ -207,4 +207,5 @@ export function commentForBody(body: AST[]): [AST[], Comment]
   comment ?=
     type: "Comment"
     token: "%"
+    implicit: true
   [body, comment]

@@ -10,7 +10,7 @@ import Example from '../../components/example.astro'
   [`<url>`](#links), [`[text](url)`](#links),
   [`` `code` ``](#code), and [`---`](#horizontal-rules).
 * Cross-references: [`@=label`, `@ref`](#label-ref) and [`[[citation]]`](#cite).
-* Math mode: [`x^123` script grouping](#script-grouping)
+* [Math mode](#math-mode): [`x^123` script grouping](#script-grouping)
 * Indentation-based LaTeX: [`\command: arg`](#latex-commands),
   [`: environment`](#latex-environments),
   and [`::tex raw`](#raw-tex).
@@ -428,9 +428,32 @@ You can customize with `::styles`.
 Horizontal rules can be disabled with `::config -markdownHorizontalRules`
 or `::config -markdownCompat`.
 
+## Math Mode
+
+Texlish starts in text mode.  All of the features described above are text-mode
+syntax: Markdown-style section headings, emphasis, smart quotes, lists,
+footnotes, label/ref shorthand, citations, links, code backticks, and
+horizontal rules.
+
+Texlish enters math mode inside `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, and
+standard display-math environments including
+`align`, `alignat`, `equation`, `eqnarray`, `flalign`, `gather`, and `multline`,
+plus their starred forms.
+The same environment names work in Texlish shorthand such as `: align`.
+Within math mode, the text-mode features above are disabled, except where
+`\text{...}` and related font commands like `\textrm`
+re-enter text mode for their braced argument.
+
+<Example src={`
+  $x_12 + *literal*$
+  \\[x^12 + "literal"\\]
+  : align
+    x_(ij) + \\text{*text*}
+`}/>
+
 ## Script Grouping
 
-By default, Texlish auto-groups multi-digit sub/superscripts.
+Inside math mode, Texlish auto-groups multi-digit sub/superscripts.
 
 <Example src={`
   $x^12y^42$
@@ -457,6 +480,8 @@ Allowed values for `scriptGrouping` are:
 * `alphanumeric` (letters and digits group together)
 * `alpha` (letters group together)
 * `none` (no grouping, like LaTeX)
+
+Outside math mode, sub/superscripts are not processed.
 
 In LaTeX-compat mode, `scriptGrouping` gets set to `none`
 and `scriptParens` gets set to `false`:

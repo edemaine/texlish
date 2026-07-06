@@ -18,6 +18,14 @@ describe 'sub/superscript autogrouping', ->
   '''
 
   testCase r'''
+    text mode stays literal
+    ---
+    x_12 + x_ij + x^(ij)
+    ---
+    x_12 + x_ij + x^(ij)
+  '''
+
+  testCase r'''
     alphanumeric mode
     ---
     $x_12 + x_ij + x_i1 + x_1i + x^12 + x^ij + x^i1 + x^1i$
@@ -73,6 +81,18 @@ describe 'sub/superscript autogrouping', ->
     ---
     $x_{foo
       bar}$
+  '''
+
+  testCase r'''
+    parenthesized script grouping stops before nested statement
+    ---
+    $x_(foo
+      \emph: bar)
+    $
+    ---
+    $x_(foo
+      \emph{bar)}%
+    $
   '''
 
   testCase r'''
