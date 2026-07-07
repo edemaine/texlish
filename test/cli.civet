@@ -61,6 +61,15 @@ describe 'CLI usage', ->
     finally
       process.argv = argv
 
+  it 'prints just the version for --version', ->
+    argv := process.argv
+    try
+      process.argv = [process.execPath, 'texlish', '--version']
+      logs := await captureConsoleLog -> cli()
+      assert.deepEqual logs, [version]
+    finally
+      process.argv = argv
+
 describe 'CLI transpile', ->
   it 'writes the Texlish version in the generated header', ->
     dir := await fs.mkdtemp path.join os.tmpdir(), 'texlish-cli-'

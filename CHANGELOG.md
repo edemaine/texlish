@@ -102,6 +102,7 @@
   * The compiled output is always in the same directory as the input
     `.texlish` file and generated `.tex` file.
   * Support for Cygwin LaTeX.
+* CLI prints version number during `--help` and supports `--version`
 
 ## 0.1.1
 

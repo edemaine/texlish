@@ -45,6 +45,7 @@ function usage: void
     These will run LaTeX multiple times and/or bibtex/biber/makeindex as needed.
 
     Other options:
+    --version: Print version number
     --trace=filename: Debug compilation by writing a trace log
     --config key[=value]: Set compiler config (e.g. scriptGrouping=alpha, latexCompat, or -markdownCompat)
     -...: Other LaTeX command-line options are passed on as-is
@@ -92,6 +93,9 @@ export function cli: Promise<void>
     switch arg
       /^--?help/
         return usage()
+      /^--?version$/
+        console.log version
+        return
       /^--?pdf(latex)?$/
         mode = 'pdflatex'
       /^--?(dvi|latex)?$/
