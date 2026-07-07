@@ -3,7 +3,7 @@ assert from assert
 fs from node:fs/promises
 os from node:os
 path from node:path
-{ buildLatex, transpile } from ../src/cli.civet
+{ buildLatex, cli, transpile } from ../src/cli.civet
 { version } from ../src/version.civet
 
 function writeExecutable(filename: string, text: string): Promise<void>
@@ -47,6 +47,19 @@ function removeDir(dir: string): Promise<void>
     force: true
     maxRetries: 10
     retryDelay: 100
+
+describe 'CLI usage', ->
+  it 'shows the Texlish version', ->
+    argv := process.argv
+    try
+      process.argv = [process.execPath, 'texlish', '--help']
+      logs := await captureConsoleLog -> cli()
+      assert.equal logs.length, 1
+      assert logs[0].startsWith(
+        `Texlish ${version}\nUsage: texlish [options] filename`
+      )
+    finally
+      process.argv = argv
 
 describe 'CLI transpile', ->
   it 'writes the Texlish version in the generated header', ->

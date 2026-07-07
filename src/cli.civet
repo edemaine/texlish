@@ -28,7 +28,8 @@ rerunGeneratedExtensions := [
 ]
 
 function usage: void
-  console.log '''
+  console.log ```
+    Texlish ${version}
     Usage: texlish [options] filename
 
     Transpile from .texlish to .tex, and optionally compile with LaTeX.
@@ -48,7 +49,7 @@ function usage: void
     --config key[=value]: Set compiler config (e.g. scriptGrouping=alpha, latexCompat, or -markdownCompat)
     -...: Other LaTeX command-line options are passed on as-is
 
-  '''
+  ```
 
 function exists(path: string): Promise<boolean>
   try
