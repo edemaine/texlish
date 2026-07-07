@@ -81,6 +81,48 @@ describe 'Markdown smart quotes', ->
     Let $f'(x) + g''(x) + h'''(x)$ be formal.
   """
 
+  testCase """
+    possessive after math stays apostrophe
+    ---
+    $Q$'s
+    ---
+    $Q$'s
+  """
+
+  testCase '''
+    possessives after closing punctuation use closing quote
+    ---
+    ::config
+      quotes:
+        ':
+          open = <
+          close = >
+    $Q$'s, \(x\)'s, (test)'s, [x]'s, C++'s, U.S.'s, {}'s
+    ---
+    $Q$>s, \(x\)>s, (test)>s, [x]>s, C++>s, U.S.>s, {}>s
+  '''
+
+  testCase '''
+    double quotes after closing punctuation use closing quote
+    ---
+    ::config
+      quotes:
+        ":
+          open = <<
+          close = >>
+    $Q$"s, \(x\)"s, (test)"s, [x]"s, C++"s, U.S."s, {}"s
+    ---
+    $Q$>>s, \(x\)>>s, (test)>>s, [x]>>s, C++>>s, U.S.>>s, {}>>s
+  '''
+
+  testCase """
+    quotes still open after opening punctuation
+    ---
+    ('hi'), ['hi'], a:'hi', x='hi', ("hi"), ["hi"], a:"hi", x="hi"
+    ---
+    (`hi'), [`hi'], a:`hi', x=`hi', (``hi''), [``hi''], a:``hi'', x=``hi''
+  """
+
   testCase '''
     unmatched double quotes after digits stay literal
     ---

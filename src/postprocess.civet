@@ -66,6 +66,15 @@ function processSmartQuotes(root: AST[]): void
       else if previousIsPunctuation
         canClose = nextIsWhitespace or nextIsPunctuation
 
+      // Punctuation before word text is usually a closing context, e.g.
+      // `$Q$'s` or `(test)"s`, but opener-like punctuation can introduce
+      // quotes, e.g. `("hi")`, `x="hi"`, or Markdown emphasis `*"hi"*`.
+      if next and not nextIsWhitespace and not nextIsPunctuation and
+         previousIsPunctuation and previous is not '"' and previous is not "'" and
+         previous is not like /^[([{<:=\/\\_*\-\u2013\u2014]$/u
+        canOpen = false
+        canClose = true
+
       // In "length is 1"", the first quote after 1 is an inch mark;
       // leave the second quote to close the quotation.
       continue if quote is '"' and next is '"' and /^\d$/u.test(previous ?? "")
