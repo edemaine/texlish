@@ -1,4 +1,5 @@
 fs from fs/promises
+path from node:path
 { spawn } from child_process
 {
   applyCompilerOption,
@@ -140,10 +141,12 @@ export function cli: Promise<void>
       continue
 
     unless mode is 'compile'
+      texDir := path.dirname texFile
+      texBase := path.basename texFile
       errors += await runCommand mode, [
         ...flags
-        texFile
-      ]
+        texBase
+      ], texDir
 
   process.exit Math.min 255, errors
 
@@ -152,10 +155,13 @@ export function posixQuote(arg: string): string
   // Escape single quotes by closing, escaping, and reopening single quotes
   `'${arg.replace /'/g, "'\\''"}'`
 
-export function runCommand(command: string, args: string[]): Promise<number>
-  console.log `** ${command} ${args.map(posixQuote).join ' '}`
+export function runCommand(command: string, args: string[], cwd?: string): Promise<number>
+  commandLine .= `${command} ${args.map(posixQuote).join ' '}`
+  if cwd and cwd is not '.'
+    commandLine = `cd ${posixQuote cwd}; ${commandLine}`
+  console.log `** ${commandLine}`
   try
-    await spawnCommand command, args
+    await spawnCommand command, args, cwd
   catch error
     if process.platform is 'win32' and (error as NodeJS.ErrnoException).code is 'ENOENT'
       // Cygwin pdflatex is a symlink and can be run only within Cygwin bash
@@ -163,7 +169,7 @@ export function runCommand(command: string, args: string[]): Promise<number>
         await spawnCommand 'bash', [
           '-c'
           `exec ${[command, ...args].map(posixQuote).join ' '}`
-        ]
+        ], cwd
       catch error2
         console.log "** FAILED:", error
         console.log "** BASH ALSO FAILED:", error2
@@ -172,10 +178,12 @@ export function runCommand(command: string, args: string[]): Promise<number>
       console.log "** FAILED:", error
       1
 
-function spawnCommand(command: string, args: string[]): Promise<number>
+function spawnCommand(command: string, args: string[], cwd = process.cwd()): Promise<number>
   new Promise<number> (resolve, reject): void =>
     errored .= false
-    spawn command, args, stdio: 'inherit'
+    spawn command, args, {}
+      stdio: 'inherit'
+      cwd
     ||> .on 'error', (error) =>
       errored = true
       reject error

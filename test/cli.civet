@@ -41,6 +41,7 @@ describe 'CLI pdflatex', ->
       await fs.writeFile fakePdflatex, '''
         #!/usr/bin/env bash
         set -euo pipefail
+        printf 'CWD_BASENAME: %s\n' "$(basename "$PWD")"
         for arg in "$@"; do
           printf 'ARGUMENT: %s\n' "$arg"
         done
@@ -63,9 +64,11 @@ describe 'CLI pdflatex', ->
       assert.equal result.status, 0, `${result.stdout ?? ''}${result.stderr ?? ''}`
       tex := await fs.readFile output, 'utf8'
       assert.equal tex.includes('Text'), true
-      args := result.stdout!.trimEnd().split('\n').filter (line) =>
+      lines := result.stdout!.trimEnd().split('\n')
+      assert lines.includes `CWD_BASENAME: ${path.basename dir}`
+      args := lines.filter (line) =>
         line.startsWith 'ARGUMENT: '
-      assert.deepEqual args, [`ARGUMENT: ${output}`]
+      assert.deepEqual args, [`ARGUMENT: ${path.basename output}`]
     finally
       await fs.rm dir,
         recursive: true
