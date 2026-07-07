@@ -7,7 +7,7 @@ import Example from '../../components/example.astro'
 * Markdown features: [`# Section`](#sections),
   [`*emphasis*`](#emphasis), [`"smart quotes"`](#smart-quotes),
   [`- lists`](#lists), [`[^footnote]`](#footnotes),
-  [`<url>`](#links), [`[text](url)`](#links),
+  [`<url>`](#links), [`[text](url)`](#links), [`![alt](url)`](#images),
   [`` `code` ``](#code), and [`---`](#horizontal-rules).
 * Cross-references: [`@=label`, `@ref`](#label-ref) and [`[[citation]]`](#cite).
 * [Math mode](#math-mode): [`x^123` script grouping](#script-grouping)
@@ -316,6 +316,33 @@ CommonMark [links](https://spec.commonmark.org/0.31.2/#links):
 Texlish uses `\protect` in case links appear in a moving argument.
 
 Markdown (auto)links can be disabled with `::config -markdownLinks`
+or `::config -markdownCompat`.
+
+## Images
+
+Markdown [images](https://spec.commonmark.org/0.31.2/#images)
+compile to LaTeX `\includegraphics`.
+
+<Example src={`
+  ![](example.png)
+`}/>
+
+Text between the brackets becomes the `alt` option for accessible PDFs
+in LaTeX setups that support graphics tagging:
+
+<Example src={`
+  ![Example image](example.png)
+`}/>
+
+You can customize the generated command with `::styles`:
+
+<Example src={`
+  ::styles
+    ! = \\includesvg
+  ![](example.svg)
+`}/>
+
+Markdown images can be disabled with `::config -markdownImages`
 or `::config -markdownCompat`.
 
 ## Code
@@ -760,7 +787,7 @@ Supported config options are:
   `-scriptParens`, and `-smartQuotes`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
   currently `markdownBackticks`, `markdownEmphasis`, `markdownFootnotes`,
-  `markdownHeadings`, `markdownHorizontalRules`, `markdownLinks`,
+  `markdownHeadings`, `markdownHorizontalRules`, `markdownImages`, `markdownLinks`,
   `markdownLists`, and `smartQuotes`
 * `markdownBackticks`: minimum number of backticks that enables
   [code spans and fenced code blocks](#code), or `0` to disable them;
@@ -773,6 +800,8 @@ Supported config options are:
   compile to LaTeX section commands; enabled by default
 * `markdownHorizontalRules`: whether horizontal rule lines like `---` compile to
   `\medskip\hrule\medskip`; enabled by default
+* `markdownImages`: whether Markdown-style images like `![alt](url)` compile to
+  `\includegraphics`; enabled by default
 * `markdownLinks`: whether `[text](url)`, `<url>`, and `<email>` compile to
   LaTeX links; enabled by default
 * `markdownLists`: whether top-level Markdown-style bullets and numbered
@@ -787,7 +816,7 @@ Supported config options are:
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
-* `styles`: styles for [emphasis](#emphasis), [code](#code),
+* `styles`: styles for [emphasis](#emphasis), [images](#images), [code](#code),
   [horizontal rules](#horizontal-rules), [label/ref](#label-ref),
   or [citations](#cite);
   equivalent to `::styles`

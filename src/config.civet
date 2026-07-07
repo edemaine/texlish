@@ -17,6 +17,7 @@ export const defaultConfig: ActiveCompilerOptions = {
   markdownFootnotes: true
   markdownHeadings: true
   markdownHorizontalRules: true
+  markdownImages: true
   markdownLinks: true
   markdownLists: true
   refShorthand: true
@@ -36,6 +37,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     '*': '\\emph'
     '**': '\\textbf'
     '***': '\\defn'
+    '!': '\\includegraphics'
     '---': '\\medskip\\hrule\\medskip'
     '@=': '\\label'
     '@': '\\ref'
@@ -53,6 +55,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     @markdownFootnotes = value
     @markdownHeadings = value
     @markdownHorizontalRules = value
+    @markdownImages = value
     @markdownLinks = value
     @markdownLists = value
     @smartQuotes = value
@@ -120,6 +123,7 @@ type BooleanCompilerOption
   | "markdownFootnotes"
   | "markdownHeadings"
   | "markdownHorizontalRules"
+  | "markdownImages"
   | "markdownLinks"
   | "markdownLists"
   | "refShorthand"
@@ -136,6 +140,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["markdownfootnotes", "markdownFootnotes"]
   . ["markdownheadings", "markdownHeadings"]
   . ["markdownhorizontalrules", "markdownHorizontalRules"]
+  . ["markdownimages", "markdownImages"]
   . ["markdownlinks", "markdownLinks"]
   . ["markdownlists", "markdownLists"]
   . ["refshorthand", "refShorthand"]

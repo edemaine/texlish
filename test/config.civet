@@ -55,6 +55,7 @@ describe 'project config', ->
       assert.equal config.markdownFootnotes, false
       assert.equal config.markdownHeadings, false
       assert.equal config.markdownHorizontalRules, false
+      assert.equal config.markdownImages, false
       assert.equal config.markdownLinks, false
       assert.equal config.markdownLists, false
       assert.equal config.smartQuotes, false
@@ -219,6 +220,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('markdownHorizontalRules', false),
       key: 'markdownHorizontalRules'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownImages', false),
+      key: 'markdownImages'
       value: false
     assert.deepEqual parseCompilerOption('markdownCompat', false),
       key: 'markdownCompat'

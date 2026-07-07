@@ -20,6 +20,10 @@
   compiling to `\protect\href{url}{text}`.
   They (and autolinks) can be disabled with `-markdownLinks` or `-markdownCompat`.
   [[#32](https://github.com/edemaine/texlish/issues/32)]
+* Markdown-style images `![alt](url)` support,
+  compiling to `\includegraphics[alt={alt}]{url}`.
+  The generated command can be configured with `::styles ! = \includegraphics`.
+  They can be disabled with `-markdownImages` or `-markdownCompat`.
 * Smart quotes convert straight `'` and `"` characters to TeX
   opening/closing quote ligatures, while preserving apostrophes in words.
   This frees up backticks for Markdown-style code.

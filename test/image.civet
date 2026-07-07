@@ -1,0 +1,98 @@
+{ r, testCase } from ./helper.civet
+
+describe 'Markdown images', ->
+  testCase r'''
+    image with empty alt
+    ---
+    See ![](figure.png).
+    ---
+    See \includegraphics{figure.png}.
+  '''
+
+  testCase r'''
+    image with alt text
+    ---
+    See ![Figure one](figure.png).
+    ---
+    See \includegraphics[alt={Figure one}]{figure.png}.
+  '''
+
+  testCase r'''
+    image with inline markup in alt text
+    ---
+    See ![*Figure* @fig](figure.png).
+    ---
+    See \includegraphics[alt={\emph{Figure} \ref{fig}}]{figure.png}.
+  '''
+
+  testCase r'''
+    image destination accepts balanced parens
+    ---
+    ![Plot](figures/foo(and(bar)).pdf)
+    ---
+    \includegraphics[alt={Plot}]{figures/foo(and(bar)).pdf}
+  '''
+
+  testCase r'''
+    image destination accepts angle-wrapped spaces
+    ---
+    ![Plot](<figures/my plot.pdf>)
+    ---
+    \includegraphics[alt={Plot}]{figures/my plot.pdf}
+  '''
+
+  testCase r'''
+    image does not parse as bang plus link
+    ---
+    Prefix ![Texlish](https://texlish.org) suffix.
+    ---
+    Prefix \includegraphics[alt={Texlish}]{https://texlish.org} suffix.
+  '''
+
+  testCase r'''
+    image command uses configured style
+    ---
+    ![Plot](figure.png)
+    ::styles
+      ! = \myincludegraphics
+    ![Plot](figure.png)
+    ---
+    \includegraphics[alt={Plot}]{figure.png}
+    \myincludegraphics[alt={Plot}]{figure.png}
+  '''
+
+  testCase r'''
+    image disabled by compiler option
+    ---
+    ![Plot](figure.png)
+    [Link](https://example.com)
+    ---
+    ![Plot](figure.png)
+    \protect\href{https://example.com}{Link}
+  ''', markdownImages: false
+
+  testCase r'''
+    image disabled by in-file config shorthand
+    ---
+    ![Plot](figure.png)
+    ::config -markdownImages
+    ![Plot](figure.png)
+    [Link](https://example.com)
+    ---
+    \includegraphics[alt={Plot}]{figure.png}
+    ![Plot](figure.png)
+    \protect\href{https://example.com}{Link}
+  '''
+
+  testCase r'''
+    image disabled by markdownCompat shorthand
+    ---
+    ![Plot](figure.png)
+    ::config -markdownCompat
+    ![Plot](figure.png)
+    [Link](https://example.com)
+    ---
+    \includegraphics[alt={Plot}]{figure.png}
+    ![Plot](figure.png)
+    [Link](https://example.com)
+  '''

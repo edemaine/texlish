@@ -2024,6 +2024,7 @@ repository:
       - include: '#raw'
       - include: '#strikethrough'
       - include: '#escape'
+      - include: '#image-inline'
       - include: '#link-email'
       - include: '#link-inet'
   bold:
@@ -2148,6 +2149,29 @@ repository:
       - include: '#link-inet'
       - include: '#link-email'
       - include: '#strikethrough'
+  image-inline:
+    name: meta.image.inline.markdown
+    begin: '(!)(\[)'
+    beginCaptures:
+      1:
+        name: punctuation.definition.image.markdown
+      2:
+        name: punctuation.definition.link.markdown
+    end: '(\])(\()([^\)\r\n]*)(\))'
+    endCaptures:
+      1:
+        name: punctuation.definition.link.markdown
+      2:
+        name: punctuation.definition.link.markdown
+      3:
+        name: markup.underline.link.markdown
+      4:
+        name: punctuation.definition.link.markdown
+    patterns:
+      - include: '#bold'
+      - include: '#italic'
+      - include: '#raw'
+      - include: '#escape'
   link-email:
     name: meta.link.email.texlish
     match: >-

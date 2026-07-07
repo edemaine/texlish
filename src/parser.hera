@@ -32,6 +32,7 @@ type {
   commentForTextBody,
   getEndComment,
   getLeadingIndent,
+  isEmpty,
   isNumeric,
   reduceVisualIndent,
   removeLeadingIndent,
@@ -171,7 +172,7 @@ TextLine ::AST[]
 
 # One line of text, starting in the middle of a line, for inline uses
 # (can be empty, no newline consumption)
-# except Markdown links [...](...) can consume multiple lines
+# except Markdown links/images [...](...) can consume multiple lines
 Text ::AST[]
   TextPart* InlineCommandWithColonArguments? ->
     return $1 unless $2
@@ -199,12 +200,13 @@ TextOnlyPart ::AST
   MarkdownBackticksEnabled CodeSpan -> $2
   RefShorthandEnabled RefShorthand -> $2
   CiteShorthandEnabled CiteShorthand -> $2
+  MarkdownImagesEnabled MarkdownImage -> $2
   MarkdownLinksEnabled ( Autolink / MarkdownLink ) -> $2
   SmartQuotesEnabled SmartQuote -> $2
   MarkdownEmphasisEnabled EmphasisDelimiter -> $2
   /['"]/
   # Skip to next interesting text-mode character.
-  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\()\[\]{}%$*]*/
+  /[^\r\n'"\\()\[\]{}%][^\r\n!'"@#<`\\()\[\]{}%$*]*/
 
 RefShorthand ::AST
   # @'long ref'
@@ -352,7 +354,7 @@ MathParenPart ::AST
   # Keep parentheses balanced
   MathParenthesizedText
 
-BracketedText ::AST[]
+BracketedText ::[open: string, content: AST[], close: string]
   "[" BracketContent "]"
 
 BracketContent ::AST[]
@@ -372,9 +374,21 @@ BracketTextPart ::AST
   # Keep brackets balanced
   BracketedText
 
+MarkdownImage ::AST
+  "!" BracketedText:alt "(" MarkdownLinkDestination:url ")" ->
+    altText := alt[1]
+    {
+      children: [
+        state.compilerOptions.styles['!']
+        ...if isEmpty trimContent altText then [] else
+          ["[alt={", altText, "}]"]
+        "{", url, "}"
+      ]
+    }
+
 MarkdownLink ::AST
-  BracketedText:body "(" MarkdownLinkDestination:url ")" ->
-    return {
+  /(?<!!)(?=\[)/ BracketedText:body "(" MarkdownLinkDestination:url ")" ->
+    {
       children: [
         "\\protect\\href{"
         url
@@ -1149,6 +1163,10 @@ MarkdownHeadingsEnabled
 MarkdownHorizontalRulesEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownHorizontalRules
+
+MarkdownImagesEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownImages
 
 MarkdownLinksEnabled
   "" ->
