@@ -1,3 +1,10 @@
 packages:
   - docs
   - vscode
+allowBuilds:
+  '@vscode/vsce-sign@2.0.9': false
+  esbuild@0.25.8: false
+  esbuild@0.28.1: false
+  keytar@7.9.0: false
+  sharp@0.33.5: false
+  sharp@0.34.5: false
