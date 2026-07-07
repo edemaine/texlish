@@ -51,6 +51,9 @@ describe 'project config', ->
         markdownCompat: false
       })
       config := await loadConfig configPath
+      assert.equal config.markdownEmphasis, false
+      assert.equal config.markdownFootnotes, false
+      assert.equal config.markdownHeadings, false
       assert.equal config.markdownHorizontalRules, false
       assert.equal config.markdownLinks, false
       assert.equal config.markdownLists, false
@@ -184,8 +187,26 @@ describe '--config assignment', ->
         '*': '\\textit'
 
   it 'parses boolean config options', ->
+    assert.deepEqual parseCompilerOption('colonCommands', false),
+      key: 'colonCommands'
+      value: false
+    assert.deepEqual parseCompilerOption('colonEnvironments', false),
+      key: 'colonEnvironments'
+      value: false
+    assert.deepEqual parseCompilerOption('citeShorthand', false),
+      key: 'citeShorthand'
+      value: false
     assert.deepEqual parseCompilerOption('scriptParens', false),
       key: 'scriptParens'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownEmphasis', false),
+      key: 'markdownEmphasis'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownFootnotes', false),
+      key: 'markdownFootnotes'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownHeadings', false),
+      key: 'markdownHeadings'
       value: false
     assert.deepEqual parseCompilerOption('markdownLinks', false),
       key: 'markdownLinks'
@@ -201,6 +222,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('markdownCompat', false),
       key: 'markdownCompat'
+      value: false
+    assert.deepEqual parseCompilerOption('refShorthand', false),
+      key: 'refShorthand'
       value: false
 
   it 'parses quote config options', ->

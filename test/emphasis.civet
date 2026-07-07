@@ -34,6 +34,25 @@ describe 'Markdown emphasis (*/**/***)', ->
   '''
 
   testCase r'''
+    disabled by compiler option
+    ---
+    *emphasized* and **bold**
+    ---
+    *emphasized* and **bold**
+  ''', markdownEmphasis: false
+
+  testCase r'''
+    disabled by markdownCompat shorthand
+    ---
+    *before*
+    ::config -markdownCompat
+    *after*
+    ---
+    \emph{before}
+    *after*
+  '''
+
+  testCase r'''
     multiple lines
     ---
     *emphasized* and **really

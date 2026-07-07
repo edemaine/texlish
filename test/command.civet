@@ -1,6 +1,25 @@
 { r, testCase } from ./helper.civet
 
 describe '\\command:', ->
+  testCase r'''
+    disabled by compiler option
+    ---
+    \title: The Paper
+    ---
+    \title: The Paper
+  ''', colonCommands: false
+
+  testCase r'''
+    disabled by in-file config shorthand
+    ---
+    \title: Before
+    ::config -colonCommands
+    \title: After
+    ---
+    \title{Before}%
+    \title: After
+  '''
+
   // No `r` because this test uses \x20 for an intentional trailing space.
   testCase '''
     empty

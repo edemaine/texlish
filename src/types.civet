@@ -12,12 +12,19 @@ export type CompilerOptions
   fragment?: boolean
   scriptGrouping?: ScriptGrouping
   scriptParens?: boolean
+  colonCommands?: boolean
+  colonEnvironments?: boolean
+  citeShorthand?: boolean
   latexCompat?: boolean
   markdownCompat?: boolean
   markdownBackticks?: number | boolean
+  markdownEmphasis?: boolean
+  markdownFootnotes?: boolean
+  markdownHeadings?: boolean
   markdownHorizontalRules?: boolean
   markdownLinks?: boolean
   markdownLists?: boolean
+  refShorthand?: boolean
   smartQuotes?: boolean
   quotes?: PartialQuoteConfig
   styles?: Record<string, string>

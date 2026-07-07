@@ -2,6 +2,28 @@
 
 describe ': environments', ->
   testCase r'''
+    disabled by compiler option
+    ---
+    : theorem
+      body
+    ---
+    : theorem
+      body
+  ''', colonEnvironments: false
+
+  testCase r'''
+    disabled by in-file config shorthand
+    ---
+    : before
+    ::config -colonEnvironments
+    : after
+    ---
+    \begin{before}
+    \end{before}
+    : after
+  '''
+
+  testCase r'''
     empty
     ---
     : theorem

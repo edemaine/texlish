@@ -36,3 +36,22 @@ describe 'Markdown headers (#/##/...)', ->
     \subparagraph{Subparagraph}
     \subsection{Subsection}
   '''
+
+  testCase r'''
+    disabled by compiler option
+    ---
+    # Heading
+    ---
+    # Heading
+  ''', markdownHeadings: false
+
+  testCase r'''
+    disabled by markdownCompat shorthand
+    ---
+    # Before
+    ::config -markdownCompat
+    # After
+    ---
+    \section{Before}
+    # After
+  '''

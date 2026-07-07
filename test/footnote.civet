@@ -2,6 +2,32 @@
 
 describe 'Markdown footnotes', ->
   testCase r'''
+    disabled by compiler option
+    ---
+    Text[^x].
+    [^x]: Note.
+    ---
+    Text[^x].
+    [^x]: Note.
+  ''', markdownFootnotes: false
+
+  testCase r'''
+    disabled by markdownCompat shorthand
+    ---
+    Before[^x].
+    [^x]: Before note.
+    ::config -markdownCompat
+    After[^y].
+    [^y]: After note.
+    ---
+    Before%
+    \footnote{\protect\label{footnote:x}Before note.}%
+    .
+    After[^y].
+    [^y]: After note.
+  '''
+
+  testCase r'''
     inline and nested definitions
     ---
     This is a problem[^false], but not too bad[^true].

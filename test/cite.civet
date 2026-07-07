@@ -2,6 +2,25 @@
 
 describe '[[...]] citations', ->
   testCase r'''
+    disabled by compiler option
+    ---
+    [[citation]]
+    ---
+    [[citation]]
+  ''', citeShorthand: false
+
+  testCase r'''
+    disabled by in-file config shorthand
+    ---
+    [[before]]
+    ::config -citeShorthand
+    [[after]]
+    ---
+    \cite{before}
+    [[after]]
+  '''
+
+  testCase r'''
     basic
     ---
     [[citation]]

@@ -396,31 +396,41 @@ describe 'Markdown links', ->
   '''
 
   testCase r'''
-    disabled by compiler option
+    inline and autolink disabled by compiler option
     ---
     See [Texlish](https://texlish.org).
+    See <https://texlish.org>.
     ---
     See [Texlish](https://texlish.org).
+    See <https://texlish.org>.
   ''', markdownLinks: false
 
   testCase r'''
-    disabled by in-file config shorthand
+    inline and autolink disabled by in-file config shorthand
     ---
     [Texlish](https://texlish.org)
+    <https://texlish.org>
     ::config -markdownLinks
     [Texlish](https://texlish.org)
+    <https://texlish.org>
     ---
     \protect\href{https://texlish.org}{Texlish}
+    \protect\url{https://texlish.org}
     [Texlish](https://texlish.org)
+    <https://texlish.org>
   '''
 
   testCase r'''
-    disabled by markdownCompat shorthand
+    inline and autolink disabled by markdownCompat shorthand
     ---
     [Texlish](https://texlish.org)
+    <https://texlish.org>
     ::config -markdownCompat
     [Texlish](https://texlish.org)
+    <https://texlish.org>
     ---
     \protect\href{https://texlish.org}{Texlish}
+    \protect\url{https://texlish.org}
     [Texlish](https://texlish.org)
+    <https://texlish.org>
   '''

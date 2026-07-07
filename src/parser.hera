@@ -8,6 +8,7 @@ type {
   Comment,
   ConfigEntry,
   Command,
+  Delimiter,
   Environment,
   EOL,
   FootnoteDefinition,
@@ -142,18 +143,18 @@ Statement ::AST
 
 TextStatement ::AST
   TextOrMathStatement
-  Heading
+  MarkdownHeadingsEnabled Heading -> $2
   MarkdownBackticksEnabled CodeBlock -> $2
   MarkdownHorizontalRulesEnabled HorizontalRule -> $2
-  FootnoteDefinition
+  MarkdownFootnotesEnabled FootnoteDefinition -> $2
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
 
 # Statement forms valid in both text and math mode.
 TextOrMathStatement ::AST
   MetaBlock
-  Environment
-  CommandWithColonArguments
+  ColonEnvironmentsEnabled Environment -> $2
+  ColonCommandsEnabled CommandWithColonArguments -> $2
 
 # Detect whether the next line is a text-mode statement, for deciding whether
 # to continue a text field like a Markdown bracketed link.
@@ -194,8 +195,18 @@ EnterMathMode ::AST[]
 # Rules for TextPart that apply only in text mode.
 TextOnlyPart ::AST
   BracedContent
-  FootnoteRef
+  MarkdownFootnotesEnabled FootnoteRef -> $2
   MarkdownBackticksEnabled CodeSpan -> $2
+  RefShorthandEnabled RefShorthand -> $2
+  CiteShorthandEnabled CiteShorthand -> $2
+  MarkdownLinksEnabled ( Autolink / MarkdownLink ) -> $2
+  SmartQuotesEnabled SmartQuote -> $2
+  MarkdownEmphasisEnabled EmphasisDelimiter -> $2
+  /['"]/
+  # Skip to next interesting text-mode character.
+  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\()\[\]{}%$*]*/
+
+RefShorthand ::AST
   # @'long ref'
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
     label := $2[<..<]
@@ -207,12 +218,12 @@ TextOnlyPart ::AST
     prefix := labelPrefix $1, $2
     return $skip unless prefix?
     return `${state.compilerOptions.styles[$1]}{${prefix}${$2}}`
+
+CiteShorthand ::AST
   /\[\[(.*?)\]\]/ ->
     return `${state.compilerOptions.styles['[[']}{${$1}}`
-  Autolink
-  MarkdownLinksEnabled MarkdownLink -> $2
-  SmartQuotesEnabled SmartQuote -> $2
-  /['"]/
+
+EmphasisDelimiter ::Delimiter
   # Left- *and* right-flanking delimiter according to below definitions.
   /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
     return {
@@ -248,8 +259,6 @@ TextOnlyPart ::AST
       symbol: $1,
       token: $1,
     }
-  # Skip to next interesting text-mode character.
-  /[^\r\n'"\\()\[\]{}%][^\r\n'"@#<`\\()\[\]{}%$*]*/
 
 # Inline tokens shared between text mode (TextPart) and math mode (MathPart).
 TextOrMathPart ::AST
@@ -707,7 +716,7 @@ EndMathEnvironment ::{env: string, children: AST[]}
   $/\\end[ \t]*\{/ MathEnvironmentName:env "}" -> { env, children: $0 }
 
 CommandWithColonArguments ::AST[]
-  Indent:indent StarredCommand:command Colon CommandArgumentsAfterColon:arg ->
+  ColonCommandsEnabled Indent:indent StarredCommand:command Colon CommandArgumentsAfterColon:arg ->
     [ indent, command, arg ] // drop Colon
 
 FootnoteDefinition ::FootnoteDefinition
@@ -734,7 +743,7 @@ FootnoteDefinition ::FootnoteDefinition
 
 # Inline version prevents combining same-line and indented content
 InlineCommandWithColonArguments ::AST[]
-  StarredCommand:command Colon InlineCommandArgumentsAfterColon:arg ->
+  ColonCommandsEnabled StarredCommand:command Colon InlineCommandArgumentsAfterColon:arg ->
     [ command, arg ] // drop Colon
 
 EnvironmentColonArguments ::AST
@@ -1028,7 +1037,7 @@ ListItemLine ::AST[]
 ListItemStatement ::AST
   # Alternatives must reject before Indent unless they are really matching:
   # Indent consumes pendingLineIndent, which later alternatives need.
-  Environment
+  ColonEnvironmentsEnabled Environment -> $2
   MetaBlock
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
@@ -1093,6 +1102,18 @@ ArgumentBullet ::AST[]
 
 ## Config
 
+ColonCommandsEnabled
+  "" ->
+    return $skip unless state.compilerOptions.colonCommands
+
+ColonEnvironmentsEnabled
+  "" ->
+    return $skip unless state.compilerOptions.colonEnvironments
+
+CiteShorthandEnabled
+  "" ->
+    return $skip unless state.compilerOptions.citeShorthand
+
 ScriptGroupingNumeric
   "" ->
     return $skip unless state.compilerOptions.scriptGrouping is "numeric"
@@ -1113,6 +1134,18 @@ MarkdownBackticksEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownBackticks > 0
 
+MarkdownEmphasisEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownEmphasis
+
+MarkdownFootnotesEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownFootnotes
+
+MarkdownHeadingsEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownHeadings
+
 MarkdownHorizontalRulesEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownHorizontalRules
@@ -1124,6 +1157,10 @@ MarkdownLinksEnabled
 MarkdownListsEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownLists
+
+RefShorthandEnabled
+  "" ->
+    return $skip unless state.compilerOptions.refShorthand
 
 SmartQuotesEnabled
   "" ->

@@ -18,7 +18,7 @@
   They can be disabled with `-scriptParens` or `latexCompat`.
 * Markdown-style links `[text](url)` support,
   compiling to `\protect\href{url}{text}`.
-  They can be disabled with `-markdownLinks` or `-markdownCompat`.
+  They (and autolinks) can be disabled with `-markdownLinks` or `-markdownCompat`.
   [[#32](https://github.com/edemaine/texlish/issues/32)]
 * Smart quotes convert straight `'` and `"` characters to TeX
   opening/closing quote ligatures, while preserving apostrophes in words.
@@ -42,12 +42,16 @@
   [[#33](https://github.com/edemaine/texlish/issues/33)]
 * Markdown-style footnotes support `[^id]` markers, `[^id]:` definitions,
   repeated references via `\footref`, and `@^id` numeric references.
+  They can be disabled with `-markdownFootnotes` or `-markdownCompat`.
   [[#21](https://github.com/edemaine/texlish/issues/21)]
 * Markdown-style lists can be disabled with `-markdownLists` or
   `-markdownCompat`.
 * Markdown-style and command-argument list items can start with
   same-line `:` environments, nested lists, or `::` meta commands.
   [[#7](https://github.com/edemaine/texlish/issues/7)]
+* Other syntax features can now be disabled individually:
+  `markdownHeadings`, `markdownEmphasis`, `markdownFootnotes`,
+  `refShorthand`, `citeShorthand`, `colonCommands`, and `colonEnvironments`.
 * Math mode delimited by `$...$`, `$$...$$`, `\(...\)`, `\[...\]`,
   standard display-math environments, or Texlish shorthand such as `: align`
   suppresses text-only Markdown markup such as headings, emphasis,

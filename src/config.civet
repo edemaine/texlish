@@ -9,10 +9,17 @@ import type {
 } from ./types.civet
 
 export const defaultConfig: ActiveCompilerOptions = {
+  colonCommands: true
+  colonEnvironments: true
+  citeShorthand: true
   markdownBackticks: 1
+  markdownEmphasis: true
+  markdownFootnotes: true
+  markdownHeadings: true
   markdownHorizontalRules: true
   markdownLinks: true
   markdownLists: true
+  refShorthand: true
   smartQuotes: true
   scriptParens: true
   scriptGrouping: "numeric"
@@ -42,6 +49,9 @@ export const defaultConfig: ActiveCompilerOptions = {
     @scriptParens = not value
   set markdownCompat(value: boolean)
     @markdownBackticks = if value then 1 else 0
+    @markdownEmphasis = value
+    @markdownFootnotes = value
+    @markdownHeadings = value
     @markdownHorizontalRules = value
     @markdownLinks = value
     @markdownLists = value
@@ -100,21 +110,35 @@ type ParsedCompilerOption
   | { key: "styles", value: Record<string, string> }
 
 type BooleanCompilerOption
+  | "colonCommands"
+  | "colonEnvironments"
+  | "citeShorthand"
   | "scriptParens"
   | "latexCompat"
   | "markdownCompat"
+  | "markdownEmphasis"
+  | "markdownFootnotes"
+  | "markdownHeadings"
   | "markdownHorizontalRules"
   | "markdownLinks"
   | "markdownLists"
+  | "refShorthand"
   | "smartQuotes"
 
 booleanCompilerOptions := new Map<string, BooleanCompilerOption>
+  . ["coloncommands", "colonCommands"]
+  . ["colonenvironments", "colonEnvironments"]
+  . ["citeshorthand", "citeShorthand"]
   . ["scriptparens", "scriptParens"]
   . ["latexcompat", "latexCompat"]
   . ["markdowncompat", "markdownCompat"]
+  . ["markdownemphasis", "markdownEmphasis"]
+  . ["markdownfootnotes", "markdownFootnotes"]
+  . ["markdownheadings", "markdownHeadings"]
   . ["markdownhorizontalrules", "markdownHorizontalRules"]
   . ["markdownlinks", "markdownLinks"]
   . ["markdownlists", "markdownLists"]
+  . ["refshorthand", "refShorthand"]
   . ["smartquotes", "smartQuotes"]
 
 function setCompilerOption<K extends keyof CompilerOptions>(

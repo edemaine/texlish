@@ -2,6 +2,25 @@
 
 describe '@ shorthand for \\ref, \\label, etc.', ->
   testCase r'''
+    disabled by compiler option
+    ---
+    @=thm:main @thm:main @#thm:main
+    ---
+    @=thm:main @thm:main @#thm:main
+  ''', refShorthand: false
+
+  testCase r'''
+    disabled by in-file config shorthand
+    ---
+    @thm:main
+    ::config -refShorthand
+    @thm:main
+    ---
+    \ref{thm:main}
+    @thm:main
+  '''
+
+  testCase r'''
     ref
     ---
     Theorem @thm:main
