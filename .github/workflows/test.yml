@@ -28,5 +28,7 @@ jobs:
           node-version: 22
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
       - name: Run tests
         run: pnpm test

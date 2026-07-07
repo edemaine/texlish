@@ -140,32 +140,49 @@ export function cli: Promise<void>
       continue
 
     unless mode is 'compile'
-      args := [
+      errors += await runCommand mode, [
         ...flags
         texFile
-      ].map shellQuote
-      console.log `** ${mode} ${args.join ' '}`
-      await new Promise<void> (resolve): void =>
-        spawn mode, args,
-          stdio: 'inherit'
-          shell: true
-        ||> .on 'error', (error) =>
-          console.log "** FAILED:", error
-          errors++
-          resolve()
-        ||> .on 'close', (code) =>
-          if code
-            console.log "** ERROR CODE:", code
-            errors++
-          resolve()
+      ]
 
   process.exit Math.min 255, errors
 
-export function shellQuote(arg: string): string
+export function posixQuote(arg: string): string
   return arg if /^[A-Za-z0-9_\/.-]+$/.test arg
-  if process.platform is 'win32'
-    // Double-quote the argument and escape double quotes with doubling
-    `"${arg.replace /"/g, '""'}"`
-  else
-    // Escape single quotes by closing, escaping, and reopening single quotes
-    `'${arg.replace /'/g, "'\\''"}'`
+  // Escape single quotes by closing, escaping, and reopening single quotes
+  `'${arg.replace /'/g, "'\\''"}'`
+
+export function runCommand(command: string, args: string[]): Promise<number>
+  console.log `** ${command} ${args.map(posixQuote).join ' '}`
+  try
+    await spawnCommand command, args
+  catch error
+    if process.platform is 'win32' and (error as NodeJS.ErrnoException).code is 'ENOENT'
+      // Cygwin pdflatex is a symlink and can be run only within Cygwin bash
+      try
+        await spawnCommand 'bash', [
+          '-c'
+          `exec ${[command, ...args].map(posixQuote).join ' '}`
+        ]
+      catch error2
+        console.log "** FAILED:", error
+        console.log "** BASH ALSO FAILED:", error2
+        1
+    else
+      console.log "** FAILED:", error
+      1
+
+function spawnCommand(command: string, args: string[]): Promise<number>
+  new Promise<number> (resolve, reject): void =>
+    errored .= false
+    spawn command, args, stdio: 'inherit'
+    ||> .on 'error', (error) =>
+      errored = true
+      reject error
+    ||> .on 'close', (code) =>
+      return if errored
+      if code
+        console.log "** ERROR CODE:", code
+        resolve 1
+      else
+        resolve 0
