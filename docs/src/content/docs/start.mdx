@@ -35,6 +35,11 @@ texlish --config latexCompat filename.texlish
 texlish --config -markdownCompat filename.texlish
 ```
 
+When you use a LaTeX option such as `--pdf`, `--xe`, `--lua`, or `--latex`,
+Texlish runs a multi-pass LaTeX build. It runs BibTeX or Biber if needed,
+runs makeindex when an index changes, and reruns LaTeX if generated files
+such as `.bbl`, `.toc`, or cross-reference labels changed.
+
 ## Configuration
 
 Texlish looks for a project config file in `.config/`, then in the

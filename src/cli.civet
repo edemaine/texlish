@@ -11,6 +11,22 @@ path from node:path
 { findInDir, loadConfig } from ./config-file.civet
 type { CompilerOptions } from ./types.civet
 
+maxLatexRuns := 5
+// If any of these files changes from a latex run, need to rerun latex.
+rerunGeneratedExtensions := [
+  'brf' // back references
+  'loa' // list of algorithms
+  'lof' // list of figures
+  'lol' // list of listings
+  'lot' // list of tables
+  'nav' // Beamer navigation data
+  'out' // PDF outlines/bookmarks
+  'snm' // Beamer slide names
+  'thm' // list of theorems
+  'toc' // table of contents
+  'vrb' // Beamer verbatim frames
+]
+
 function usage: void
   console.log '''
     Usage: texlish [options] filename
@@ -25,6 +41,7 @@ function usage: void
     --lua / --lualatex: Run lualatex
     --xe / --xelatex: Run xelatex
     --latex / --dvi: Run latex
+    These will run LaTeX multiple times and/or bibtex/biber/makeindex as needed.
 
     Other options:
     --trace=filename: Debug compilation by writing a trace log
@@ -50,7 +67,7 @@ export function transpile(filename: string, options: CompilerOptions): Promise<s
   ```
   outFilename := filename.replace /\.texlish$|$/, '.tex'
   await fs.writeFile outFilename, output
-  console.log `** ${filename} -> ${outFilename}`
+  console.log `\n** ${filename} -> ${outFilename}`
   outFilename
 
 export function cli: Promise<void>
@@ -93,9 +110,7 @@ export function cli: Promise<void>
           process.exit 1
           return
       /^--?config$/
-        i++
-        configArg := process.argv[i]
-        unless configArg
+        unless configArg := process.argv[++i]
           console.log "!! Missing value after --config"
           process.exit 1
           return
@@ -106,6 +121,14 @@ export function cli: Promise<void>
           console.log `!! ${error}`
           process.exit 1
           return
+      // LaTeX command-line option that takes a value
+      /^--?(output-directory|aux-directory|auxdir|jobname)$/
+        flags.push arg
+        unless flagValue := process.argv[++i]
+          console.log `!! Missing value after ${arg}`
+          process.exit 1
+          return
+        flags.push flagValue
       /^-/  // LaTeX command-line option
         flags.push arg
       else
@@ -141,12 +164,7 @@ export function cli: Promise<void>
       continue
 
     unless mode is 'compile'
-      texDir := path.dirname texFile
-      texBase := path.basename texFile
-      errors += await runCommand mode, [
-        ...flags
-        texBase
-      ], texDir
+      errors += await buildLatex mode, flags, texFile
 
   process.exit Math.min 255, errors
 
@@ -155,11 +173,138 @@ export function posixQuote(arg: string): string
   // Escape single quotes by closing, escaping, and reopening single quotes
   `'${arg.replace /'/g, "'\\''"}'`
 
-export function runCommand(command: string, args: string[], cwd?: string): Promise<number>
+export function buildLatex(command: string, flags: string[], texFile: string): Promise<number>
+  workDir := path.dirname texFile
+  texBase := path.basename texFile
+  jobName := latexFlagValue(flags, ['jobname']) ?? path.basename texBase, path.extname texBase
+  rawOutputDir := latexFlagValue flags, ['output-directory']
+  outputDir := latexDir workDir, rawOutputDir
+  artifactDir := latexDir workDir,
+    latexFlagValue(flags, ['aux-directory', 'auxdir']) ?? rawOutputDir
+  outputFile := path.join outputDir, `${jobName}${command is 'latex' ? '.dvi' : '.pdf'}`
+
+  function artifact(ext: string): string
+    path.join artifactDir, `${jobName}.${ext}`
+  function relative(filename: string): string
+    if path.isAbsolute filename
+      path.relative workDir, filename
+    else
+      filename
+  async function snapshotGeneratedFiles(): Promise<Map<string, string?>>
+    snapshot := new Map<string, string?>
+    for each ext of rerunGeneratedExtensions
+      filename := artifact ext
+      snapshot.set filename, await readTextIfExists filename
+    snapshot
+
+  latexRuns .= 0
+  runReason .= 'initial'
+  commandsRun .= []
+  ranMakeindex .= false
+  loop
+    if ++latexRuns > maxLatexRuns
+      console.log `!! Stopping LaTeX build after ${maxLatexRuns} runs`
+      return 1
+
+    auxBefore := await readTextIfExists artifact 'aux'
+    idxBefore := await readTextIfExists artifact 'idx'
+    generatedBefore := await snapshotGeneratedFiles()
+    latexError := await runCommand command, [
+      ...flags
+      texBase
+    ], workDir
+    return latexError if latexError
+    commandsRun.push command
+    auxAfter := await readTextIfExists artifact 'aux'
+
+    if bibCommand := (
+      // BibLaTeX with backend=bibtex writes \bibdata and \abx@aux@, but no .bcf.
+      // BibLaTeX with backend=biber writes \abx@aux@ and .bcf, but no \bibdata.
+      if auxAfter is like /\\bibdata\{/
+        'bibtex'
+      else if auxAfter is like /\\abx@aux@/ and await exists artifact 'bcf'
+        'biber'
+    )
+      bblBefore := await readTextIfExists artifact 'bbl'
+      bibError := await runCommand bibCommand, [
+        relative path.join artifactDir, jobName
+      ], workDir
+      commandsRun.push bibCommand
+      bblAfter := await readTextIfExists artifact 'bbl'
+      if bibError
+        // Restore bbl file if BibTeX/Biber failed, e.g. from missing bib files
+        if bblAfter? and not /\\(?:bibitem|entry)\b/.test bblAfter
+          if bblBefore?
+            await fs.writeFile artifact('bbl'), bblBefore
+          else
+            await fs.rm artifact('bbl'), force: true
+        return bibError
+      if bblBefore is not bblAfter
+        runReason = 'bbl-changed'
+        continue
+
+    idxAfter := await readTextIfExists artifact 'idx'
+    if idxAfter and (not ranMakeindex or idxBefore is not idxAfter)
+      indBefore := await readTextIfExists artifact 'ind'
+      makeindexError := await runCommand 'makeindex', [
+        '-o'
+        relative artifact 'ind'
+        relative artifact 'idx'
+      ], workDir
+      return makeindexError if makeindexError
+      commandsRun.push 'makeindex'
+      ranMakeindex = true
+      indAfter := await readTextIfExists artifact 'ind'
+      if indBefore is not indAfter
+        runReason = 'index-changed'
+        continue
+
+    generatedAfter := await snapshotGeneratedFiles()
+    if generatedFilesChanged generatedBefore, generatedAfter
+      runReason = 'generated-changed'
+      continue
+
+    logAfter := await readTextIfExists artifact 'log'
+    if logAfter?.includes 'LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.'
+      // Ignore second label-warning if aux file didn't actually change.
+      break if runReason is 'label-warning' and auxBefore is auxAfter
+      runReason = 'label-warning'
+      continue
+
+    break // stop loop if no runReason to continue
+
+  console.log `\n** ${relative outputFile} built via ${commandsRun.join ', '}`
+  return 0
+
+function latexDir(workDir: string, dir: string?): string
+  dir ? path.resolve(workDir, dir) : workDir
+
+function latexFlagValue(flags: string[], names: string[]): string?
+  for each flag, i of flags
+    for each name of names
+      for each option of [`-${name}`, `--${name}`]
+        return flag[flag.indexOf('=') + 1..] if flag.startsWith `${option}=`
+        return flags[i + 1] if flag is option and flags[i + 1]
+  return
+
+function readTextIfExists(filename: string): Promise<string?>
+  try
+    await fs.readFile filename, 'utf8'
+  catch error
+    if (error as NodeJS.ErrnoException).code is 'ENOENT'
+      return
+    else
+      throw error
+
+function generatedFilesChanged(before: Map<string, string?>, after: Map<string, string?>): boolean
+  for some filename of new Set [ ...before.keys(), ...after.keys() ]
+    before.get(filename) is not after.get(filename)
+
+function runCommand(command: string, args: string[], cwd?: string): Promise<number>
   commandLine .= `${command} ${args.map(posixQuote).join ' '}`
   if cwd and cwd is not '.'
     commandLine = `cd ${posixQuote cwd}; ${commandLine}`
-  console.log `** ${commandLine}`
+  console.log `\n** ${commandLine}`
   try
     await spawnCommand command, args, cwd
   catch error
