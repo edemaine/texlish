@@ -7,9 +7,27 @@ to offer a clean, easy-to-read, easy-to-write syntax.
 Texlish **compiles to LaTeX**, so it's compatible with
 all existing packages, and you can submit to journals, arXiv, etc. as usual.
 
-Texlish also aims to be **99% LaTeX compatible**:
+Texlish aims to be **99% LaTeX compatible**:
 you can write/import regular LaTeX,
 and gradually transition to Texlish's cleaner syntax at your own pace.
+We offer some features that are convenient but not strictly LaTeX-compatible,
+but they can all be turned off if desired,
+and gradually turned back on as you migrate.
+
+Texlish also aims to be **99% Markdown compatible**,
+offering the convenience and familiarity of Markdown for easy
+[`# Section`](https://texlish.org/reference#sections),
+[`*emphasis*`](https://texlish.org/reference#emphasis),
+[`"smart quotes"`](https://texlish.org/reference#smart-quotes),
+[`- lists`](https://texlish.org/reference#lists),
+[`> quotes`](https://texlish.org/reference#block-quotes),
+[`[^footnotes]`](https://texlish.org/reference#footnotes),
+[links](https://texlish.org/reference#links),
+[images](https://texlish.org/reference#images),
+[`` `code` ``](https://texlish.org/reference#code), and
+[horizontal rules](https://texlish.org/reference#horizontal-rules).
+Again you can turn off any features you don't want
+to increase LaTeX compatibility.
 
 Try Texlish for your next document, paper, or presentation!
 
