@@ -6,7 +6,7 @@ import Example from '../../components/example.astro'
 
 * Markdown features: [`# Section`](#sections),
   [`*emphasis*`](#emphasis), [`"smart quotes"`](#smart-quotes),
-  [`- lists`](#lists), [`[^footnote]`](#footnotes),
+  [`- lists`](#lists), [`> quotes`](#block-quotes), [`[^footnote]`](#footnotes),
   [`<url>`](#links), [`[text](url)`](#links), [`![alt](url)`](#images),
   [`` `code` ``](#code), and [`---`](#horizontal-rules).
 * Cross-references: [`@=label`, `@ref`](#label-ref) and [`[[citation]]`](#cite).
@@ -189,6 +189,52 @@ but with less strict requirements on indentation.
 `}/>
 
 Markdown-style lists can be disabled with `::config -markdownLists`
+or `::config -markdownCompat`.
+
+## Block Quotes
+
+Similar to Markdown
+[blockquotes](https://daringfireball.net/projects/markdown/syntax#blockquote) /
+CommonMark [block quotes](https://spec.commonmark.org/0.31.2/#block-quotes),
+but following Texlish indentation rules instead of lazy paragraph continuation:
+
+<Example src={`
+  We prove NP-hardness of the following problem:
+
+  > Given a graph, is it Hamiltonian?
+`}/>
+
+Same-indented quote markers continue the same `quote` environment:
+
+<Example src={`
+  > First line
+  > second line
+`}/>
+
+Strictly indented lines belong to the quote, while same-indent lines do not:
+
+<Example src={`
+  > First line
+    still quoted
+  no longer quoted
+`}/>
+
+Use a blank quote marker for a paragraph break inside the quote:
+
+<Example src={`
+  > First paragraph
+  >
+  > Second paragraph
+`}/>
+
+You can customize the environment with `::styles`:
+
+<Example src={`
+  ::styles > = quotation
+  > A longer quoted passage.
+`}/>
+
+Markdown-style block quotes can be disabled with `::config -markdownBlockquotes`
 or `::config -markdownCompat`.
 
 ## Label/Ref
@@ -786,12 +832,14 @@ Supported config options are:
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`,
   `-scriptParens`, and `-smartQuotes`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
-  currently `markdownBackticks`, `markdownEmphasis`, `markdownFootnotes`,
-  `markdownHeadings`, `markdownHorizontalRules`, `markdownImages`, `markdownLinks`,
-  `markdownLists`, and `smartQuotes`
+  currently `markdownBackticks`, `markdownBlockquotes`, `markdownEmphasis`,
+  `markdownFootnotes`, `markdownHeadings`, `markdownHorizontalRules`,
+  `markdownImages`, `markdownLinks`, `markdownLists`, and `smartQuotes`
 * `markdownBackticks`: minimum number of backticks that enables
   [code spans and fenced code blocks](#code), or `0` to disable them;
   enabled by default as `1`
+* `markdownBlockquotes`: whether Markdown-style block quotes like `> quote`
+  compile to LaTeX quote environments; enabled by default
 * `markdownEmphasis`: whether `*emphasis*` and related `*` runs compile to
   configured styles; enabled by default
 * `markdownFootnotes`: whether `[^id]` markers and `[^id]:` definitions
@@ -816,9 +864,9 @@ Supported config options are:
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
-* `styles`: styles for [emphasis](#emphasis), [images](#images), [code](#code),
-  [horizontal rules](#horizontal-rules), [label/ref](#label-ref),
-  or [citations](#cite);
+* `styles`: styles for [emphasis](#emphasis), [block quotes](#block-quotes),
+  [images](#images), [code](#code), [horizontal rules](#horizontal-rules),
+  [label/ref](#label-ref), or [citations](#cite);
   equivalent to `::styles`
 
 You can also set config options globally in a

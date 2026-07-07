@@ -13,6 +13,7 @@ export const defaultConfig: ActiveCompilerOptions = {
   colonEnvironments: true
   citeShorthand: true
   markdownBackticks: 1
+  markdownBlockquotes: true
   markdownEmphasis: true
   markdownFootnotes: true
   markdownHeadings: true
@@ -32,6 +33,7 @@ export const defaultConfig: ActiveCompilerOptions = {
       open: "`"
       close: "'"
   styles:
+    '>': 'quote'
     '`': '\\verb'
     '```*': 'verbatim'
     '*': '\\emph'
@@ -51,6 +53,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     @scriptParens = not value
   set markdownCompat(value: boolean)
     @markdownBackticks = if value then 1 else 0
+    @markdownBlockquotes = value
     @markdownEmphasis = value
     @markdownFootnotes = value
     @markdownHeadings = value
@@ -119,6 +122,7 @@ type BooleanCompilerOption
   | "scriptParens"
   | "latexCompat"
   | "markdownCompat"
+  | "markdownBlockquotes"
   | "markdownEmphasis"
   | "markdownFootnotes"
   | "markdownHeadings"
@@ -136,6 +140,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["scriptparens", "scriptParens"]
   . ["latexcompat", "latexCompat"]
   . ["markdowncompat", "markdownCompat"]
+  . ["markdownblockquotes", "markdownBlockquotes"]
   . ["markdownemphasis", "markdownEmphasis"]
   . ["markdownfootnotes", "markdownFootnotes"]
   . ["markdownheadings", "markdownHeadings"]

@@ -48,6 +48,14 @@ patterns:
         name: comment.line.percentage.latex
       3:
         name: punctuation.definition.comment.latex
+  - name: markup.quote.markdown.texlish
+    match: '^(\s*)(>)(?:([ \t])(.*)|$)'
+    captures:
+      2:
+        name: punctuation.definition.quote.markdown
+      4:
+        patterns:
+          - include: '#inline'
   - name: markup.heading.texlish
     match: '^((!+|\.*)#+\*?\s+(.*))$'
     captures:

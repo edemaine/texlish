@@ -51,6 +51,7 @@ describe 'project config', ->
         markdownCompat: false
       })
       config := await loadConfig configPath
+      assert.equal config.markdownBlockquotes, false
       assert.equal config.markdownEmphasis, false
       assert.equal config.markdownFootnotes, false
       assert.equal config.markdownHeadings, false
@@ -199,6 +200,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('scriptParens', false),
       key: 'scriptParens'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownBlockquotes', false),
+      key: 'markdownBlockquotes'
       value: false
     assert.deepEqual parseCompilerOption('markdownEmphasis', false),
       key: 'markdownEmphasis'

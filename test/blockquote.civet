@@ -1,0 +1,114 @@
+{ r, testCase } from ./helper.civet
+
+describe 'Markdown blockquotes', ->
+  testCase r'''
+    strict indentation continues quote
+    ---
+    > first line
+     second line
+    ---
+    \begin{quote}
+      first line
+     second line
+    \end{quote}
+  '''
+
+  testCase r'''
+    same-indent text does not continue quote
+    ---
+    > first line
+    second line
+    ---
+    \begin{quote}
+      first line
+    \end{quote}
+    second line
+  '''
+
+  testCase r'''
+    same-indent quote markers coalesce
+    ---
+    > first line
+    > second line
+    ---
+    \begin{quote}
+      first line
+      second line
+    \end{quote}
+  '''
+
+  testCase r'''
+    blank quote marker creates paragraph break
+    ---
+    > first paragraph
+    >
+    > second paragraph
+    ---
+    \begin{quote}
+      first paragraph
+
+      second paragraph
+    \end{quote}
+  '''
+
+  testCase r'''
+    strictly indented quote nests
+    ---
+    > outer
+     > inner
+    ---
+    \begin{quote}
+      outer
+     \begin{quote}
+      inner
+     \end{quote}
+    \end{quote}
+  '''
+
+  testCase r'''
+    custom quote environment
+    ---
+    ::styles > = quotation
+    > text
+    ---
+    \begin{quotation}
+      text
+    \end{quotation}
+  '''
+
+  testCase r'''
+    texlish-style environment style
+    ---
+    ::styles
+      > = : displayquote
+    > text
+    ---
+    \begin{displayquote}
+      text
+    \end{displayquote}
+  '''
+
+  testCase r'''
+    bare greater-than is not a quote marker
+    ---
+    >text
+    ---
+    >text
+  '''
+
+  testCase r'''
+    disabled by compiler option
+    ---
+    > text
+    ---
+    > text
+  ''', markdownBlockquotes: false
+
+  testCase r'''
+    disabled by markdownCompat shorthand
+    ---
+    ::config -markdownCompat
+    > text
+    ---
+    > text
+  '''

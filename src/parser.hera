@@ -4,6 +4,7 @@ type {
   ActiveCompilerOptions,
   AST,
   ASTParent,
+  BlockQuote,
   Braced,
   Comment,
   ConfigEntry,
@@ -90,13 +91,6 @@ function labelPrefix(style: string, label: string): string?
     return 'footnote:'
   ''
 
-function applyConfigAssignments(body: ConfigEntry[]): void
-  if body.some [key] => key[0] is "styles"
-    // Avoid aliasing so that we can copy by reference in Delimiters
-    state.compilerOptions.styles = {...state.compilerOptions.styles}
-  for [key, value] of body
-    applyCompilerOption(state.compilerOptions, key, value)
-
 function setListItemIndent(marker: string): void
   state.listItemIndent = {
     ...state.thisLineIndent
@@ -146,6 +140,7 @@ TextStatement ::AST
   TextOrMathStatement
   MarkdownHeadingsEnabled Heading -> $2
   MarkdownBackticksEnabled CodeBlock -> $2
+  MarkdownBlockquotesEnabled BlockQuote -> $2
   MarkdownHorizontalRulesEnabled HorizontalRule -> $2
   MarkdownFootnotesEnabled FootnoteDefinition -> $2
   MarkdownListsEnabled UnorderedList -> $2
@@ -489,17 +484,7 @@ CodeBlock ::AST[]
         state.compilerOptions.styles[ticks + "*"]
       style
     style ??= "\\begin{verbatim}"
-    style = style.trim()
-    style = style[>=2].trimStart() if /^:[ \t]/.test style
-    let envOpen, envClose
-    if match := /^\\begin\s*\{([^}]+)\}(.*)$/.exec style
-      envOpen = style + option
-      envClose = `\\end{${match[1]}}`
-    else if match := /^([^\s\[\{]+)(.*)$/.exec style
-      envOpen = `\\begin{${match[1]}}${match[2]}${option}`
-      envClose = `\\end{${match[1]}}`
-    else
-      throw new Error `Invalid code block style ${JSON.stringify style}; expected environment name or \\begin{environment}`
+    env := environmentStyle style, "code block", option
     if indent.level > 0
       // CommonMark fenced code blocks remove up to the opening fence
       // indentation from each content line:
@@ -508,12 +493,35 @@ CodeBlock ::AST[]
         lineStart + reduceVisualIndent lineIndent, indent.level
     [
       indent
-      envOpen
+      env.open
       "\n"
       content
       if content# and not /(?:\r\n?|\n)$/.test content then "\n"
-      envClose
+      env.close
     ]
+
+```
+/**
+ * Interpret a configured style value as a LaTeX environment.
+ * Supports a bare environment name, Texlish `: environment` shorthand,
+ * or a literal `\begin{environment}` prefix; optional text is appended to
+ * the opening environment for fenced-code options.
+ */
+function environmentStyle(style: string, description: string, option: string = ""): {open: string, close: string}
+  style = style.trim()
+  style = style[>=2].trimStart() if /^:[ \t]/.test style
+  if match := /^\\begin\s*\{([^}]+)\}(.*)$/.exec style
+    return {
+      open: style + option
+      close: `\\end{${match[1]}}`
+    }
+  if match := /^([^\s\[\{]+)(.*)$/.exec style
+    return {
+      open: `\\begin{${match[1]}}${match[2]}${option}`
+      close: `\\end{${match[1]}}`
+    }
+  throw new Error `Invalid ${description} style ${JSON.stringify style}; expected environment name or \\begin{environment}`
+```
 
 CodeBlockOpen ::{indent: Indent, marker: string, info: string}
   Indent:indent /// (`{${Math.max(3, state.compilerOptions.markdownBackticks)},}) [ \t]* ([^\r\n`]*) [ \t]* (?:\r\n?|\n|$) ///:match ->
@@ -532,6 +540,35 @@ CodeBlockBodyLine ::string
 
 CodeBlockClose ::string
   &IndentedAtLeast /// [ \t]* ${state.codeMarker}`* [ \t]* /// &EOL -> ""
+
+BlockQuote ::BlockQuote
+  &( /[ \t]*/ BlockQuoteMarker ) Indent:indent PushIndent BlockQuoteSegment:first BlockQuoteContinuation*:rest PopIndent ->
+    style := state.compilerOptions.styles['>'] or "quote"
+    env := environmentStyle style, "blockquote"
+    {
+      type: "BlockQuote"
+      children: [
+        indent
+        env.open
+        "\n"
+        first
+        ...rest
+        "\n"
+        indent
+        env.close
+      ]
+    }
+
+BlockQuoteMarker
+  />([ \t])/ -> " " + $1
+  />(?=[\r\n]|$)/ -> ""
+
+BlockQuoteSegment ::AST[]
+  BlockQuoteMarker Text NestedBody
+
+BlockQuoteContinuation ::AST[]
+  NestedComment*:comments SameLevel:eol Indent:indent BlockQuoteSegment:segment ->
+    [ comments, eol, indent, segment ]
 
 FootnoteRef ::FootnoteRef
   /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
@@ -827,13 +864,31 @@ MetaConfig ::AST
     applyConfigAssignments body
     return '\0'  // eat following newline
 
-MetaStyles ::AST
-  "styles" NestedConfigAssignments:body ->
+```
+function applyConfigAssignments(body: ConfigEntry[]): void
+  if body.some [key] => key[0] is "styles"
     // Avoid aliasing so that we can copy by reference in Delimiters
     state.compilerOptions.styles = {...state.compilerOptions.styles}
-    for [key, value] of body
-      applyCompilerOption state.compilerOptions, ["styles", ...key], value
-    return '\0'  // eat following newline
+  for [key, value] of body
+    applyCompilerOption state.compilerOptions, key, value
+```
+
+MetaStyles ::AST
+  # One-line assignment `::styles key = value`
+  "styles" /[ \t]+/ ConfigAssignment:body ->
+    applyStyleAssignments body
+    '\0'  // eat following newline
+  "styles" NestedConfigAssignments:body ->
+    applyStyleAssignments body
+    '\0'  // eat following newline
+
+```
+function applyStyleAssignments(body: ConfigEntry[]): void
+  // Avoid aliasing so that we can copy by reference in Delimiters
+  state.compilerOptions.styles = {...state.compilerOptions.styles}
+  for [key, value] of body
+    applyCompilerOption state.compilerOptions, ["styles", ...key], value
+```
 
 NestedConfigAssignments ::ConfigEntry[]
   PushStrictIndent NestedConfigAssignment*:items PopIndent ->
@@ -1147,6 +1202,10 @@ ScriptParensEnabled
 MarkdownBackticksEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownBackticks > 0
+
+MarkdownBlockquotesEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownBlockquotes
 
 MarkdownEmphasisEnabled
   "" ->

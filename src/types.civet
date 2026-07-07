@@ -18,6 +18,7 @@ export type CompilerOptions
   latexCompat?: boolean
   markdownCompat?: boolean
   markdownBackticks?: number | boolean
+  markdownBlockquotes?: boolean
   markdownEmphasis?: boolean
   markdownFootnotes?: boolean
   markdownHeadings?: boolean
@@ -56,6 +57,7 @@ export interface ASTToken
 type Loc = ???
 
 export type ASTNode
+  | BlockQuote
   | Braced
   | Comment
   | Command
@@ -71,6 +73,9 @@ export type ASTNode
   | SmartQuote
   | Use
   | Uses
+
+export interface BlockQuote extends ASTParent
+  type: "BlockQuote"
 
 export interface Braced extends ASTParent
   type: "Braced"

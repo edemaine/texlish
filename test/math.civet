@@ -48,6 +48,18 @@ describe 'math mode', ->
   '''
 
   testCase r'''
+    math lines are not Markdown blockquotes
+    ---
+    $$
+    > x
+    $$
+    ---
+    $$
+    > x
+    $$
+  '''
+
+  testCase r'''
     asterisks in math are not emphasis
     ---
     $G^*$ and $v_{\vec x} \in V^*$
@@ -87,6 +99,14 @@ describe 'math mode', ->
     $[[citation]]$ and [[citation]]
     ---
     $[[citation]]$ and \cite{citation}
+  '''
+
+  testCase r'''
+    images in math stay literal
+    ---
+    $![Plot](figure.png)$ and ![Plot](figure.png)
+    ---
+    $![Plot](figure.png)$ and \includegraphics[alt={Plot}]{figure.png}
   '''
 
   testCase r'''

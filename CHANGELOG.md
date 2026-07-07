@@ -48,6 +48,12 @@
   repeated references via `\footref`, and `@^id` numeric references.
   They can be disabled with `-markdownFootnotes` or `-markdownCompat`.
   [[#21](https://github.com/edemaine/texlish/issues/21)]
+* Markdown-style block quotes `> quote` compile to LaTeX `quote` environments,
+  with strictly indented continuation lines and same-indented `> ` markers
+  continuing the same quote.
+  The environment can be customized with `::styles > = quotation`.
+  They can be disabled with `-markdownBlockquotes` or `-markdownCompat`.
+  [[#3](https://github.com/edemaine/texlish/issues/3)]
 * Markdown-style lists can be disabled with `-markdownLists` or
   `-markdownCompat`.
 * Markdown-style and command-argument list items can start with
