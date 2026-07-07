@@ -38,8 +38,12 @@ function processSmartQuotes(root: AST[]): void
     for each child, i of parent
       continue unless { type: "SmartQuote", quote } := child
       previousNode := parent[i-1]
-      previous := nodeText(previousNode).-1
-      next := nodeText(parent[i+1]).0
+      previous .= nodeText(previousNode).-1
+      next .= nodeText(parent[i+1]).0
+      // Braced content isolates from remaining source text,
+      // so treat braces like start/end of line for flanking context.
+      previous = "" if previous is "{"
+      next = "" if next is "}"
       // Missing context counts as whitespace at line/array boundaries.
       previousIsWhitespace := not previous or previous is like /\s/u
       nextIsWhitespace := not next or next is like /\s/u

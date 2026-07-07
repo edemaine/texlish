@@ -123,6 +123,14 @@ describe 'Markdown smart quotes', ->
     (`hi'), [`hi'], a:`hi', x=`hi', (``hi''), [``hi''], a:``hi'', x=``hi''
   """
 
+  testCase """
+    quotes inside braces use body boundaries
+    ---
+    {"} and {'} and {"x"}
+    ---
+    {"} and {'} and {``x''}
+  """
+
   testCase '''
     unmatched double quotes after digits stay literal
     ---
