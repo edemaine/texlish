@@ -1,6 +1,6 @@
 # Texlish Changelog
 
-## Unreleased
+## 0.2.0
 
 * `::version` enforces Texlish version ranges with comparison operators,
   partial/wildcard versions, whitespace-separated AND conditions, and

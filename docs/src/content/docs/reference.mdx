@@ -19,7 +19,7 @@ import Example from '../../components/example.astro'
   [`::preamble`](#preamble),
   [automatic `\documentclass`/`\begin{document}`](#automatic-document-boilerplate),
   [`::config key=value`](#config), and
-  [`::version >=0.1.1`](#version-requirements).
+  [`::version >=0.2.0`](#version-requirements).
 
 ## Sections
 
@@ -881,17 +881,17 @@ Use `::version` to check that the current Texlish version
 satisfies a version range:
 
 <Example src={`
-  ::version >=0.1.1 <99999.0.0
+  ::version >=0.2.0 <99999.0.0
 `}/>
 
 Without comparison operators, you can specify a version prefix and/or
 use `x`, `X`, or `*` wildcards.  For example, the following are equivalent:
 
 ```texlish
-::version 0.1
-::version 0.1.x
-::version 0.1.*
-::version >=0.1.0-0 <0.2.0-0
+::version 0.2
+::version 0.2.x
+::version 0.2.*
+::version >=0.2.0-0 <0.3.0-0
 ```
 
 Use `||` to accept multiple alternatives:

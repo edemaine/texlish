@@ -6,7 +6,7 @@ sourcemap := true
 
 build({
   entryPoints: ['src/extension.civet']
-  tsconfig: "./tsconfig.json"
+  tsconfig: "../tsconfig.json"
   bundle: true
   external: [
     'vscode'

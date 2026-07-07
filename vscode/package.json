@@ -2,8 +2,9 @@
   "name": "texlish",
   "displayName": "Texlish",
   "description": "Texlish Language Support",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "publisher": "edemaine",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/edemaine/texlish.git"
