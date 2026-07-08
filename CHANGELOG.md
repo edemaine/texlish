@@ -1,5 +1,9 @@
 # Texlish Changelog
 
+## Unreleased
+
+* CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
+
 ## 0.2.0
 
 * `::version` enforces Texlish version ranges with comparison operators,

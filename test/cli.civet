@@ -207,13 +207,82 @@ describe 'CLI LaTeX build', ->
         result = await buildLatex 'pdflatex', [], texFile
 
       assert.equal result, 0
-      assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex, bibtex'
+      assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex'
       calls := await fs.readFile path.join(dir, 'calls.txt'), 'utf8'
       assert.deepEqual calls.trimEnd().split('\n'), [
         'pdflatex paper.tex'
         'bibtex paper'
         'pdflatex paper.tex'
+      ]
+    finally
+      process.env.PATH = oldPath
+      await removeDir dir
+
+  it 'reruns BibTeX when LaTeX changes BibTeX-relevant aux input', ->
+    dir := await fs.mkdtemp path.join os.tmpdir(), 'texlish-cli-'
+    oldPath := process.env.PATH
+    try
+      binDir := path.join dir, 'bin'
+      await fs.mkdir binDir
+      await writeCommand binDir, 'pdflatex', '''
+        #!/usr/bin/env bash
+        set -euo pipefail
+        count=0
+        if [ -f latex-count ]; then
+          count=$(cat latex-count)
+        fi
+        count=$((count + 1))
+        printf '%s\n' "$count" > latex-count
+        printf 'pdflatex %s %s\n' "$*" "$count" >> calls.txt
+        backslash=$(printf '\\134')
+        if [ "$count" -eq 1 ]; then
+          printf '%s\n' "${backslash}citation{a}" > paper.aux
+        else
+          printf '%s\n' "${backslash}citation{b}" > paper.aux
+          printf '%s\n' "${backslash}citation{a}" >> paper.aux
+          printf '%s\n' "${backslash}bibcite{a}{1}" >> paper.aux
+        fi
+        printf '%s\n' "${backslash}bibstyle{unsrt}" >> paper.aux
+        printf '%s\n' "${backslash}bibdata{refs}" >> paper.aux
+        : > paper.log
+      '''
+      await writeCommand binDir, 'bibtex', '''
+        #!/usr/bin/env bash
+        set -euo pipefail
+        printf 'bibtex %s\n' "$*" >> calls.txt
+        if grep -q 'citation{b}' "$1.aux"; then
+          cat > "$1.bbl" <<'BBL'
+        \\begin{thebibliography}{1}
+        \\bibitem{b} bibliography b
+        \\bibitem{a} bibliography a
+        \\end{thebibliography}
+        BBL
+        else
+          cat > "$1.bbl" <<'BBL'
+        \\begin{thebibliography}{1}
+        \\bibitem{a} bibliography a
+        \\end{thebibliography}
+        BBL
+        fi
+      '''
+      texFile := path.join dir, 'paper.tex'
+      await fs.writeFile texFile, 'Text'
+      await fs.writeFile path.join(dir, 'refs.bib'), '@article{a,author={A},title={A},journal={J},year={2020}}\n@article{b,author={B},title={B},journal={J},year={2020}}'
+      process.env.PATH = commandPath binDir, oldPath
+
+      result .= 1
+      logs := await captureConsoleLog ->
+        result = await buildLatex 'pdflatex', [], texFile
+
+      assert.equal result, 0
+      assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex, bibtex, pdflatex'
+      calls := await fs.readFile path.join(dir, 'calls.txt'), 'utf8'
+      assert.deepEqual calls.trimEnd().split('\n'), [
+        'pdflatex paper.tex 1'
         'bibtex paper'
+        'pdflatex paper.tex 2'
+        'bibtex paper'
+        'pdflatex paper.tex 3'
       ]
     finally
       process.env.PATH = oldPath
@@ -342,13 +411,12 @@ describe 'CLI LaTeX build', ->
         result = await buildLatex 'pdflatex', [], texFile
 
       assert.equal result, 0
-      assert logsInclude logs, '** paper.pdf built via pdflatex, biber, pdflatex, biber'
+      assert logsInclude logs, '** paper.pdf built via pdflatex, biber, pdflatex'
       calls := await fs.readFile path.join(dir, 'calls.txt'), 'utf8'
       assert.deepEqual calls.trimEnd().split('\n'), [
         'pdflatex paper.tex'
         'biber paper'
         'pdflatex paper.tex'
-        'biber paper'
       ]
     finally
       process.env.PATH = oldPath
@@ -394,13 +462,12 @@ describe 'CLI LaTeX build', ->
         result = await buildLatex 'pdflatex', [], texFile
 
       assert.equal result, 0
-      assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex, bibtex'
+      assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex'
       calls := await fs.readFile path.join(dir, 'calls.txt'), 'utf8'
       assert.deepEqual calls.trimEnd().split('\n'), [
         'pdflatex paper.tex'
         'bibtex paper'
         'pdflatex paper.tex'
-        'bibtex paper'
       ]
     finally
       process.env.PATH = oldPath
@@ -453,7 +520,6 @@ describe 'CLI LaTeX build', ->
         'pdflatex -output-directory=out paper.tex'
         `bibtex ${path.join 'out', 'paper'}`
         'pdflatex -output-directory=out paper.tex'
-        `bibtex ${path.join 'out', 'paper'}`
       ]
       assert.equal await fs.readFile(path.join(outDir, 'paper.bbl'), 'utf8'), '\\begin{thebibliography}{1}\n\\bibitem{x} bibliography\n\\end{thebibliography}\n'
     finally

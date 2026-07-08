@@ -195,17 +195,33 @@ export function buildLatex(command: string, flags: string[], texFile: string): P
       path.relative workDir, filename
     else
       filename
-  async function snapshotGeneratedFiles(): Promise<Map<string, string?>>
+  async function snapshotGeneratedFiles(): Promise Map string, string?
     snapshot := new Map<string, string?>
     for each ext of rerunGeneratedExtensions
       filename := artifact ext
       snapshot.set filename, await readTextIfExists filename
     snapshot
+  async function bibtexInput(auxFilename: string, seen = new Set<string>): Promise string
+    // Canonicalize for cycle/dedup tracking; child paths are resolved below.
+    resolved := path.resolve auxFilename
+    return `\\@input{${resolved}}\n` if seen.has resolved
+    seen.add resolved
+    aux := await readTextIfExists auxFilename
+    return `\\@missing{${resolved}}\n` unless aux?
+    input .= ''
+    for [match, command, arg] of aux.matchAll /\\(@input|citation|bibdata|bibstyle)\{([^}]*)\}/g
+      input += `${match}\n`
+      if command is '@input'
+        input += await bibtexInput path.resolve(path.dirname(auxFilename), arg), seen
+    input
 
   latexRuns .= 0
   runReason .= 'initial'
   commandsRun .= []
   ranMakeindex .= false
+  // false marks that no bib command has run yet; undefined means "no file"
+  lastBibInput: string? | false .= false
+  let bblBefore: string? // .bbl file contents from last bib run, if any
   loop
     if ++latexRuns > maxLatexRuns
       console.log `!! Stopping LaTeX build after ${maxLatexRuns} runs`
@@ -230,23 +246,30 @@ export function buildLatex(command: string, flags: string[], texFile: string): P
       else if auxAfter is like /\\abx@aux@/ and await exists artifact 'bcf'
         'biber'
     )
-      bblBefore := await readTextIfExists artifact 'bbl'
-      bibError := await runCommand bibCommand, [
-        relative path.join artifactDir, jobName
-      ], workDir
-      commandsRun.push bibCommand
-      bblAfter := await readTextIfExists artifact 'bbl'
-      if bibError
-        // Restore bbl file if BibTeX/Biber failed, e.g. from missing bib files
-        if bblAfter? and not /\\(?:bibitem|entry)\b/.test bblAfter
-          if bblBefore?
-            await fs.writeFile artifact('bbl'), bblBefore
-          else
-            await fs.rm artifact('bbl'), force: true
-        return bibError
-      if bblBefore is not bblAfter
-        runReason = 'bbl-changed'
-        continue
+      bblBefore ?= await readTextIfExists artifact 'bbl'
+      bibInput := if bibCommand is 'bibtex'
+        await bibtexInput artifact 'aux'
+      else
+        await readTextIfExists artifact 'bcf'
+      if bibInput is not lastBibInput or not bblBefore?
+        bibError := await runCommand bibCommand, [
+          relative path.join artifactDir, jobName
+        ], workDir
+        commandsRun.push bibCommand
+        bblAfter := await readTextIfExists artifact 'bbl'
+        if bibError
+          // Restore bbl file if BibTeX/Biber failed, e.g. from missing bib files
+          if bblAfter? and not /\\(?:bibitem|entry)\b/.test bblAfter
+            if bblBefore?
+              await fs.writeFile artifact('bbl'), bblBefore
+            else
+              await fs.rm artifact('bbl'), force: true
+          return bibError
+        lastBibInput = bibInput
+        if bblBefore is not bblAfter
+          bblBefore = bblAfter
+          runReason = 'bbl-changed'
+          continue
 
     idxAfter := await readTextIfExists artifact 'idx'
     if idxAfter and (not ranMakeindex or idxBefore is not idxAfter)
