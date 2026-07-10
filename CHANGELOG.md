@@ -3,6 +3,8 @@
 ## Unreleased
 
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
+* Consumed footnote definitions no longer interrupt automatic preamble detection.
+  [[#35](https://github.com/edemaine/texlish/issues/35)]
 
 ## 0.2.0
 

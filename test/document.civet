@@ -106,6 +106,23 @@ describe '\\begin/\\end{document}', ->
   ''', fragment: false
 
   testCase r'''
+    footnote definition between preamble commands
+    ---
+    \author: Erik[^MIT]
+    [^MIT]: Massachusetts Institute of Technology
+    \date{}
+    ---
+    \documentclass[11pt]{article}
+    \author{Erik%
+    \footnote{\protect\label{footnote:MIT}Massachusetts Institute of Technology}}%
+    \date{}
+    \begin{document}
+
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
     begin placement before environment
     ---
     : theorem

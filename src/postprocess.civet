@@ -346,6 +346,7 @@ function processDocument(root: AST[]): void
     :line for line, var i of root
       switch line
         { type: "EOL" }
+        { type: "FootnoteDefinition", children: ["\0"] }
         [ { type: "Indent" } ]
         [ { type: "Indent" }, "\0" ]  // ::styles
         [ { type: "Indent" }, { type: "Comment" } ]
