@@ -5,7 +5,8 @@ description: Description and examples of all features
 import Example from '../../components/example.astro'
 
 * Markdown features: [`# Section`](#sections),
-  [`*emphasis*`](#emphasis), [`"smart quotes"`](#smart-quotes),
+  [`*emphasis*`](#emphasis), [`~~strikethrough~~`](#strikethrough),
+  [`"smart quotes"`](#smart-quotes),
   [`- lists`](#lists), [`> quotes`](#block-quotes), [`[^footnote]`](#footnotes),
   [`<url>`](#links), [`[text](url)`](#links), [`![alt](url)`](#images),
   [`` `code` ``](#code), and [`---`](#horizontal-rules).
@@ -96,6 +97,32 @@ To use the LaTeX character `*`, wrap it in braces
 
 Markdown-style emphasis can be disabled with `::config -markdownEmphasis`
 or `::config -markdownCompat`.
+
+## Strikethrough
+
+Wrap text in `~~...~~` to strike it out:
+
+<Example src={`
+  The conjecture is ~~false~~ true!
+`}/>
+
+The default output is `\sout{...}`.  Texlish automatically adds
+`\usepackage[normalem]{ulem}` to define `\sout` if needed.
+
+You can customize the generated command with `::styles`:
+
+<Example src={`
+  ::use soul
+  ::styles ~~ = \\st
+  Keep ~~remove~~.
+`}/>
+
+To minimize conflicts with LaTeX's nonbreaking space `~`, strikethrough
+requires exactly two tildes on each side.  If you need exactly two
+nonbreaking spaces, wrap the tildes in braces like `{~~}`.
+
+Strikethrough can be disabled with `::config -markdownStrikethrough`
+or `::config -markdownCompat` or `::config latexCompat`.
 
 ## Smart Quotes
 
@@ -517,8 +544,8 @@ or `::config -markdownCompat`.
 ## Math Mode
 
 Texlish starts in text mode.  All of the features described above are text-mode
-syntax: Markdown-style section headings, emphasis, smart quotes, lists,
-footnotes, label/ref shorthand, citations, links, code backticks, and
+syntax: Markdown-style section headings, emphasis, strikethrough, smart quotes,
+lists, footnotes, label/ref shorthand, citations, links, code backticks, and
 horizontal rules.
 
 Texlish enters math mode inside `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, and
@@ -830,11 +857,12 @@ Supported config options are:
 * `citeShorthand`: whether `[[citation]]` compiles to `\cite{citation}`;
   enabled by default
 * `latexCompat`: flag setting equivalent to `scriptGrouping = none`,
-  `-scriptParens`, and `-smartQuotes`
+  `-scriptParens`, `-smartQuotes`, and `-markdownStrikethrough`
 * `markdownCompat`: flag setting equivalent to maximize Markdown compatibility,
   currently `markdownBackticks`, `markdownBlockquotes`, `markdownEmphasis`,
   `markdownFootnotes`, `markdownHeadings`, `markdownHorizontalRules`,
-  `markdownImages`, `markdownLinks`, `markdownLists`, and `smartQuotes`
+  `markdownImages`, `markdownLinks`, `markdownLists`,
+  `markdownStrikethrough`, and `smartQuotes`
 * `markdownBackticks`: minimum number of backticks that enables
   [code spans and fenced code blocks](#code), or `0` to disable them;
   enabled by default as `1`
@@ -854,6 +882,8 @@ Supported config options are:
   LaTeX links; enabled by default
 * `markdownLists`: whether top-level Markdown-style bullets and numbered
   lists compile to LaTeX lists; enabled by default
+* `markdownStrikethrough`: whether `~~text~~` compiles to `\sout{text}` in
+  text mode; enabled by default
 * `refShorthand`: whether `@ref`, `@=label`, `@#ref`, and `@^ref` compile to
   configured cross-reference commands; enabled by default
 * `smartQuotes`: whether straight `'` and `"` characters compile to
@@ -864,9 +894,10 @@ Supported config options are:
   enabled by default
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
-* `styles`: styles for [emphasis](#emphasis), [block quotes](#block-quotes),
-  [images](#images), [code](#code), [horizontal rules](#horizontal-rules),
-  [label/ref](#label-ref), or [citations](#cite);
+* `styles`: styles for [emphasis](#emphasis), [strikethrough](#strikethrough),
+  [block quotes](#block-quotes), [images](#images), [code](#code),
+  [horizontal rules](#horizontal-rules), [label/ref](#label-ref),
+  or [citations](#cite);
   equivalent to `::styles`
 
 You can also set config options globally in a

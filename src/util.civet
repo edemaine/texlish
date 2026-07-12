@@ -47,6 +47,18 @@ export function iterateFlatArrays(node: AST): Generator<AST[]>
   else if "children" in node
     yield* iterateFlatArrays node.children
 
+/** Yield each run of consecutive strings in the flattened AST arrays. */
+export function iterateTextRuns(node: AST): Generator<string>
+  for parent of iterateFlatArrays node
+    text .= ""
+    for child of parent
+      if child <? "string"
+        text += child
+      else if text
+        yield text
+        text = ""
+    yield text if text
+
 /** Generate every node twice, once before and once after recursion. */
 export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
   yield {node, post: false}

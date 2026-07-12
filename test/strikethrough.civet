@@ -1,0 +1,378 @@
+{ r, testCase } from ./helper.civet
+
+describe 'Markdown strikethrough', ->
+  testCase r'''
+    enabled by default
+    ---
+    ~~deleted~~ text
+    ---
+    \sout{deleted} text
+  '''
+
+  testCase r'''
+    CommonMark punctuation flanking
+    ---
+    {~~(yes)~~}
+    {a~~(no)~~}
+    {a~~(no)~~b}
+    {a,~~(yes)~~.}
+    {a~~word~~b}
+    ---
+    {\sout{(yes)}}
+    {a~~(no)~~}
+    {a~~(no)~~b}
+    {a,\sout{(yes)}.}
+    {a\sout{word}b}
+  '''
+
+  testCase r'''
+    disabled by compiler option
+    ---
+    ~~deleted~~ text
+    ---
+    ~~deleted~~ text
+  ''', markdownStrikethrough: false
+
+  testCase r'''
+    disabled by in-file config
+    ---
+    ::config -markdownStrikethrough
+    ~~deleted~~ text
+    ---
+    ~~deleted~~ text
+  '''
+
+  testCase r'''
+    custom style
+    ---
+    ::styles
+      ~~ = \strike
+    ~~deleted~~ text
+    ---
+    \strike{deleted} text
+  '''
+
+  testCase r'''
+    text mode only
+    ---
+    $~~x+y~~$ and $\text{~~gone~~}$
+    ---
+    $~~x+y~~$ and $\text{\sout{gone}}$
+  '''
+
+  testCase r'''
+    longer tilde runs stay literal
+    ---
+    ~~~\includegraphics{figure.pdf}~~~
+    ---
+    ~~~\includegraphics{figure.pdf}~~~
+  '''
+
+  testCase r'''
+    braced tildes stay literal
+    ---
+    {~~} and {~~~} and {~~~~} and {~~~~~}
+    ---
+    {~~} and {~~~} and {~~~~} and {~~~~~}
+  '''
+
+  testCase r'''
+    disabled by markdownCompat shorthand
+    ---
+    ~~before~~
+    ::config -markdownCompat
+    ~~after~~
+    ---
+    \sout{before}
+    ~~after~~
+  '''
+
+  testCase r'''
+    disabled by latexCompat shorthand
+    ---
+    ::config latexCompat
+    ~~deleted~~
+    ---
+    ~~deleted~~
+  '''
+
+  testCase r'''
+    automatic ulem package for generated sout
+    ---
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage[normalem]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no automatic ulem package for custom style
+    ---
+    ::styles ~~ = \strike
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+
+    \begin{document}
+    \strike{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no duplicate automatic ulem package
+    ---
+    ::use ulem:
+      normalem
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage[
+      normalem]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no duplicate automatic package after direct usepackage
+    ---
+    \usepackage{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no duplicate automatic package after direct multi-package usepackage
+    ---
+    \usepackage{amsmath, ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{amsmath, ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    no duplicate automatic package after RequirePackage
+    ---
+    \RequirePackage[normalem]{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \RequirePackage[normalem]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    skip braced content inside package options
+    ---
+    \usepackage[foo={]}]{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage[foo={]}]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    square brackets do not balance package options
+    ---
+    \usepackage[a[b]c]{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage[a[b]c]{ulem}
+    \usepackage[normalem]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    package name recognized in multi-package use
+    ---
+    ::use foo, ulem
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{foo, ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    package recognized in raw preamble tex
+    ---
+    ::preamble
+      ::tex \usepackage{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+
+      \usepackage{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    package text in code span stays literal
+    ---
+    Code: `\\usepackage{ulem}`
+    ~~deleted~~
+    ---
+    \\documentclass[11pt]{article}
+    \\usepackage[normalem]{ulem}
+
+    \\begin{document}
+    Code: \\verb`\\usepackage{ulem}`
+    \\sout{deleted}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    sout text in code span does not load ulem
+    ---
+    Code: `\\sout{literal}`
+    ---
+    \\documentclass[11pt]{article}
+
+    \\begin{document}
+    Code: \\verb`\\sout{literal}`
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    package text in fenced code stays literal
+    ---
+    ```
+    \\usepackage{ulem}
+    ```
+    ~~deleted~~
+    ---
+    \\documentclass[11pt]{article}
+    \\usepackage[normalem]{ulem}
+
+    \\begin{document}
+    \\begin{verbatim}
+    \\usepackage{ulem}
+    \\end{verbatim}
+    \\sout{deleted}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase '''
+    sout text in fenced code does not load ulem
+    ---
+    ```
+    \\sout{literal}
+    ```
+    ---
+    \\documentclass[11pt]{article}
+
+    \\begin{document}
+    \\begin{verbatim}
+    \\sout{literal}
+    \\end{verbatim}
+    \\end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    package follows style selected by opener
+    ---
+    ::styles ~~ = \strike
+    ~~deleted
+    ::styles ~~ = \sout
+    text~~
+    ---
+    \documentclass[11pt]{article}
+
+    \begin{document}
+    \strike{deleted
+    text}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    sout in raw tex loads ulem
+    ---
+    ::tex \sout{raw}
+    ---
+    \documentclass[11pt]{article}
+    \usepackage[normalem]{ulem}
+
+    \begin{document}
+    \sout{raw}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    commented sout in raw tex does not load ulem
+    ---
+    ::tex % \sout{literal}
+    ---
+    \documentclass[11pt]{article}
+
+    \begin{document}
+    % \sout{literal}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    commented package in raw preamble does not suppress ulem
+    ---
+    ::preamble
+      ::tex % \usepackage{ulem}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+
+      % \usepackage{ulem}
+    \usepackage[normalem]{ulem}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false

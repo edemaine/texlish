@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+* Markdown-style strikethrough `~~text~~` in text mode, compiling by default
+  to `\sout{text}` with automatic `ulem` package inclusion.
+  The command can be customized with `::styles ~~ = ...`, and strikethrough
+  can be disabled with `-markdownStrikethrough`, `-markdownCompat`, or
+  `latexCompat`.
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
 * Consumed footnote definitions no longer interrupt automatic preamble detection.
   [[#35](https://github.com/edemaine/texlish/issues/35)]

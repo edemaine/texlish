@@ -2157,6 +2157,21 @@ repository:
       - include: '#link-inet'
       - include: '#link-email'
       - include: '#strikethrough'
+  strikethrough:
+    begin: '(?<!~)(~~)(?![~\s])'
+    beginCaptures:
+      1:
+        name: punctuation.definition.strikethrough.markdown
+    end: '(?<![\s~])(~~)(?!~)'
+    endCaptures:
+      1:
+        name: punctuation.definition.strikethrough.markdown
+    name: markup.strikethrough.markdown
+    patterns:
+      - include: '#bold'
+      - include: '#italic'
+      - include: '#raw'
+      - include: '#escape'
   image-inline:
     name: meta.image.inline.markdown
     begin: '(!)(\[)'

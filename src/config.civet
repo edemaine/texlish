@@ -21,6 +21,7 @@ export const defaultConfig: ActiveCompilerOptions = {
   markdownImages: true
   markdownLinks: true
   markdownLists: true
+  markdownStrikethrough: true
   refShorthand: true
   smartQuotes: true
   scriptParens: true
@@ -39,6 +40,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     '*': '\\emph'
     '**': '\\textbf'
     '***': '\\defn'
+    '~~': '\\sout'
     '!': '\\includegraphics'
     '---': '\\medskip\\hrule\\medskip'
     '@=': '\\label'
@@ -50,6 +52,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     if value
       @scriptGrouping = "none"
       @smartQuotes = false
+    @markdownStrikethrough = not value
     @scriptParens = not value
   set markdownCompat(value: boolean)
     @markdownBackticks = if value then 1 else 0
@@ -61,6 +64,7 @@ export const defaultConfig: ActiveCompilerOptions = {
     @markdownImages = value
     @markdownLinks = value
     @markdownLists = value
+    @markdownStrikethrough = value
     @smartQuotes = value
 }
 
@@ -130,6 +134,7 @@ type BooleanCompilerOption
   | "markdownImages"
   | "markdownLinks"
   | "markdownLists"
+  | "markdownStrikethrough"
   | "refShorthand"
   | "smartQuotes"
 
@@ -148,6 +153,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["markdownimages", "markdownImages"]
   . ["markdownlinks", "markdownLinks"]
   . ["markdownlists", "markdownLists"]
+  . ["markdownstrikethrough", "markdownStrikethrough"]
   . ["refshorthand", "refShorthand"]
   . ["smartquotes", "smartQuotes"]
 

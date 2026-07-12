@@ -6,10 +6,18 @@ type {
   FootnoteRef,
   SmartQuote,
 } from ./types.civet
-{ find, isNumeric, iterate, iteratePrePost, iterateFlatArrays } from ./util.civet
+{
+  find,
+  isNumeric,
+  iterate,
+  iteratePrePost,
+  iterateFlatArrays,
+  iterateTextRuns,
+} from ./util.civet
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 defaultDefnCommand := "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
+defaultUlemPackage := "\\usepackage[normalem]{ulem}"
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
@@ -165,7 +173,9 @@ function processMarkdown(root: AST[]): void
         close .= child.token!
         for i of [opens#>..0]
           function opener(delim: string): string
-            (opens[i].styles[delim] ?? "") + '{'
+            style := opens[i].styles[delim] ?? ""
+            opens[i].style = style
+            style + '{'
           open .= opens[i].token!
           if close.startsWith open  // open finished
             // Open+close delimiter: Forbid double nested identical emphasis
@@ -272,18 +282,82 @@ function processFootnotes(root: AST[]): void
 function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
 
-function isDefn(node: AST): boolean
-  node is like { type: "Command", token: "\\defn" }, /\\defn(?![a-zA-Z@])/
-function definesDefnCommand(root: AST[]): boolean
+/**
+ * Whether text contains a TeX command with the given exact name.
+ * This lexical scan can produce false positives inside constructs like `\verb`.
+ */
+function textUsesCommand(text: string, command: string): boolean
+  for some match of text.matchAll /\\(?:[a-zA-Z@]+|[^\r\n])/g
+    match[0] is command
+
+/**
+ * Whether an AST node directly or structurally emits a TeX command.
+ * This can likewise produce false positives where verbatim TeX is not modeled.
+ */
+function usesCommand(node: AST, command: string): boolean
+  switch node
+    { type: "Command", token }
+      token is command
+    { type: "Delimiter", style }
+      textUsesCommand style, command
+    { type: "Tex" }
+      for some text of iterateTextRuns node
+        textUsesCommand text, command
+    else
+      false
+
+/** Whether the AST visibly defines a TeX command with a standard definition command. */
+function definesCommand(root: AST[], command: string): boolean
   for parent of iterateFlatArrays root
     for each child, let i of parent
       continue unless child is like { type: "Command" }
       continue unless child.token is like "\\newcommand", "\\renewcommand", "\\providecommand", "\\def"
       while parent[++i] is like /^\s*$/
       next := parent[i]
-      return true if isDefn next
+      return true if usesCommand next, command
       if next is like { type: "Braced" }
-        return true if find next.body, isDefn
+        return true if find next.body, usesCommand ., command
+  false
+
+/**
+ * Skip one TeX optional argument from the specified index, if present,
+ * returning the index after its first top-level `]`,
+ * or the out-of-bounds index if it's never matched.
+ */
+function skipOptionalArgument(parent: AST[], index: number): number
+  return index unless parent[index] is "["
+  while ++index < parent#
+    return index + 1 if parent[index] is "]"
+  index
+
+/** Whether raw TeX text loads a package with `\usepackage` or `\RequirePackage`. */
+function textUsesPackage(text: string, packageName: string): boolean
+  for some match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
+    match[1].split(',').some .trim() is packageName
+
+/** Whether the AST structurally or textually loads a package. */
+function usesPackage(root: AST[], packageName: string): boolean
+  for parent of iterateFlatArrays root
+    for each child, i of parent
+      continue unless child <? "object" and "type" in child
+      switch child.type
+        when "Use"
+          return true if packageName is in child.packages
+        when "Tex"
+          for text of iterateTextRuns child
+            return true if textUsesPackage text, packageName
+        when "Command"
+          continue unless child.token is like "\\usepackage", "\\RequirePackage"
+          argumentIndex .= i + 1
+          argumentIndex++ while parent[argumentIndex] is like /^\s*$/
+          argumentIndex = skipOptionalArgument parent, argumentIndex
+          argumentIndex++ while parent[argumentIndex] is like /^\s*$/
+          continue unless argument := parent[argumentIndex]
+          continue unless argument is like { type: "Braced" }
+          {body} .= argument
+          body = body[0] while Array.isArray(body) and body# is 1
+          return true if body <? "string" and
+            body.split(',').some .trim() is packageName
   false
 
 /** Attach environment names to \begin and \end commands */
@@ -369,8 +443,12 @@ function processDocument(root: AST[]): void
 
   // Provide \defn command if used, e.g. from default Markdown emphasis `***`.
   // and not already obviously defined.
-  if find(root, isDefn) and not definesDefnCommand root
+  if find(root, usesCommand ., "\\defn") and not definesCommand root, "\\defn"
     preamble.push [defaultDefnCommand]
+
+  // Load ulem for \sout, e.g. from default Markdown strikethrough `~~`.
+  if find(root, usesCommand ., "\\sout") and not usesPackage root, "ulem"
+    preamble.push [defaultUlemPackage]
 
   if preamble#
     copy :=

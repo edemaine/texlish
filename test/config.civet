@@ -33,6 +33,7 @@ describe 'project config', ->
         latexCompat: true
       })
       config := await loadConfig configPath
+      assert.equal config.markdownStrikethrough, false
       assert.equal config.scriptGrouping, 'none'
       assert.equal config.scriptParens, false
       assert.equal config.styles!['*'], '\\textit'
@@ -59,6 +60,7 @@ describe 'project config', ->
       assert.equal config.markdownImages, false
       assert.equal config.markdownLinks, false
       assert.equal config.markdownLists, false
+      assert.equal config.markdownStrikethrough, false
       assert.equal config.smartQuotes, false
     finally
       await fs.rm dir,
@@ -218,6 +220,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('markdownLists', false),
       key: 'markdownLists'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownStrikethrough', false),
+      key: 'markdownStrikethrough'
       value: false
     assert.deepEqual parseCompilerOption('smartQuotes', false),
       key: 'smartQuotes'

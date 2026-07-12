@@ -26,6 +26,7 @@ export type CompilerOptions
   markdownImages?: boolean
   markdownLinks?: boolean
   markdownLists?: boolean
+  markdownStrikethrough?: boolean
   refShorthand?: boolean
   smartQuotes?: boolean
   quotes?: PartialQuoteConfig
@@ -71,6 +72,7 @@ export type ASTNode
   | List
   | Preamble
   | SmartQuote
+  | Tex
   | Use
   | Uses
 
@@ -88,7 +90,7 @@ export interface Comment extends ASTToken
 
 export interface Command extends ASTToken
   type: "Command"
-  // \begin and \end commands get the name of the environment attached here
+  /** Environment name attached to `\begin` and `\end` commands. */
   env?: string
 
 export interface Delimiter
@@ -96,13 +98,19 @@ export interface Delimiter
   open: boolean
   close: boolean
   styles: Record<string, string>
-  symbol: string  // "*", "**", "***", etc. (also initial value of token)
-  // Starts with just token and, if actual delimiter, evolves to just children
+  /** Original delimiter symbol, such as `*`, `**`, or `~~`. */
+  symbol: string
+  /** Remaining literal delimiter text while unmatched or partially matched. */
   token?: string
+  /** Generated content once any part of the delimiter has been matched. */
   children?: AST[]
-  // Index into children where the delimiter started considered opening,
-  // if already some children for closing.
+  /**
+   * Index into children where the delimiter started acting as an opener,
+   * when some children were already generated while closing another span.
+   */
   openIndex?: number
+  /** Style selected when this delimiter successfully opens a span. */
+  style?: string
 
 export interface Environment extends ASTParent
   type: "Environment"
@@ -151,8 +159,12 @@ export interface SmartQuote extends ASTToken
   /** Configured replacement if the quote is closing. */
   close: string
 
+export interface Tex extends ASTParent
+  type: "Tex"
+
 export interface Use extends ASTParent
   type: "Use"
+  packages: string[]
 
 export interface Uses extends ASTParent
   type: "Uses"

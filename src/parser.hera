@@ -20,6 +20,7 @@ type {
   Preamble,
   QuoteChar,
   SmartQuote,
+  Tex,
   Use,
   Uses,
 } from ./types.civet
@@ -198,10 +199,11 @@ TextOnlyPart ::AST
   MarkdownImagesEnabled MarkdownImage -> $2
   MarkdownLinksEnabled ( Autolink / MarkdownLink ) -> $2
   SmartQuotesEnabled SmartQuote -> $2
+  MarkdownStrikethroughEnabled StrikethroughDelimiter -> $2
   MarkdownEmphasisEnabled EmphasisDelimiter -> $2
   /['"]/
   # Skip to next interesting text-mode character.
-  /[^\r\n'"\\()\[\]{}%][^\r\n!'"@#<`\\()\[\]{}%$*]*/
+  /[^\r\n'"\\()\[\]{}%][^\r\n!'"@#<`\\()\[\]{}%$*~]*/
 
 RefShorthand ::AST
   # @'long ref'
@@ -220,42 +222,64 @@ CiteShorthand ::AST
   /\[\[(.*?)\]\]/ ->
     return `${state.compilerOptions.styles['[[']}{${$1}}`
 
+```
+// These predicates run just after capture group 1, the delimiter run.
+// Including `\1` in lookbehind makes it test the character before that run.
+
+// https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
+// defines "left-flanking delimiter run" as (1) not followed by a space, and
+// (2a) not followed by punctuation, or (2b) [followed by punctuation and]
+// preceded by whitespace or punctuation.
+punctuationPattern := String.raw`[\p{Punctuation}\p{Symbol}]`
+leftFlankingPattern := String.raw`(?:(?!${punctuationPattern})|(?<=(?:^|\s|${punctuationPattern})\1))`
+// "Right-flanking delimiter run" is (1) not preceded by a space, and
+// (2a) not preceded by punctuation, or (2b) [preceded by punctuation and]
+// followed by whitespace or punctuation.
+rightFlankingPattern := String.raw`(?:(?<!${punctuationPattern}\1)|(?=$|\s|${punctuationPattern}))`
+```
+
 EmphasisDelimiter ::Delimiter
-  # Left- *and* right-flanking delimiter according to below definitions.
-  /(?<![\*\s]|^)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])(?<![\p{Punctuation}\p{Symbol}]\1)|(?=[\p{Punctuation}\p{Symbol}])(?<=(?:[\p{Punctuation}\p{Symbol}])\1))/ ->
-    return {
-      type: "Delimiter",
-      open: true,
-      close: true,
-      styles: state.compilerOptions.styles,
-      symbol: $1,
-      token: $1,
-    }
-  # https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
-  # defines "left-flanking delimiter run" as (1) not followed by a space, and
-  # (2a) not followed by punctuation, or (2b) [followed by punctuation and]
-  # preceded by whitespace or punctuation.
-  /(?<!\*)(\*+)(?![\*\s]|$)(?:(?![\p{Punctuation}\p{Symbol}])|(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}])\1))/ ->
-    return {
-      type: "Delimiter",
-      open: true,
-      close: false,
-      styles: state.compilerOptions.styles,
-      symbol: $1,
-      token: $1,
-    }
-  # "Right-flanking delimiter run" is (1) not preceded by a space, and
-  # (2a) not preceded by punctuation, or (2b) [preceded by punctuation and]
-  # followed by whitespace or punctuation.
-  /(?<![\*\s]|^)(\*+)(?!\*)(?:(?<![\p{Punctuation}\p{Symbol}]\1)|(?=$|\s|[\p{Punctuation}\p{Symbol}]))/ ->
-    return {
-      type: "Delimiter",
-      open: false,
-      close: true,
-      styles: state.compilerOptions.styles,
-      symbol: $1,
-      token: $1,
-    }
+  # Left- *and* right-flanking delimiter according to above definitions.
+  ///
+    (?<![\*\s]|^) (\*+) (?![\*\s]|$)
+    ${const leftFlankingPattern}
+    ${const rightFlankingPattern}
+  /// -> delimiter $1, true, true
+  ///
+    (?<!\*) (\*+) (?![\*\s]|$)
+    ${const leftFlankingPattern}
+  /// -> delimiter $1, true, false
+  ///
+    (?<![\*\s]|^) (\*+) (?!\*)
+    ${const rightFlankingPattern}
+  /// -> delimiter $1, false, true
+
+StrikethroughDelimiter ::Delimiter
+  ///
+    (?<![~\s]|^) (~~) (?![~\s]|$)
+    ${const leftFlankingPattern}
+    ${const rightFlankingPattern}
+  /// -> delimiter $1, true, true
+  ///
+    (?<!~) (~~) (?![~\s]|$)
+    ${const leftFlankingPattern}
+  /// -> delimiter $1, true, false
+  ///
+    (?<![~\s]|^) (~~) (?!~)
+    ${const rightFlankingPattern}
+  /// -> delimiter $1, false, true
+
+```
+function delimiter(token: string, open: boolean, close: boolean): Delimiter
+  {
+    type: "Delimiter"
+    open
+    close
+    state.compilerOptions.styles
+    symbol: token
+    token
+  }
+```
 
 # Inline tokens shared between text mode (TextPart) and math mode (MathPart).
 TextOrMathPart ::AST
@@ -924,8 +948,12 @@ MetaUse ::AST
   "use" [ \t]+ UseItem:item -> item
   "use" NestedUseList:list -> list
 
-MetaTex ::AST[]
-  "tex" /\b[ \t]?/ RawText:text RawNestedBody:body -> [text, body]
+MetaTex ::Tex
+  "tex" /\b[ \t]?/ RawText:text RawNestedBody:body ->
+    {
+      type: "Tex"
+      children: [text, body]
+    }
 
 UseItem ::Use
   Bullet? $(/[^:%\r\n]+/):name Comment?:comment UseColonArgument?:arg ->
@@ -934,6 +962,7 @@ UseItem ::Use
     name = name[< match.index]
     return {
       type: "Use"
+      packages: name.split(',').map .trim()
       children: [
         '\\usepackage'
         arg
@@ -1234,6 +1263,10 @@ MarkdownLinksEnabled
 MarkdownListsEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownLists
+
+MarkdownStrikethroughEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownStrikethrough
 
 RefShorthandEnabled
   "" ->
