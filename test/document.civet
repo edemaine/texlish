@@ -15,6 +15,21 @@ describe '\\begin/\\end{document}', ->
   ''', fragment: false
 
   testCase r'''
+    leading raw tex stays in preamble
+    ---
+    ::tex \def\foo{bar}
+    Hello
+    ---
+    \documentclass[11pt]{article}
+    \def\foo{bar}
+
+    \begin{document}
+    Hello
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
     existing braced end
     ---
     \end{document}

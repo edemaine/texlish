@@ -434,7 +434,8 @@ function processDocument(root: AST[]): void
           break :line
         ^document["\\maketitle"]  // \begin{document} before \maketitle
           break :line
-        [ { type: "Indent" }, { type: "Command" }, ... ]
+        [ { type: "Indent" }, { type: "Command" }, ... ],
+        [ { type: "Indent" }, { type: "Tex" } ]
         else
           break :line
     root.splice i, 0, document["\\begin"] = ["\n\\begin{document}\n"]

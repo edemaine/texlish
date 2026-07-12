@@ -233,15 +233,13 @@ describe 'Markdown strikethrough', ->
   ''', fragment: false
 
   testCase r'''
-    package recognized in raw preamble tex
+    package recognized in leading raw tex
     ---
-    ::preamble
-      ::tex \usepackage{ulem}
+    ::tex \usepackage{ulem}
     ~~deleted~~
     ---
     \documentclass[11pt]{article}
-
-      \usepackage{ulem}
+    \usepackage{ulem}
 
     \begin{document}
     \sout{deleted}
@@ -335,12 +333,14 @@ describe 'Markdown strikethrough', ->
   testCase r'''
     sout in raw tex loads ulem
     ---
+    Text
     ::tex \sout{raw}
     ---
     \documentclass[11pt]{article}
     \usepackage[normalem]{ulem}
 
     \begin{document}
+    Text
     \sout{raw}
     \end{document}
 
@@ -349,11 +349,13 @@ describe 'Markdown strikethrough', ->
   testCase r'''
     commented sout in raw tex does not load ulem
     ---
+    Text
     ::tex % \sout{literal}
     ---
     \documentclass[11pt]{article}
 
     \begin{document}
+    Text
     % \sout{literal}
     \end{document}
 

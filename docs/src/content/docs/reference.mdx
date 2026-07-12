@@ -701,9 +701,13 @@ Colon environment shorthand can be disabled with `::config -colonEnvironments`.
 and/or on strictly indented lines.
 
 <Example src={`
-  ::tex \\foo{*raw* [text](url)}
+  ::tex *literal* [bracket](paren)
   ::tex
-    \\bar{@raw}
+    \\expandafter\\ifx\\csname @captype\\endcsname\\relax
+      \\marginpar{xxx}
+    \\else
+      xxx % in figure/caption
+    \\fi
 `}/>
 
 ## Use Packages
@@ -762,7 +766,8 @@ Texlish automatically adds the following LaTeX boilerplate if needed:
   To use a different document class or option, specify it manually.
 * `\begin{document}` before the first top-level line
   starting with apparent text content.
-  Commands and braced text are considered valid preamble,
+  Commands and braced text and [raw `::tex`](#raw-tex)
+  are considered valid preamble,
   while environments (in particular `abstract`) are considered text content.
 * `\maketitle` after an added `\begin{document}`, if the document uses `\title`.
   Won't be added if you manually specify `\begin{document}`,
