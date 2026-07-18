@@ -209,6 +209,16 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
+    custom inline style follows its declared argument
+    ---
+    ::styles
+      `` = \\EscVerb
+    ``code``
+    ---
+    \\EscVerb{code}
+  '''
+
+  testCase '''
     fenced code block
     ---
     ```

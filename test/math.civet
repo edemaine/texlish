@@ -197,6 +197,16 @@ describe 'math mode', ->
   '''
 
   testCase r'''
+    text commands re-enter text mode after comment continuation
+    ---
+    $\text% comment
+      {*fast* x_12}$
+    ---
+    $\text% comment
+      {\emph{fast} x_12}$
+  '''
+
+  testCase r'''
     starred text command stays in math mode
     ---
     $\text*{*fast* x_12}$
@@ -218,6 +228,24 @@ describe 'math mode', ->
     $\textcolor{red}{*fast* x_12}$
     ---
     $\textcolor{red}{*fast* x_{12}}$
+  '''
+
+  testCase r'''
+    declared Greek variables keep following colons literal
+    ---
+    $\lambda: a\rightarrow b$
+    $\alpha: \beta: \gamma: \delta: \epsilon: \varepsilon: \zeta: \eta:$
+    $\theta: \vartheta: \iota: \kappa: \mu: \nu: \xi: \pi: \varpi:$
+    $\rho: \varrho: \sigma: \varsigma: \tau: \upsilon: \phi: \varphi:$
+    $\chi: \psi: \omega: \Gamma: \Delta: \Theta: \Lambda: \Xi: \Pi:$
+    $\Sigma: \Upsilon: \Phi: \Psi: \Omega:$
+    ---
+    $\lambda: a\rightarrow b$
+    $\alpha: \beta: \gamma: \delta: \epsilon: \varepsilon: \zeta: \eta:$
+    $\theta: \vartheta: \iota: \kappa: \mu: \nu: \xi: \pi: \varpi:$
+    $\rho: \varrho: \sigma: \varsigma: \tau: \upsilon: \phi: \varphi:$
+    $\chi: \psi: \omega: \Gamma: \Delta: \Theta: \Lambda: \Xi: \Pi:$
+    $\Sigma: \Upsilon: \Phi: \Psi: \Omega:$
   '''
 
   testCase r'''
@@ -250,6 +278,16 @@ describe 'math mode', ->
     before \begin{align*}x_12\end{align*} after
     ---
     before \begin{align*}x_{12}\end{align*} after
+  '''
+
+  testCase r'''
+    standard latex math environments enter math mode
+    ---
+    before \begin{math}x_12\end{math} after
+    \begin{displaymath}y_34\end{displaymath}
+    ---
+    before \begin{math}x_{12}\end{math} after
+    \begin{displaymath}y_{34}\end{displaymath}
   '''
 
   testCase r'''
@@ -288,6 +326,19 @@ describe 'math mode', ->
     ---
     \begin{align}
       x_{12} + *y* \\
+    \end{align}
+  '''
+
+  testCase r'''
+    colon math environment arguments inherit math mode
+    ---
+    : align:
+      - x_12
+      y_34
+    ---
+    \begin{align}
+       {x_{12}}%
+      y_{34}
     \end{align}
   '''
 

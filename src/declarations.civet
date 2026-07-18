@@ -1,0 +1,363 @@
+/**
+ * How Texlish parses the contents of a command argument:
+ * - `text` processes the argument as Texlish text
+ * - `math` processes the argument as Texlish math
+ * - `inherit` resolves to the surrounding text or math mode
+ * - `raw` preserves raw TeX, where `%` starts a comment (like `::tex`)
+ * - `verbatim` preserves every character literally, including `%`
+ */
+export type ArgumentMode = "text" | "math" | "raw" | "verbatim" | "inherit"
+
+/** An argument mode after resolving `inherit` against its surrounding mode. */
+export type ResolvedArgumentMode = Exclude<ArgumentMode, "inherit">
+
+/**
+ * The LaTeX delimiter(s) surrounding a command argument:
+ * - `optional` uses square brackets: `[argument]`
+ * - `required` uses paired braces: `{argument}`
+ * - `delimited` uses the same non-whitespace character on both sides
+ *   (like `\verb`)
+ * - `required-or-delimited` accepts either paired braces or matching
+ *   non-whitespace delimiters (like `\url`)
+ */
+export type ArgumentDelimiter =
+  | "optional"
+  | "required"
+  | "delimited"
+  | "required-or-delimited"
+
+/** A paired command argument, whose contents can use any parsing mode. */
+type PairedArgumentSpec
+  name: string
+  delimiter: "optional" | "required"
+  mode: ArgumentMode
+
+/** An arbitrary-delimiter argument, whose contents must stay verbatim. */
+type DelimitedArgumentSpec
+  name: string
+  delimiter: "delimited" | "required-or-delimited"
+  mode: "verbatim"
+
+/** The parsing specification for one named command argument. */
+export type ArgumentSpec = PairedArgumentSpec | DelimitedArgumentSpec
+
+/** Ordered argument specifications for a LaTeX command. */
+export type CommandPattern = ArgumentSpec[]
+
+/** A finite command pattern or mode repeated by generic colon arguments. */
+export type ArgumentPattern = CommandPattern | ResolvedArgumentMode
+
+/**
+ * Compact parse-cache key; argument names do not affect parsing.
+ *
+ * A generic repeated mode starts with `*`, followed by its mode code.
+ * A finite pattern concatenates one delimiter code and one mode code per
+ * argument:
+ * - delimiter: `o` optional, `r` required, `d` delimited,
+ *   `b` both required or delimited
+ * - mode: `t` text, `m` math, `i` inherit, `r` raw, `v` verbatim
+ *
+ * Codes must remain unique within each position; the same character can be
+ * used in both positions, as `r` is for required delimiters and raw mode.
+ */
+export function argumentPatternKey(pattern: ArgumentPattern): string
+  return "*" + pattern[0] if pattern <? "string"
+  for join each {delimiter, mode} of pattern
+    if delimiter is "required-or-delimited"
+      "b"
+    else
+      delimiter[0]
+    + mode[0]
+
+// Reusable parsing behavior for the named built-in arguments below.
+rawRequired := { delimiter: "required", mode: "raw" } as const
+rawOptional := { delimiter: "optional", mode: "raw" } as const
+verbatimRequired := { delimiter: "required", mode: "verbatim" } as const
+verbatimDelimited := { delimiter: "delimited", mode: "verbatim" } as const
+verbatimRequiredOrDelimited :=
+  { delimiter: "required-or-delimited", mode: "verbatim" } as const
+textOptional := { delimiter: "optional", mode: "text" } as const
+textRequired := { delimiter: "required", mode: "text" } as const
+mathRequired := { delimiter: "required", mode: "math" } as const
+inheritRequired := { delimiter: "required", mode: "inherit" } as const
+
+// Shared patterns group commands with the same syntax and argument meanings.
+noArguments: CommandPattern := []
+filenamePattern: CommandPattern :=
+  . { name: "filename", ...rawRequired }
+filenamesPattern: CommandPattern :=
+  . { name: "filenames", ...rawRequired }
+stylePattern: CommandPattern :=
+  . { name: "style", ...rawRequired }
+directoriesPattern: CommandPattern :=
+  . { name: "directories", ...rawRequired }
+labelPattern: CommandPattern :=
+  . { name: "label", ...rawRequired }
+keysPattern: CommandPattern :=
+  . { name: "keys", ...rawRequired }
+textPattern: CommandPattern :=
+  . { name: "text", ...textRequired }
+numeratorDenominatorPattern: CommandPattern :=
+  . { name: "numerator", ...mathRequired }
+  . { name: "denominator", ...mathRequired }
+inheritedContentPattern: CommandPattern :=
+  . { name: "content", ...inheritRequired }
+optionsFilenamePattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "filename", ...rawRequired }
+prenotePostnoteKeysPattern: CommandPattern :=
+  . { name: "prenote", ...textOptional }
+  . { name: "postnote", ...textOptional }
+  . { name: "keys", ...rawRequired }
+optionsUrlTextPattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "url", ...verbatimRequired }
+  . { name: "text", ...textRequired }
+urlTextPattern: CommandPattern :=
+  . { name: "url", ...verbatimRequired }
+  . { name: "text", ...textRequired }
+labelTextPattern: CommandPattern :=
+  . { name: "label", ...rawOptional }
+  . { name: "text", ...textRequired }
+targetTextPattern: CommandPattern :=
+  . { name: "target", ...rawRequired }
+  . { name: "text", ...textRequired }
+urlPattern: CommandPattern :=
+  . { name: "url", ...verbatimRequiredOrDelimited }
+pathPattern: CommandPattern :=
+  . { name: "path", ...verbatimRequiredOrDelimited }
+bracedUrlPattern: CommandPattern :=
+  . { name: "url", ...verbatimRequired }
+optionsLanguageFilenamePattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "language", ...rawRequired }
+  . { name: "filename", ...rawRequired }
+directoryFilenamePattern: CommandPattern :=
+  . { name: "directory", ...rawRequired }
+  . { name: "filename", ...rawRequired }
+firstLastPattern: CommandPattern :=
+  . { name: "first", ...rawRequired }
+  . { name: "last", ...rawRequired }
+delimitedTextPattern: CommandPattern :=
+  . { name: "text", ...verbatimDelimited }
+optionsVerbatimTextPattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "text", ...verbatimRequiredOrDelimited }
+optionsRawTextPattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "text", ...rawRequired }
+optionsLanguageCodePattern: CommandPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "language", ...rawRequired }
+  . { name: "code", ...verbatimRequiredOrDelimited }
+
+/** Built-in command declarations. */
+export builtinCommandPatterns := new Map<string, CommandPattern>
+  . ["\\include", filenamePattern]
+  . ["\\input", filenamePattern]
+  . ["\\verbatiminput", filenamePattern]
+  . ["\\bibliography", filenamesPattern]
+  . ["\\bibliographystyle", stylePattern]
+  . ["\\includeonly", filenamesPattern]
+  . ["\\graphicspath", directoriesPattern]
+  . ["\\label", labelPattern]
+  . ["\\ref", labelPattern]
+  . ["\\ref*", labelPattern]
+  . ["\\pageref", labelPattern]
+  . ["\\pageref*", labelPattern]
+  . ["\\eqref", labelPattern]
+  . ["\\autoref", labelPattern]
+  . ["\\autoref*", labelPattern]
+  . ["\\autopageref", labelPattern]
+  . ["\\autopageref*", labelPattern]
+  . ["\\nameref", labelPattern]
+  . ["\\nameref*", labelPattern]
+  . ["\\vref", labelPattern]
+  . ["\\Vref", labelPattern]
+  . ["\\cref", labelPattern]
+  . ["\\cref*", labelPattern]
+  . ["\\Cref", labelPattern]
+  . ["\\Cref*", labelPattern]
+  . ["\\cpageref", labelPattern]
+  . ["\\cpageref*", labelPattern]
+  . ["\\Cpageref", labelPattern]
+  . ["\\Cpageref*", labelPattern]
+  . ["\\labelcref", labelPattern]
+  . ["\\labelcref*", labelPattern]
+  . ["\\labelcpageref", labelPattern]
+  . ["\\labelcpageref*", labelPattern]
+  . ["\\namecref", labelPattern]
+  . ["\\nameCref", labelPattern]
+  . ["\\lcnamecref", labelPattern]
+  . ["\\namecrefs", labelPattern]
+  . ["\\nameCrefs", labelPattern]
+  . ["\\lcnamecrefs", labelPattern]
+  . ["\\nocite", keysPattern]
+  . ["\\includegraphics", optionsFilenamePattern]
+  . ["\\includegraphics*", optionsFilenamePattern]
+  . ["\\addbibresource", optionsFilenamePattern]
+  . ["\\VerbatimInput", optionsFilenamePattern]
+  . ["\\BVerbatimInput", optionsFilenamePattern]
+  . ["\\LVerbatimInput", optionsFilenamePattern]
+  . ["\\lstinputlisting", optionsFilenamePattern]
+  . ["\\cite", prenotePostnoteKeysPattern]
+  . ["\\citep", prenotePostnoteKeysPattern]
+  . ["\\citep*", prenotePostnoteKeysPattern]
+  . ["\\citet", prenotePostnoteKeysPattern]
+  . ["\\citet*", prenotePostnoteKeysPattern]
+  . ["\\Citep", prenotePostnoteKeysPattern]
+  . ["\\Citep*", prenotePostnoteKeysPattern]
+  . ["\\Citet", prenotePostnoteKeysPattern]
+  . ["\\Citet*", prenotePostnoteKeysPattern]
+  . ["\\citealt", prenotePostnoteKeysPattern]
+  . ["\\citealt*", prenotePostnoteKeysPattern]
+  . ["\\citealp", prenotePostnoteKeysPattern]
+  . ["\\citealp*", prenotePostnoteKeysPattern]
+  . ["\\Citealt", prenotePostnoteKeysPattern]
+  . ["\\Citealt*", prenotePostnoteKeysPattern]
+  . ["\\Citealp", prenotePostnoteKeysPattern]
+  . ["\\Citealp*", prenotePostnoteKeysPattern]
+  . ["\\citeauthor", prenotePostnoteKeysPattern]
+  . ["\\citeauthor*", prenotePostnoteKeysPattern]
+  . ["\\Citeauthor", prenotePostnoteKeysPattern]
+  . ["\\Citeauthor*", prenotePostnoteKeysPattern]
+  . ["\\citeyear", prenotePostnoteKeysPattern]
+  . ["\\citeyearpar", prenotePostnoteKeysPattern]
+  . ["\\parencite", prenotePostnoteKeysPattern]
+  . ["\\textcite", prenotePostnoteKeysPattern]
+  . ["\\autocite", prenotePostnoteKeysPattern]
+  . ["\\footcite", prenotePostnoteKeysPattern]
+  . ["\\supercite", prenotePostnoteKeysPattern]
+  . ["\\text", textPattern]
+  . ["\\textnormal", textPattern]
+  . ["\\textrm", textPattern]
+  . ["\\textsf", textPattern]
+  . ["\\texttt", textPattern]
+  . ["\\textbf", textPattern]
+  . ["\\textmd", textPattern]
+  . ["\\textit", textPattern]
+  . ["\\textsl", textPattern]
+  . ["\\textsc", textPattern]
+  . ["\\textup", textPattern]
+  . ["\\textsuperscript", textPattern]
+  . ["\\textsubscript", textPattern]
+  . ["\\href", optionsUrlTextPattern]
+  . ["\\hyperimage", urlTextPattern]
+  . ["\\hyperref", labelTextPattern]
+  . ["\\frac", numeratorDenominatorPattern]
+  // Standard Greek letter commands are variables with no arguments.
+  . ["\\alpha", noArguments]
+  . ["\\beta", noArguments]
+  . ["\\gamma", noArguments]
+  . ["\\delta", noArguments]
+  . ["\\epsilon", noArguments]
+  . ["\\varepsilon", noArguments]
+  . ["\\zeta", noArguments]
+  . ["\\eta", noArguments]
+  . ["\\theta", noArguments]
+  . ["\\vartheta", noArguments]
+  . ["\\iota", noArguments]
+  . ["\\kappa", noArguments]
+  . ["\\lambda", noArguments]
+  . ["\\mu", noArguments]
+  . ["\\nu", noArguments]
+  . ["\\xi", noArguments]
+  . ["\\pi", noArguments]
+  . ["\\varpi", noArguments]
+  . ["\\rho", noArguments]
+  . ["\\varrho", noArguments]
+  . ["\\sigma", noArguments]
+  . ["\\varsigma", noArguments]
+  . ["\\tau", noArguments]
+  . ["\\upsilon", noArguments]
+  . ["\\phi", noArguments]
+  . ["\\varphi", noArguments]
+  . ["\\chi", noArguments]
+  . ["\\psi", noArguments]
+  . ["\\omega", noArguments]
+  . ["\\Gamma", noArguments]
+  . ["\\Delta", noArguments]
+  . ["\\Theta", noArguments]
+  . ["\\Lambda", noArguments]
+  . ["\\Xi", noArguments]
+  . ["\\Pi", noArguments]
+  . ["\\Sigma", noArguments]
+  . ["\\Upsilon", noArguments]
+  . ["\\Phi", noArguments]
+  . ["\\Psi", noArguments]
+  . ["\\Omega", noArguments]
+  . ["\\phantom", inheritedContentPattern]
+  . ["\\hphantom", inheritedContentPattern]
+  . ["\\vphantom", inheritedContentPattern]
+  . ["\\hyperlink", targetTextPattern]
+  . ["\\hypertarget", targetTextPattern]
+  . ["\\hyperbaseurl", bracedUrlPattern]
+  . ["\\url", urlPattern]
+  . ["\\nolinkurl", urlPattern]
+  . ["\\path", pathPattern]
+  . ["\\inputminted", optionsLanguageFilenamePattern]
+  . ["\\import", directoryFilenamePattern]
+  . ["\\subimport", directoryFilenamePattern]
+  . ["\\inputfrom", directoryFilenamePattern]
+  . ["\\subinputfrom", directoryFilenamePattern]
+  . ["\\includefrom", directoryFilenamePattern]
+  . ["\\subincludefrom", directoryFilenamePattern]
+  . ["\\crefrange", firstLastPattern]
+  . ["\\crefrange*", firstLastPattern]
+  . ["\\Crefrange", firstLastPattern]
+  . ["\\Crefrange*", firstLastPattern]
+  . ["\\cpagerefrange", firstLastPattern]
+  . ["\\cpagerefrange*", firstLastPattern]
+  . ["\\Cpagerefrange", firstLastPattern]
+  . ["\\Cpagerefrange*", firstLastPattern]
+  . ["\\verb", delimitedTextPattern]
+  . ["\\verb*", delimitedTextPattern]
+  . ["\\Verb", optionsVerbatimTextPattern]
+  . ["\\Verb*", optionsVerbatimTextPattern]
+  . ["\\EscVerb", optionsRawTextPattern]
+  . ["\\EscVerb*", optionsRawTextPattern]
+  . ["\\lstinline", optionsVerbatimTextPattern]
+  . ["\\mintinline", optionsLanguageCodePattern]
+  . ["\\mintinline*", optionsLanguageCodePattern]
+  . ["\\mint", optionsLanguageCodePattern]
+  . ["\\mint*", optionsLanguageCodePattern]
+
+/**
+ * Built-in environments and the modes of their body.
+ * An absent or `inherit` value preserves the surrounding text or math mode.
+ */
+export builtinEnvironmentModes := new Map<string, ArgumentMode>
+  . ["math", "math"]
+  . ["displaymath", "math"]
+  . ["equation", "math"]
+  . ["equation*", "math"]
+  . ["alignat", "math"]
+  . ["alignat*", "math"]
+  . ["align", "math"]
+  . ["align*", "math"]
+  . ["gather", "math"]
+  . ["gather*", "math"]
+  . ["multline", "math"]
+  . ["multline*", "math"]
+  . ["flalign", "math"]
+  . ["flalign*", "math"]
+  . ["eqnarray", "math"]
+  . ["eqnarray*", "math"]
+  . ["verbatim", "verbatim"]
+  . ["verbatim*", "verbatim"]
+  . ["comment", "verbatim"]
+  . ["python", "verbatim"]
+  . ["Verbatim", "verbatim"]
+  . ["Verbatim*", "verbatim"]
+  . ["BVerbatim", "verbatim"]
+  . ["BVerbatim*", "verbatim"]
+  . ["LVerbatim", "verbatim"]
+  . ["LVerbatim*", "verbatim"]
+  . ["SaveVerbatim", "verbatim"]
+  . ["SaveVerbatim*", "verbatim"]
+  . ["VerbatimOut", "verbatim"]
+  . ["VerbatimOut*", "verbatim"]
+  . ["lstlisting", "verbatim"]
+  . ["minted", "verbatim"]
+  . ["filecontents", "verbatim"]
+  . ["filecontents*", "verbatim"]

@@ -23,11 +23,23 @@ type {
   Tex,
   Use,
   Uses,
+  Verbatim,
 } from ./types.civet
 {
   applyCompilerOption,
   makeCompilerOptions,
 } from ./config.civet
+{
+  type ArgumentDelimiter
+  type ArgumentMode
+  type ArgumentPattern
+  type ArgumentSpec
+  type CommandPattern
+  type ResolvedArgumentMode
+  argumentPatternKey
+  builtinCommandPatterns
+  builtinEnvironmentModes
+} from ./declarations.civet
 { assertTexlishVersion } from ./version.civet
 {
   commentForBody,
@@ -58,6 +70,12 @@ type ParserState
   codeMarker: string?
   /** Active compiler options, including options changed by ::config. */
   compilerOptions: ActiveCompilerOptions
+  /** Active command patterns, defining arguments for known commands. */
+  commandPatterns: Map<string, CommandPattern>
+  /** Active environment body modes, keyed by environment name. */
+  environmentModes: Map<string, ArgumentMode>
+  /** Stack of finite command patterns or repeated generic colon-argument modes. */
+  argumentPatterns: ArgumentPattern[]
 
 initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
@@ -71,6 +89,9 @@ export state: ParserState := {
   pendingLineIndent: undefined
   codeMarker: undefined
   compilerOptions: makeCompilerOptions()
+  commandPatterns: new Map
+  environmentModes: new Map
+  argumentPatterns: []
 }
 
 export function getCompilerOptions(): ActiveCompilerOptions
@@ -79,8 +100,10 @@ export function getCompilerOptions(): ActiveCompilerOptions
 export function setCompilerOptions(options: ActiveCompilerOptions): void
   state.compilerOptions = options
 
-export function getStateKey(): number
-  state.currentIndent.level
+export function getStateKey(): string
+  state.currentIndent.level +
+  for join each pattern of state.argumentPatterns
+    "/" + argumentPatternKey pattern
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
@@ -102,6 +125,8 @@ function setListItemIndent(marker: string): void
 export { ParseError }
 ```
 
+## DOCUMENT
+
 Main ::AST[]
   Init Content -> $2
 
@@ -113,6 +138,9 @@ Init
     state.listItemIndent = initialIndent
     state.pendingLineIndent = undefined
     state.codeMarker = undefined
+    state.commandPatterns = new Map builtinCommandPatterns
+    state.environmentModes = new Map builtinEnvironmentModes
+    state.argumentPatterns = []
 
 Content ::AST[]
   Statement ( EOL Statement )* ->
@@ -120,10 +148,16 @@ Content ::AST[]
   "" -> []
 
 # First line starts mid-line, so uses Text; following lines assume start of line
-# No Nested requirement; used in BracedContent where indentation doesn't matter
+# No Nested requirement; used in TextBracedContent where indentation doesn't matter
 TextAndContent ::AST[]
   Text:first ( EOL Statement )*:rest -> [ first, ...rest.flat() ]
   "" -> []
+
+Space ::string
+  /[ \t]*/
+
+ActualSpace ::string
+  /[ \t]+/
 
 EOL ::EOL
   /[ \t]*(\n|\r\n?|$)/ ->
@@ -133,12 +167,19 @@ EOL ::EOL
       $loc,
     }
 
+ActualEOL ::EOL
+  EOL:eol ->
+    return $skip unless eol.token.endsWith("\n") or eol.token.endsWith("\r")
+    eol
+
 Statement ::AST
   TextStatement
   TextLine
 
 TextStatement ::AST
   TextOrMathStatement
+  TextCommandWithColonArguments
+  ColonEnvironmentsEnabled TextEnvironment -> $2
   MarkdownHeadingsEnabled Heading -> $2
   MarkdownBackticksEnabled CodeBlock -> $2
   MarkdownBlockquotesEnabled BlockQuote -> $2
@@ -150,14 +191,14 @@ TextStatement ::AST
 # Statement forms valid in both text and math mode.
 TextOrMathStatement ::AST
   MetaBlock
-  ColonEnvironmentsEnabled Environment -> $2
-  ColonCommandsEnabled CommandWithColonArguments -> $2
 
 # Detect whether the next line is a text-mode statement, for deciding whether
 # to continue a text field like a Markdown bracketed link.
 IsTextStatement
   PushLineIndent (&TextStatement)?:statement PopLineIndent ->
     return $skip unless statement
+
+## TEXT
 
 # One line of text at start of the line
 # (can be empty, no newline consumption)
@@ -170,7 +211,7 @@ TextLine ::AST[]
 # (can be empty, no newline consumption)
 # except Markdown links/images [...](...) can consume multiple lines
 Text ::AST[]
-  TextPart* InlineCommandWithColonArguments? ->
+  TextPart* InlineTextCommandWithColonArguments? ->
     return $1 unless $2
     return [ ...$1, $2 ]
 
@@ -179,11 +220,12 @@ Text ::AST[]
 TextPart ::AST
   EnterMathMode
   TextOrMathPart
+  # Leave a trailing inline colon command for the context-specific Text rule.
+  !EndTextEnvironment !InlineTextCommandWithColonArguments TextCommandWithArguments -> $3
   TextOnlyPart
   [()\[\]]
 
 EnterMathMode ::AST[]
-  BeginEndMathEnvironment
   "$$" MathContent "$$"
   "$" MathContent "$"
   "\\(" MathContent "\\)"
@@ -191,7 +233,7 @@ EnterMathMode ::AST[]
 
 # Rules for TextPart that apply only in text mode.
 TextOnlyPart ::AST
-  BracedContent
+  TextBracedContent
   MarkdownFootnotesEnabled FootnoteRef -> $2
   MarkdownBackticksEnabled CodeSpan -> $2
   RefShorthandEnabled RefShorthand -> $2
@@ -283,9 +325,36 @@ function delimiter(token: string, open: boolean, close: boolean): Delimiter
 
 # Inline tokens shared between text mode (TextPart) and math mode (MathPart).
 TextOrMathPart ::AST
+  BeginEndMathEnvironment
+  BeginEndTextEnvironment
   Comment
-  # Leave trailing InlineCommandWithColonArguments for TextLine to parse
-  !InlineCommandWithColonArguments Command -> $2
+  $Verbatim -> verbatim $1
+
+```
+function verbatim(token: string): Verbatim
+  { type: "Verbatim", token }
+```
+
+# LaTeX constructs whose contents must not be interpreted as Texlish.
+Verbatim
+  VerbatimEnvironment
+  RawEnvironment
+  $Csname
+  $CharCommand
+
+Csname ::AST[]
+  /\\csname(?![a-zA-Z@])/ CsnamePart* /\\endcsname(?![a-zA-Z@])/
+
+CsnamePart ::AST
+  Csname
+  !/\\endcsname(?![a-zA-Z@])/ Command -> $2
+  Comment ActualEOL
+  /[^\\%]+/
+
+CharCommand ::AST[]
+  /\\char(?![a-zA-Z@])/ Space "`" ( Command / /[^\\%\r\n]/ )
+
+## MATH
 
 # Content inside e.g. `$...$` that respects indentation
 MathContent ::AST[]
@@ -302,25 +371,30 @@ NestedMathStatement ::AST[]
   Nested MathStatement
 
 MathStatement ::AST
-  # Currently we have no math-specific statements
-  TextOrMathStatement
+  MathModeStatement
   Indent MathText
+
+MathModeStatement ::AST
+  TextOrMathStatement
+  MathCommandWithColonArguments
+  ColonEnvironmentsEnabled MathEnvironment -> $2
 
 # Detect whether the next line is a math-mode statement, for deciding whether
 # to continue balanced parenthesized script content.
 IsMathStatement
-  PushLineIndent (&TextOrMathStatement)?:statement PopLineIndent ->
+  PushLineIndent (&MathModeStatement)?:statement PopLineIndent ->
     return $skip unless statement
 
 MathText ::AST[]
-  MathPart*:body InlineCommandWithColonArguments?:command ->
+  MathPart*:body InlineMathCommandWithColonArguments?:command ->
     return body unless command
     return [ ...body, command ]
 
 MathPart ::AST
-  # Must precede TextOrMathPart so `\text...` commands can re-enter text mode
   MathOnlyPart
   !MathCloseDelimiter TextOrMathPart -> $2
+  # Leave a trailing inline colon command for the context-specific Math rule.
+  !MathCloseDelimiter !InlineMathCommandWithColonArguments MathCommandWithArguments -> $3
   MathLiteral
   [()\[\]]
 
@@ -337,7 +411,7 @@ MathLiteral ::string
 
 # Rules for MathPart that apply only in math mode.
 MathOnlyPart ::AST
-  MathTextCommand
+  ScriptGroupingEnabled ScriptCommand -> $2
   MathBracedContent
   ScriptGroupingNumeric /([\^_])(\d{2,})/:script ->
     return `${script[1]}{${script[2]}}`
@@ -349,9 +423,18 @@ MathOnlyPart ::AST
     // body[1] strips the parens
     return [ script[0], '{', body[1], '}' ]
 
-MathTextCommand ::AST[]
-  &/\\text(?:normal|rm|sf|tt|bf|md|it|sl|sc|up|superscript|subscript)?(?![a-zA-Z@])/ CommandWithoutNewline:command $/[ \t]*/:space BracedContent:body ->
-    [ command, space, body ]
+ScriptCommand ::AST[]
+  [\^_]:script PushMathCommandPattern:command CommandArgument*:args CompleteCommandPattern?:complete PopCommandPattern ->
+    return $skip unless complete?
+    [ script[0], "{", command, args, "}" ]
+
+CompleteCommandPattern ::boolean
+  "" ->
+    pattern := state.argumentPatterns.-1
+    return $skip unless Array.isArray pattern
+    return $skip unless pattern.every (argument) =>
+      argument.delimiter is "optional"
+    true
 
 MathParenthesizedText ::AST[]
   "(" MathParenContent ")"
@@ -372,6 +455,129 @@ MathParenPart ::AST
   [\[\]]
   # Keep parentheses balanced
   MathParenthesizedText
+
+## CONTENT PRIMITIVES
+
+TrimmedText ::AST[]
+  Text:t -> trimContent t
+
+TrimmedMathText ::AST[]
+  MathText:t -> trimContent t
+
+```
+function trimContent(t: AST[]): AST[]
+  t = [...t]
+  t[0] = t[0].trimStart() if t[0] <? 'string'
+  last := t# - 1
+  t[last] = t[last].trimEnd() if t[last] <? 'string'
+  t
+```
+
+# Analog of Text but with no Texlish processing, used e.g. for ::tex
+TexText ::{text: string, comment: Comment?, children: AST[]}
+  $/[^%\r\n]*/:text Comment?:comment ->
+    {
+      text
+      comment
+      children: $0
+    }
+
+TrimmedTexText ::AST[]
+  TexText:t ->
+    { text, comment } := t
+    [
+      if comment then text.trimStart() else text.trim()
+      comment
+    ]
+
+TextBracedContent ::Braced
+  "{":open TextAndContent:body "}":close ->
+    buildBracedContent open, body, close, true
+
+MathBracedContent ::Braced
+  "{":open MathAndContent:body "}":close ->
+    buildBracedContent open, body, close, true
+
+```
+function buildBracedContent(open: string, body: AST[], close: string, dropImplicitComment: boolean = false): Braced
+  let comment
+  [body, comment] = commentForBody body
+  comment = undefined if dropImplicitComment and comment.implicit
+  {
+    type: "Braced"
+    body
+    children: [
+      open
+      body
+      close
+      comment
+    ]
+  }
+```
+
+# TeX optional arguments stop at the first unbraced ], rather than balancing
+# brackets. TextBracedContent/MathBracedContent protects any ] inside braces.
+TextBracketedContent ::AST[]
+  "[" TextBracketedPart* "]"
+
+TextBracketedPart ::AST
+  !"]" ( TextPart / EOL ) -> $2
+
+MathBracketedContent ::AST[]
+  "[" MathBracketedPart* "]"
+
+MathBracketedPart ::AST
+  !"]" ( MathPart / EOL ) -> $2
+
+# TeX-mode arguments stay opaque to Texlish, but TeX comments hide delimiters
+# until the end of their line and commands stay opaque.
+RawBracedContent ::AST[]
+  "{" RawBracedPart* "}"
+
+RawBracedPart ::AST
+  Command
+  Comment
+  RawBracedContent
+  /[^\\{}%]+/
+
+RawBracketedContent ::AST[]
+  "[" RawBracketedPart* "]"
+
+RawBracketedPart ::AST
+  Command
+  Comment
+  RawBracedContent
+  /[^\\\]{}%]+/
+
+# Verbatim-mode arguments treat % literally, so comments never hide delimiters.
+VerbatimBracedContent ::AST[]
+  "{" VerbatimBracedPart* "}"
+
+VerbatimBracedPart ::AST
+  Command
+  VerbatimBracedContent
+  /[^\\{}]+/
+
+VerbatimBracketedContent ::AST[]
+  "[" VerbatimBracketedPart* "]"
+
+VerbatimBracketedPart ::AST
+  Command
+  VerbatimBracedContent
+  /[^\\\]{}]+/
+
+Comment ::Comment
+  /%[^\r\n]*/ ->
+    return {
+      type: "Comment",
+      token: $0,
+      $loc,
+    }
+
+NestedComment ::AST[]
+  Nested Indent Comment -> $0
+
+## MARKDOWN
 
 BracketedText ::[open: string, content: AST[], close: string]
   "[" BracketContent "]"
@@ -404,6 +610,26 @@ MarkdownImage ::AST
         "{", url, "}"
       ]
     }
+
+# https://spec.commonmark.org/0.31.2/#autolinks
+Autolink ::AST
+  # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
+  /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
+    return `\\protect\\url{${$1}}`
+  # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
+  # Texlish additionally allows {a,b} in the userid, which is common in papers
+  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-,]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
+    email .= $1
+    // Convert {a,b}@domain to mailto:a@domain,b@domain
+    if match := /\{([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`\|~\-,]+)\}/.exec email
+      email = match[1].split(',').map (part) =>
+        email[< match.index] + part + email[>= match.index + match[0]#]
+      .join(',')
+    // commonmark.js dingus escapes as follows:
+    email = email
+    .replace /&/g, '&amp;'
+    .replace /[%^`|]/g, (m: string) => `%${m.charCodeAt(0).toString(16).toUpperCase()}`
+    return `\\protect\\href{mailto:${email}}{\\protect\\nolinkurl{${$1}}}`
 
 MarkdownLink ::AST
   /(?<!!)(?=\[)/ BracketedText:body "(" MarkdownLinkDestination:url ")" ->
@@ -460,10 +686,15 @@ CodeSpan ::string
     style .= for first length of [marker# >=..1]
       continue unless style := state.compilerOptions.styles["`".repeat length]
       style
-    style ??= "\\verb"
-    unless /\\[a-zA-Z@]*[vV]erb\*?$/.test style
+    style ?= "\\verb"
+    let argument: ArgumentSpec?
+    if command := /\\(?:[a-zA-Z@]+|[^\r\n])\*?$/.exec(style)?[0]
+      argument = state.commandPatterns.get(command)?.-1
+    unless argument?.mode is "verbatim" and
+           argument.delimiter is like "delimited", "required-or-delimited"
       return `${style}{${body}}`
-    // \verb uses matching before/after delimiters. Find one not in body.
+    // Delimited arguments use matching before/after delimiters. Find one absent
+    // from the body.
     let delimiter: string?
     unless "`" is in body
       delimiter = "`"
@@ -507,7 +738,7 @@ CodeBlock ::AST[]
       continue unless style := state.compilerOptions.styles[ticks + suffix] ??
         state.compilerOptions.styles[ticks + "*"]
       style
-    style ??= "\\begin{verbatim}"
+    style ?= "\\begin{verbatim}"
     env := environmentStyle style, "code block", option
     if indent.level > 0
       // CommonMark fenced code blocks remove up to the opening fence
@@ -566,7 +797,7 @@ CodeBlockClose ::string
   &IndentedAtLeast /// [ \t]* ${state.codeMarker}`* [ \t]* /// &EOL -> ""
 
 BlockQuote ::BlockQuote
-  &( /[ \t]*/ BlockQuoteMarker ) Indent:indent PushIndent BlockQuoteSegment:first BlockQuoteContinuation*:rest PopIndent ->
+  &( Space BlockQuoteMarker ) Indent:indent PushIndent BlockQuoteSegment:first BlockQuoteContinuation*:rest PopIndent ->
     style := state.compilerOptions.styles['>'] or "quote"
     env := environmentStyle style, "blockquote"
     {
@@ -594,107 +825,6 @@ BlockQuoteContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent BlockQuoteSegment:segment ->
     [ comments, eol, indent, segment ]
 
-FootnoteRef ::FootnoteRef
-  /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
-    return {
-      type: "FootnoteRef",
-      id: marker[1].trim(),
-      eolNext: Boolean(eolNext),
-      children: [marker[0]],
-    }
-
-TrimmedText ::AST[]
-  Text:t -> trimContent t
-
-TrimmedMathText ::AST[]
-  MathText:t -> trimContent t
-
-```
-function trimContent(t: AST[]): AST[]
-  t = [...t]
-  t[0] = t[0].trimStart() if t[0] <? 'string'
-  last := t# - 1
-  t[last] = t[last].trimEnd() if t[last] <? 'string'
-  t
-```
-
-# Analog of Text but with no Texlish processing, used e.g. for ::tex
-RawText ::{text: string, comment: Comment | undefined, children: AST[]}
-  $/[^%\r\n]*/:text Comment?:comment ->
-    {
-      text
-      comment
-      children: $0
-    }
-
-TrimmedRawText ::AST[]
-  RawText:t ->
-    { text, comment } := t
-    [
-      if comment then text.trimStart() else text.trim()
-      comment
-    ]
-
-BracedContent ::Braced
-  "{":open TextAndContent:body "}":close ->
-    buildBracedContent open, body, close, true
-
-MathBracedContent ::Braced
-  "{":open MathAndContent:body "}":close ->
-    buildBracedContent open, body, close, true
-
-```
-function buildBracedContent(open: string, body: AST[], close: string, dropImplicitComment: boolean = false): Braced
-  let comment
-  [body, comment] = commentForBody body
-  comment = undefined if dropImplicitComment and comment.implicit
-  {
-    type: "Braced"
-    body
-    children: [
-      open
-      body
-      close
-      comment
-    ]
-  }
-```
-
-Comment ::Comment
-  /%[^\r\n]*/ ->
-    return {
-      type: "Comment",
-      token: $0,
-      $loc,
-    }
-
-NestedComment ::AST[]
-  Nested Indent Comment -> $0
-
-Command ::Command
-  CommandWithoutNewline
-  /\\(?=[\r\n]|$)/ ->
-    return {
-      type: "Command",
-      token: $0,
-    }
-
-# Forbids \ followed by newline
-CommandWithoutNewline ::Command
-  /\\([a-zA-Z@]+|[^\r\n])/ ->
-    return {
-      type: "Command",
-      token: $0,
-    }
-
-# Command that can be followed by a colon argument
-# Forbids \ followed by newline
-# Captures * after command name to allow e.g. \section*: Acknowledgments
-StarredCommand ::Command
-  CommandWithoutNewline /[ \t]*\*/? ->
-    return $1 unless $2
-    return { ...$1, token: $1.token + $2[0] }
-
 Heading ::Heading
   /(!+|\.*)(#+)(\*?)\s+/ TrimmedText:title ->
     [, dot, hash, star] .= $1
@@ -715,7 +845,7 @@ Heading ::Heading
     }
 
 HorizontalRule ::AST[]
-  Indent:indent $/-(?:[ \t]*-){2,}/:marker /[ \t]*/ Comment?:comment &EOL ->
+  Indent:indent $/-(?:[ \t]*-){2,}/:marker Space Comment?:comment &EOL ->
     if style := state.compilerOptions.styles[marker]
       return [ indent, style, comment ]
     // For rules consisting of just -, use the closest configured shorter style
@@ -725,77 +855,17 @@ HorizontalRule ::AST[]
           return [ indent, style, comment ]
     return [ indent, state.compilerOptions.styles['---'] ?? "\\hrule", comment ]
 
-# https://spec.commonmark.org/0.31.2/#autolinks
-Autolink ::AST
-  # "An absolute URI, for these purposes, consists of a scheme [any sequence of 2–32 characters beginning with an ASCII letter and followed by any combination of ASCII letters, digits, or the symbols plus, period, or hyphen] followed by a colon (:) followed by zero or more characters other than ASCII control characters, space, <, and >."
-  /<([a-zA-Z][a-zA-Z0-9\+\.\-]{1,31}:[^\x00-\x1f\x7f\s<>]*)>/ ->
-    return `\\protect\\url{${$1}}`
-  # "An email address, for these purposes, is anything that matches the non-normative regex from the HTML5 spec"
-  # Texlish additionally allows {a,b} in the userid, which is common in papers
-  /<([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`{\|}~\-,]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/ ->
-    email .= $1
-    // Convert {a,b}@domain to mailto:a@domain,b@domain
-    if match := /\{([a-zA-Z0-9.!#$%&'\*\+\/=\?\^_`\|~\-,]+)\}/.exec email
-      email = match[1].split(',').map (part) =>
-        email[< match.index] + part + email[>= match.index + match[0]#]
-      .join(',')
-    // commonmark.js dingus escapes as follows:
-    email = email
-    .replace /&/g, '&amp;'
-    .replace /[%^`|]/g, (m: string) => `%${m.charCodeAt(0).toString(16).toUpperCase()}`
-    return `\\protect\\href{mailto:${email}}{\\protect\\nolinkurl{${$1}}}`
-
-Environment ::Environment
-  # use NestedStatement* instead of NestedBody so that we can PushIndent early
-  # (in case EnvironmentColonArguments involves multiple lines)
-  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent EnvironmentContent?:content PopIndent ->
-    return $skip unless content
-    { env, children } := content
+FootnoteRef ::FootnoteRef
+  /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
     return {
-      type: "Environment",
-      env,
-      children: [
-        indent
-        `\\begin{${env}}`
-        children
-        "\n"
-        indent
-        `\\end{${env}}`
-      ]
+      type: "FootnoteRef",
+      id: marker[1].trim(),
+      eolNext: Boolean(eolNext),
+      children: [marker[0]],
     }
 
-EnvironmentContent ::{env: string, children: AST[]}
-  MathEnvironmentHeader:env ( EnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  !MathEnvironmentHeader EnvironmentHeader:env ( EnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-
-EnvironmentHeader ::string
-  /:[ \t]+([^:\s\[%]+)/ -> $1.trim()
-
-MathEnvironmentHeader ::string
-  /:[ \t]+/ MathEnvironmentName:env /(?=[:\s\[%]|$)/ -> env
-
-MathEnvironmentName ::string
-  /(equation|alignat|align|gather|multline|flalign|eqnarray)(?![a-zA-Z@])\*?/
-
-BeginEndMathEnvironment ::AST[]
-  BeginMathEnvironment:open MathContent EndMathEnvironment:close ->
-    return $skip unless open.env is close.env
-    $0
-
-BeginMathEnvironment ::{env: string, children: AST[]}
-  $/\\begin[ \t]*\{/ MathEnvironmentName:env "}" -> { env, children: $0 }
-
-EndMathEnvironment ::{env: string, children: AST[]}
-  $/\\end[ \t]*\{/ MathEnvironmentName:env "}" -> { env, children: $0 }
-
-CommandWithColonArguments ::AST[]
-  ColonCommandsEnabled Indent:indent StarredCommand:command Colon CommandArgumentsAfterColon:arg ->
-    [ indent, command, arg ] // drop Colon
-
 FootnoteDefinition ::FootnoteDefinition
-  Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon ArgumentAfterColon:arg ->
+  Indent:indent /\[\^([^\]\r\n]+)\]/:marker Colon:colon TextArgumentAfterColon:arg ->
     body: AST[] :=
       if Array.isArray arg.body
         arg.body
@@ -811,58 +881,12 @@ FootnoteDefinition ::FootnoteDefinition
         indent
         marker[0]
         colon
-        // Unwrap ArgumentAfterColon
+        // Unwrap TextArgumentAfterColon
         if body?.[0] is "%" then body[>=1] else [ " ", body ]
       ]
     }
 
-# Inline version prevents combining same-line and indented content
-InlineCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled StarredCommand:command Colon InlineCommandArgumentsAfterColon:arg ->
-    [ command, arg ] // drop Colon
-
-EnvironmentColonArguments ::AST
-  Colon EnvironmentArgumentsAfterColon -> $2
-
-# ":", but don't treat :: as :
-Colon
-  /:(?!:)/
-
-CommandArgumentsAfterColon ::AST[] | Braced
-  NestedCommandArgumentList
-  ArgumentAfterColon
-
-InlineCommandArgumentsAfterColon ::AST
-  NestedCommandArgumentList
-  InlineArgumentAfterColon
-
-EnvironmentArgumentsAfterColon ::AST
-  NestedArgumentList
-  InlineArgumentAfterColon
-
-ArgumentAfterColon ::Braced
-  TrimmedText:text NestedBody:body ->
-    // If nothing on first line, comment out the newline
-    text = ["%"] if not text# and body#
-    let comment
-    [text, body, comment] = commentForTextBody(text, body)
-    textBody := [ text, body ]
-    return {
-      type: "Braced"
-      body: textBody
-      children: [
-        "{"
-        textBody
-        "}"
-        comment
-      ]
-    }
-
-InlineArgumentAfterColon ::AST
-  NonEmptyNestedBody:body ->
-    buildBracedContent "{%", body, "}"
-  TrimmedText:body ->
-    buildBracedContent "{", body, "}"
+## META COMMANDS
 
 MetaBlock ::AST[]
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
@@ -876,12 +900,12 @@ MetaCommand ::AST
   MetaPreamble
 
 MetaVersion ::AST
-  "version" /[ \t]+([^\r\n%]+)/:range Comment? ->
+  "version" ActualSpace /([^\r\n%]+)/:range Comment? ->
     assertTexlishVersion range[1].trim()
     return '\0'  // eat following newline
 
 MetaConfig ::AST
-  "config" /[ \t]+/ ConfigAssignment:body ->
+  "config" ActualSpace ConfigAssignment:body ->
     applyConfigAssignments body
     return '\0'  // eat following newline
   "config" NestedConfigAssignments:body ->
@@ -899,7 +923,7 @@ function applyConfigAssignments(body: ConfigEntry[]): void
 
 MetaStyles ::AST
   # One-line assignment `::styles key = value`
-  "styles" /[ \t]+/ ConfigAssignment:body ->
+  "styles" ActualSpace ConfigAssignment:body ->
     applyStyleAssignments body
     '\0'  // eat following newline
   "styles" NestedConfigAssignments:body ->
@@ -932,27 +956,37 @@ ConfigAssignment ::ConfigEntry[]
 
 NestedConfigRHS ::ConfigEntry[]
   # `key:` for nested config
-  /[ \t]*:[ \t]*/ NestedConfigAssignments:items ->
+  Space ":" Space NestedConfigAssignments:items ->
     return items
   ConfigRHS:rhs -> rhs
 
 ConfigRHS ::ConfigEntry[]
   # `key=value`
-  /[ \t]*=/ TrimmedRawText:value ->
+  Space "=" TrimmedTexText:value ->
     return [[[], generate(value)]]
   # `key` alone enables option
   "" ->
     return [[[], true]]
 
 MetaUse ::AST
-  "use" [ \t]+ UseItem:item -> item
+  "use" ActualSpace UseItem:item -> item
   "use" NestedUseList:list -> list
 
 MetaTex ::Tex
-  "tex" /\b[ \t]?/ RawText:text RawNestedBody:body ->
+  "tex" /\b[ \t]?/ TexText:text TexNestedBody:body ->
     {
       type: "Tex"
       children: [text, body]
+    }
+
+MetaPreamble ::Preamble
+  "preamble" ( ActualSpace Text )?:text NestedBody:body ->
+    preambleText := text?[1]
+    textBody := [ preambleText, body ]
+    return {
+      type: "Preamble"
+      textBody
+      children: [ textBody ]
     }
 
 UseItem ::Use
@@ -994,7 +1028,7 @@ UseColonArgument ::AST[]
     ]
 
 UseArgument ::AST
-  TrimmedRawText ( NestedUseArgumentList / NonEmptyRawNestedBody )?
+  TrimmedTexText ( NestedUseArgumentList / NonEmptyTexNestedBody )?
 
 NestedUseArgumentList ::AST[]
   PushIndent UseArgumentList?:content PopIndent ->
@@ -1013,7 +1047,7 @@ UseArgumentListContinuation ::AST[]
     return [ comments, eol, [ indent, ",", ...rest ] ]
 
 UseArgumentBullet ::AST[]
-  Indent:indent /([*\-~])([ \t]+)/ RawText:text RawNestedBody:body ->
+  Indent:indent /([*\-~])([ \t]+)/ TexText:text TexNestedBody:body ->
     [ , , space ] .= $2
     return [
       indent
@@ -1021,6 +1055,8 @@ UseArgumentBullet ::AST[]
       text
       body
     ]
+
+## NESTED BODIES
 
 NonEmptyNestedBody ::AST[]
   NestedBody ->
@@ -1039,24 +1075,16 @@ NestedStatement ::{eols: AST[], statement: AST, children: AST[]}
       children: $0
     }
 
-# Raw versions of above
-NonEmptyRawNestedBody ::AST[]
-  RawNestedBody ->
+# Tex versions of above
+NonEmptyTexNestedBody ::AST[]
+  TexNestedBody ->
     return $skip unless $1#
     return $1
 
-RawNestedBody ::AST[]
-  PushStrictIndent ( Nested Indent RawText )* PopIndent -> $2
+TexNestedBody ::AST[]
+  PushStrictIndent ( Nested Indent TexText )* PopIndent -> $2
 
-MetaPreamble ::Preamble
-  "preamble" ( /[ \t]+/ Text )?:text NestedBody:body ->
-    preambleText := text?[1]
-    textBody := [ preambleText, body ]
-    return {
-      type: "Preamble"
-      textBody
-      children: [ textBody ]
-    }
+## LISTS
 
 UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
@@ -1085,10 +1113,16 @@ UnorderedListContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent UnorderedBullet:bullet ->
     return [ comments, eol, indent, bullet ]
 
-Bullet
-  /([*\-~])([ \t]+|(?=[\r\n]))/ ->
-    setListItemIndent $0
-    [ $1, $2 ]
+Bullet ::[symbol: string, space: string]
+  $( OptionalBullet / RequiredBullet ):symbol $( ActualSpace / &ActualEOL ):space ->
+    setListItemIndent(symbol + space)
+    [ symbol, space ]
+
+OptionalBullet ::string
+  "~"
+
+RequiredBullet ::string
+  [*\-]
 
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
@@ -1135,39 +1169,368 @@ ListItemLine ::AST[]
 ListItemStatement ::AST
   # Alternatives must reject before Indent unless they are really matching:
   # Indent consumes pendingLineIndent, which later alternatives need.
-  ColonEnvironmentsEnabled Environment -> $2
+  ColonEnvironmentsEnabled TextEnvironment -> $2
   MetaBlock
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
 
-NestedArgumentList ::AST[]
-  PushIndent ArgumentList?:content PopIndent ->
-    return $skip unless content
-    return content
+## COMMANDS
+
+Command ::Command
+  CommandWithoutNewline
+  /\\(?=[\r\n]|$)/ ->
+    return {
+      type: "Command",
+      token: $0,
+    }
+
+# Forbids \ followed by newline
+CommandWithoutNewline ::Command
+  /\\([a-zA-Z@]+|[^\r\n])/ ->
+    return {
+      type: "Command",
+      token: $0,
+    }
+
+# Command that can be followed by a colon argument
+# Forbids \ followed by newline
+# Allows whitespace before *, but keeps only * in the token for declaration lookup.
+StarredCommand ::Command
+  CommandWithoutNewline ( Space "*" )?:star ->
+    return $1 unless star
+    return { ...$1, token: $1.token + "*" }
+
+TextCommandWithArguments ::AST
+  PushTextCommandPattern:command CommandArguments:args -> [ command, ...args ]
+  # Undeclared ordinary commands leave following groups to the surrounding
+  # parser; only colon syntax gets an unlimited generic pattern.
+  Command
+
+MathCommandWithArguments ::AST
+  PushMathCommandPattern:command CommandArguments:args -> [ command, ...args ]
+  Command
+
+CommandArguments ::AST[]
+  CommandArgument*:args PopCommandPattern -> args
+
+PushTextCommandPattern ::Command
+  StarredCommand:command -> pushCommandPattern(command, "text") ?? $skip
+  CommandWithoutNewline:command -> pushCommandPattern(command, "text") ?? $skip
+
+PushMathCommandPattern ::Command
+  StarredCommand:command -> pushCommandPattern(command, "math") ?? $skip
+  CommandWithoutNewline:command -> pushCommandPattern(command, "math") ?? $skip
+
+```
+function pushCommandPattern(
+  command: Command
+  parentMode: ResolvedArgumentMode
+): Command?
+  return unless pattern .= state.commandPatterns.get command.token
+  if (argument.mode is "inherit" for some each argument of pattern)
+    pattern = for each argument of pattern
+      if argument.mode is "inherit"
+        { ...argument, mode: parentMode }
+      else
+        argument
+  state.argumentPatterns.push pattern
+  command
+```
+
+PopCommandPattern
+  "" -> state.argumentPatterns.pop()
+
+CommandArgument ::AST[]
+  OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:argument ->
+    consumeCommandArgument "optional"
+    [ space, argument ]
+  RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:argument ->
+    consumeCommandArgument "required"
+    [ space, argument ]
+  DelimitedVerbatimArgument Space:space $DelimitedVerbatim:argument ->
+    consumeCommandArgument "delimited"
+    [ space, verbatim argument ]
+
+```
+function consumeCommandArgument(delimiter: ArgumentDelimiter): void
+  return unless state.argumentPatterns#
+  unless argument := selectCommandArgument delimiter
+    throw new Error "No current command argument"
+  // A mode string is generic and therefore remains active for later arguments.
+  pattern := state.argumentPatterns.-1
+  return unless Array.isArray pattern
+  state.argumentPatterns.-1 = pattern[> pattern.indexOf argument]
+
+function selectCommandArgument(delimiter: ArgumentDelimiter): ArgumentSpec?
+  return unless pattern := state.argumentPatterns.-1
+  unless Array.isArray pattern
+    // Generic colon arguments use only paired optional/required syntax.
+    return unless delimiter is "optional" or delimiter is "required"
+    return { name: "argument", delimiter, mode: pattern }
+  if delimiter is "optional"
+    argument := pattern[0]
+    return argument if argument?.delimiter is delimiter
+    return
+  for each argument of pattern
+    if argument.delimiter is delimiter or
+       argument.delimiter is "required-or-delimited" and
+       (delimiter is "required" or delimiter is "delimited")
+      return argument
+    // Only allow skipping over optional arguments
+    return unless argument.delimiter is "optional"
+  return
+```
+
+OptionalArgumentPossible
+  "" -> $skip unless selectCommandArgument "optional"
+RequiredArgumentPossible
+  "" -> $skip unless selectCommandArgument "required"
+DelimitedVerbatimArgument
+  "" -> $skip unless commandArgumentIs "delimited", "verbatim"
+DelimitedVerbatim ::string
+  /([^\s])[^\r\n]*?\1/
+
+CommandSpace ::AST[]
+  Space CommandCommentContinuation*
+CommandCommentContinuation ::AST[]
+  Comment:comment EOL:eol &IndentedAtLeast Indent:indent -> [ comment, eol, indent ]
+
+OptionalArgumentContent ::AST
+  OptionalRawArgument $RawBracketedContent:argument -> verbatim argument
+  OptionalVerbatimArgument $VerbatimBracketedContent:argument -> verbatim argument
+  OptionalTextArgument TextBracketedContent:argument -> argument
+  OptionalMathArgument MathBracketedContent:argument -> argument
+
+RequiredArgumentContent ::AST
+  RequiredRawArgument $RawBracedContent:argument -> verbatim argument
+  RequiredVerbatimArgument $VerbatimBracedContent:argument -> verbatim argument
+  RequiredTextArgument TextBracedContent:argument -> argument
+  RequiredMathArgument MathBracedContent:argument -> argument
+
+OptionalRawArgument
+  "" -> $skip unless commandArgumentIs "optional", "raw"
+RequiredRawArgument
+  "" -> $skip unless commandArgumentIs "required", "raw"
+OptionalVerbatimArgument
+  "" -> $skip unless commandArgumentIs "optional", "verbatim"
+RequiredVerbatimArgument
+  "" -> $skip unless commandArgumentIs "required", "verbatim"
+OptionalTextArgument
+  "" -> $skip unless commandArgumentIs "optional", "text"
+RequiredTextArgument
+  "" -> $skip unless commandArgumentIs "required", "text"
+OptionalMathArgument
+  "" -> $skip unless commandArgumentIs "optional", "math"
+RequiredMathArgument
+  "" -> $skip unless commandArgumentIs "required", "math"
+
+```
+function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode): boolean
+  return false unless selected := selectCommandArgument delimiter
+  selected.mode is mode
+```
+
+# `\command: args` statement in text and math mode respectively
+TextCommandWithColonArguments ::AST[]
+  ColonCommandsEnabled Indent:indent PushTextColonCommandPattern:command CommandArgumentsAfterColon:arg ->
+    [ indent, command, arg ]
+MathCommandWithColonArguments ::AST[]
+  ColonCommandsEnabled Indent:indent PushMathColonCommandPattern:command CommandArgumentsAfterColon:arg ->
+    [ indent, command, arg ]
+
+PushTextColonCommandPattern ::Command
+  StarredCommand:command Colon ->
+    pushColonCommandPattern(command, "text") ?? $skip
+PushMathColonCommandPattern ::Command
+  StarredCommand:command Colon ->
+    pushColonCommandPattern(command, "math") ?? $skip
+
+```
+function pushColonCommandPattern(command: Command, mode: ResolvedArgumentMode): Command?
+  if pattern := state.commandPatterns.get command.token
+    // An empty declaration explicitly disables colon arguments.
+    return unless pattern#
+    return pushCommandPattern command, mode
+  state.argumentPatterns.push mode
+  command
+```
+
+# ":", but don't treat :: as :
+Colon
+  /:(?!:)/
+
+CommandArgumentsAfterColon ::AST[] | Braced
+  ( NestedCommandArgumentList / CommandArgumentAfterColon )?:arg PopCommandPattern ->
+    return $skip unless arg?
+    arg
+
+CommandArgumentAfterColon ::Braced
+  RequiredRawArgument RawArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredVerbatimArgument VerbatimArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredTextArgument TextArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredMathArgument MathArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+
+```
+function consumeRequiredCommandArgument(argument: Braced): Braced
+  consumeCommandArgument "required"
+  argument
+```
+
+TextArgumentAfterColon ::Braced
+  TrimmedText:text NestedBody:body ->
+    argumentAfterColon text, body
+MathArgumentAfterColon ::Braced
+  TrimmedMathText:text MathArgumentNestedBody:body ->
+    argumentAfterColon text, body
+
+```
+function argumentAfterColon(
+  text: AST[]
+  body: AST[]
+  commentOutLeadingNewline = true
+): Braced
+  if not text# and body#
+    if commentOutLeadingNewline
+      text = ["%"]
+    else
+      body = trimVerbatimNestedBody body
+  let comment
+  [text, body, comment] = commentForTextBody text, body
+  textBody := [ text, body ]
+  {
+    type: "Braced"
+    body: textBody
+    children: [ "{", textBody, "}", comment ]
+  }
+```
+
+RawArgumentAfterColon ::Braced
+  TrimmedRawText:text RawNestedBody:body ->
+    argumentAfterColon text, body
+VerbatimArgumentAfterColon ::Braced
+  TrimmedVerbatimText:text VerbatimNestedBody:body ->
+    argumentAfterColon text, body, false
+
+MathArgumentNestedBody ::AST[]
+  PushStrictIndent NestedMathStatement* PopIndent -> $2
+RawNestedBody ::AST[]
+  PushStrictIndent ( Nested Indent RawText )* PopIndent -> $2
+VerbatimNestedBody ::AST[]
+  PushStrictIndent ( Nested Indent VerbatimText )* PopIndent -> $2
+
+RawText ::{text: string, comment: Comment?, children: AST[]}
+  RawTextPart*:parts Comment?:comment ->
+    text := parts.join ''
+    {
+      text
+      comment
+      children: rawTextChildren { text, comment }
+    }
+
+VerbatimText ::{text: string, comment: undefined, children: AST[]}
+  VerbatimTextPart*:parts ->
+    text := parts.join ''
+    {
+      text
+      comment: undefined
+      children: rawTextChildren { text, comment: undefined }
+    }
+
+```
+function rawTextChildren(
+  raw: {text: string, comment: Comment?}
+  trim = false
+): AST[]
+  text :=
+    if trim
+      raw.text.trim()
+    else if raw.comment
+      raw.text.trimEnd()
+    else
+      raw.text
+  return [] unless text or raw.comment
+  [ verbatim text if text, raw.comment ]
+```
+
+RawTextPart ::string
+  $RawBracedContent
+  /\\[^\r\n]|[^\\{}%\r\n]+/
+
+VerbatimTextPart ::string
+  $VerbatimBracedContent
+  /\\[^\r\n]|[^\\{}\r\n]+/
+
+# Inline versions prevent combining same-line and indented content.
+InlineTextCommandWithColonArguments ::AST[]
+  ColonCommandsEnabled PushTextColonCommandPattern:command InlineCommandArgumentsAfterColon:arg ->
+    [ command, arg ]
+
+InlineMathCommandWithColonArguments ::AST[]
+  ColonCommandsEnabled PushMathColonCommandPattern:command InlineCommandArgumentsAfterColon:arg ->
+    [ command, arg ]
+
+InlineCommandArgumentsAfterColon ::AST
+  ( NestedCommandArgumentList / InlineCommandArgumentAfterColon )?:arg PopCommandPattern ->
+    arg ?? $skip
+
+InlineCommandArgumentAfterColon ::Braced
+  RequiredRawArgument InlineRawArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredVerbatimArgument InlineVerbatimArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredTextArgument InlineTextArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+  RequiredMathArgument InlineMathArgumentAfterColon:argument ->
+    consumeRequiredCommandArgument argument
+
+InlineTextArgumentAfterColon ::Braced
+  NonEmptyNestedBody:body ->
+    buildBracedContent "{%", body, "}"
+  TrimmedText:body ->
+    buildBracedContent "{", body, "}"
+
+InlineMathArgumentAfterColon ::Braced
+  MathArgumentNestedBody:body ->
+    return $skip unless body#
+    buildBracedContent "{%", body, "}"
+  TrimmedMathText:body -> buildBracedContent "{", body, "}"
+
+InlineRawArgumentAfterColon ::Braced
+  RawNestedBody:body ->
+    return $skip unless body#
+    buildBracedContent "{%", body, "}"
+  TrimmedRawText:body -> buildBracedContent "{", body, "}"
+
+InlineVerbatimArgumentAfterColon ::Braced
+  VerbatimNestedBody:body ->
+    return $skip unless body#
+    buildBracedContent "{", trimVerbatimNestedBody(body), "}"
+  TrimmedVerbatimText:body -> buildBracedContent "{", body, "}"
+
+```
+function trimVerbatimNestedBody(body: AST[]): AST[]
+  first := body[0]
+  return body unless Array.isArray first
+  return body unless first[1] is like { type: "Indent" }
+  eols := first[0]
+  return body unless Array.isArray eols
+  [ [ eols[>=1], ...first[>=2] ], ...body[>=1] ]
+```
+
+TrimmedRawText ::AST[]
+  RawText:text -> rawTextChildren text, true
+TrimmedVerbatimText ::AST[]
+  VerbatimText:text -> rawTextChildren text, true
 
 # Argument bullets plus an optional final nested body block,
 # which becomes another braced command argument.
 NestedCommandArgumentList ::AST[]
-  PushIndent ( ArgumentList StrictNestedStatements:body )?:content PopIndent ->
-    return $skip unless content
-    [ args, body ] := content
-    return args unless body#
-    // NestedStatement starts with EOL+, but the new argument needs one EOL.
-    { eols: [ eol ], statement: firstStatement } := body[0]
-    indent := getLeadingIndent firstStatement
-    [ finalBody, comment ] := commentForBody body
-    return [
-      ...args
-      [
-        eol
-        indent
-        " "
-        "{%"
-        finalBody
-        "}"
-        comment
-      ]
-    ]
+  PushIndent ( ArgumentList CommandFinalArgument?:final )?:content PopIndent ->
+    content ?? $skip
 
 StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
   PushStrictCurrentIndent NestedStatement*:body PopIndent -> body
@@ -1182,23 +1545,319 @@ ArgumentListContinuation ::AST[]
     return [ comments, eol, bullet ]
 
 ArgumentBullet ::AST[]
-  Indent:indent Bullet:bullet ListItemLine:text NestedBody:body ->
-    [ symbol, space ] .= bullet
-    let comment
-    [text, body, comment] = commentForTextBody text, body
-    open := if symbol is '~' then '[' else '{'
-    close := if symbol is '~' then ']' else '}'
-    return [
-      indent
-      space // indent the same as the bullet, except 1 for *-~ and {
-      open
-      text
-      body
-      close
-      comment
-    ]
+  RawArgumentBulletEnabled Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
+    commandArgumentBullet indent, bullet, text, body
+  VerbatimArgumentBulletEnabled Indent:indent Bullet:bullet VerbatimArgumentListItemLine:text VerbatimNestedBody:body ->
+    commandArgumentBullet indent, bullet, text, body, true
+  TextArgumentBulletEnabled Indent:indent Bullet:bullet ListItemLine:text NestedBody:body ->
+    commandArgumentBullet indent, bullet, text, body
+  MathArgumentBulletEnabled Indent:indent Bullet:bullet MathArgumentListItemLine:text MathArgumentNestedBody:body ->
+    commandArgumentBullet indent, bullet, text, body
 
-## Config
+```
+function commandArgumentBullet(
+  indent: Indent
+  bullet: [string, string]
+  text: AST[]
+  body: AST[]
+  verbatimMode = false
+): AST[]
+  [ symbol, space ] := bullet
+  body = trimVerbatimNestedBody body if verbatimMode and not text# and body#
+  let comment
+  [text, body, comment] = commentForTextBody text, body
+  consumeCommandArgument if symbol is '~' then "optional" else "required"
+  open := if symbol is '~' then '[' else '{'
+  close := if symbol is '~' then ']' else '}'
+  [ indent, space, open, text, body, close, comment ]
+```
+
+RawArgumentBulletEnabled
+  &(Space OptionalBullet) OptionalRawArgument
+  &(Space RequiredBullet) RequiredRawArgument
+
+VerbatimArgumentBulletEnabled
+  &(Space OptionalBullet) OptionalVerbatimArgument
+  &(Space RequiredBullet) RequiredVerbatimArgument
+
+TextArgumentBulletEnabled
+  &(Space OptionalBullet) OptionalTextArgument
+  &(Space RequiredBullet) RequiredTextArgument
+
+MathArgumentBulletEnabled
+  &(Space OptionalBullet) OptionalMathArgument
+  &(Space RequiredBullet) RequiredMathArgument
+
+RawArgumentListItemLine ::AST[]
+  PushListItemIndent RawText:text PopListItemIndent -> rawTextChildren text
+
+VerbatimArgumentListItemLine ::AST[]
+  PushListItemIndent VerbatimText:text PopListItemIndent -> rawTextChildren text
+
+MathArgumentListItemLine ::AST[]
+  PushListItemIndent MathText:text PopListItemIndent -> text
+
+CommandFinalArgument ::AST[]
+  RequiredRawArgument NonEmptyStrictRawArgumentStatements:body ->
+    finalCommandArgument body
+  RequiredVerbatimArgument NonEmptyStrictVerbatimArgumentStatements:body ->
+    finalCommandArgument body, true
+  RequiredTextArgument NonEmptyStrictNestedStatements:body ->
+    finalCommandArgument body
+  RequiredMathArgument NonEmptyStrictMathArgumentStatements:body ->
+    finalCommandArgument body
+
+```
+type ArgumentBodyStatement =
+  { eols: AST[], statement: AST, children: AST[] }
+
+function finalCommandArgument(
+  body: ArgumentBodyStatement[]
+  verbatimMode = false
+): AST[]
+  { eols: [ eol ], statement: firstStatement } := body[0]
+  indent := getLeadingIndent firstStatement
+  let finalBody, comment
+  [finalBody, comment] = commentForBody body
+  if verbatimMode
+    first := finalBody[0] as ArgumentBodyStatement
+    unless Array.isArray first.statement
+      throw new Error "Expected array statement for verbatim argument"
+    finalBody = [
+      {
+        ...first
+        children: [ first.eols[>=1], removeLeadingIndent first.statement ]
+      }
+      ...finalBody[>=1]
+    ]
+  consumeCommandArgument "required"
+  open := if verbatimMode then "{" else "{%"
+  [ eol, indent, " ", open, finalBody, "}", comment ]
+```
+
+NonEmptyStrictNestedStatements ::ArgumentBodyStatement[]
+  StrictNestedStatements:body ->
+    return $skip unless body#
+    body
+
+NonEmptyStrictRawArgumentStatements ::ArgumentBodyStatement[]
+  PushStrictCurrentIndent NestedRawArgumentStatement*:body PopIndent ->
+    return $skip unless body#
+    body
+
+NestedRawArgumentStatement ::ArgumentBodyStatement
+  Nested:eols Indent:indent RawText:text ->
+    { eols, statement: [ indent, text ], children: $0 }
+
+NonEmptyStrictVerbatimArgumentStatements ::ArgumentBodyStatement[]
+  PushStrictCurrentIndent NestedVerbatimArgumentStatement*:body PopIndent ->
+    return $skip unless body#
+    body
+
+NestedVerbatimArgumentStatement ::ArgumentBodyStatement
+  Nested:eols Indent:indent VerbatimText:text ->
+    { eols, statement: [ indent, text ], children: $0 }
+
+NonEmptyStrictMathArgumentStatements ::ArgumentBodyStatement[]
+  PushStrictCurrentIndent NestedMathArgumentStatement*:body PopIndent ->
+    return $skip unless body#
+    body
+
+NestedMathArgumentStatement ::ArgumentBodyStatement
+  Nested:eols MathStatement:statement ->
+    { eols, statement, children: $0 }
+
+## ENVIRONMENTS
+
+VerbatimEnvironment ::string
+  &BeginVerbatimEnvironment $///
+    \\begin[ \t]*\{ ([^{}\r\n]+) \}
+    [^]*?
+    \\end[ \t]*\{ \1 \}
+  /// -> $2
+
+# Raw environments treat `%` as comments, so `%...\end` doesn't terminate
+RawEnvironment ::string
+  &BeginRawEnvironment $///
+    \\begin[ \t]*\{ ([^{}\r\n]+) \}
+    (?:
+      [^\\%]+
+      |
+      %[^\r\n]*(?:\r\n?|\n|$)
+      |
+      (?! \\end[ \t]*\{ \1 \} ) \\[^]
+    )*?
+    \\end[ \t]*\{ \1 \}
+  /// -> $2
+
+TextEnvironment ::Environment
+  # Push the body indentation before parsing mode-specific colon arguments.
+  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent TextEnvironmentContent?:content PopIndent ->
+    return $skip unless content
+    environment indent, content
+
+MathEnvironment ::Environment
+  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent MathEnvironmentContent?:content PopIndent ->
+    return $skip unless content
+    environment indent, content
+
+```
+function environment(indent: Indent, content: {env: string, children: AST[]}): Environment
+  { env, children } := content
+  {
+    type: "Environment"
+    env
+    children: [
+      indent
+      `\\begin{${env}}`
+      children
+      "\n"
+      indent
+      `\\end{${env}}`
+    ]
+  }
+```
+
+TextEnvironmentContent ::{env: string, children: AST[]}
+  RawEnvironmentHeader:env ( RawEnvironmentColonArguments / TrimmedRawText ):first NestedRawEnvironmentStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  VerbatimEnvironmentHeader:env ( VerbatimEnvironmentColonArguments / TrimmedVerbatimText ):first NestedVerbatimEnvironmentStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  MathEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  TextEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  InheritedEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+
+MathEnvironmentContent ::{env: string, children: AST[]}
+  RawEnvironmentHeader:env ( RawEnvironmentColonArguments / TrimmedRawText ):first NestedRawEnvironmentStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  VerbatimEnvironmentHeader:env ( VerbatimEnvironmentColonArguments / TrimmedVerbatimText ):first NestedVerbatimEnvironmentStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  TextEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  MathEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+  InheritedEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
+    { env, children: [ first, ...rest ] }
+
+NestedRawEnvironmentStatement ::AST[]
+  Nested:eols Indent:indent RawText:text ->
+    [ eols, indent, text.children ]
+
+NestedVerbatimEnvironmentStatement ::AST[]
+  Nested:eols Indent:indent VerbatimText:text ->
+    [ eols, indent, text.children ]
+
+EnvironmentHeader ::string
+  ":" ActualSpace /[^:\s\[%]+/:env -> env[0]
+
+RawEnvironmentHeader ::string
+  EnvironmentHeader:env ->
+    return $skip unless state.environmentModes.get(env) is "raw"
+    env
+
+VerbatimEnvironmentHeader ::string
+  EnvironmentHeader:env ->
+    return $skip unless state.environmentModes.get(env) is "verbatim"
+    env
+
+TextEnvironmentHeader ::string
+  EnvironmentHeader:env ->
+    return $skip unless state.environmentModes.get(env) is "text"
+    env
+
+MathEnvironmentHeader ::string
+  EnvironmentHeader:env ->
+    return $skip unless state.environmentModes.get(env) is "math"
+    env
+
+InheritedEnvironmentHeader ::string
+  EnvironmentHeader:env ->
+    mode := state.environmentModes.get env
+    return $skip if mode? and mode is not "inherit"
+    env
+
+BeginEnvironment ::{env: string, children: AST[]}
+  $/\\begin[ \t]*\{/ /[^{}\r\n]+/:env "}" ->
+    { env: env[0], children: $0 }
+
+EndEnvironment ::{env: string, children: AST[]}
+  $/\\end[ \t]*\{/ /[^{}\r\n]+/:env "}" ->
+    { env: env[0], children: $0 }
+
+BeginRawEnvironment ::{env: string, children: AST[]}
+  BeginEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "raw"
+    environment
+
+BeginVerbatimEnvironment ::{env: string, children: AST[]}
+  BeginEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "verbatim"
+    environment
+
+BeginTextEnvironment ::{env: string, children: AST[]}
+  BeginEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "text"
+    environment
+
+EndTextEnvironment ::{env: string, children: AST[]}
+  EndEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "text"
+    environment
+
+BeginMathEnvironment ::{env: string, children: AST[]}
+  BeginEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "math"
+    environment
+
+EndMathEnvironment ::{env: string, children: AST[]}
+  EndEnvironment:environment ->
+    return $skip unless state.environmentModes.get(environment.env) is "math"
+    environment
+
+BeginEndMathEnvironment ::AST[]
+  BeginMathEnvironment:open MathContent EndMathEnvironment:close ->
+    return $skip unless open.env is close.env
+    $0
+
+BeginEndTextEnvironment ::AST[]
+  BeginTextEnvironment:open TextAndContent EndTextEnvironment:close ->
+    return $skip unless open.env is close.env
+    $0
+
+RawEnvironmentColonArguments ::AST
+  Colon PushGenericRawArgumentPattern EnvironmentArgumentsAfterColon:args -> args
+VerbatimEnvironmentColonArguments ::AST
+  Colon PushGenericVerbatimArgumentPattern EnvironmentArgumentsAfterColon:args -> args
+TextEnvironmentColonArguments ::AST
+  Colon PushGenericTextArgumentPattern EnvironmentArgumentsAfterColon:args -> args
+MathEnvironmentColonArguments ::AST
+  Colon PushGenericMathArgumentPattern EnvironmentArgumentsAfterColon:args -> args
+
+EnvironmentArgumentsAfterColon ::AST
+  ( NestedArgumentList / InlineCommandArgumentAfterColon )?:args PopCommandPattern ->
+    return $skip unless args?
+    args
+
+# Environment colon arguments repeat their body's mode without disturbing an
+# enclosing command pattern.
+PushGenericRawArgumentPattern
+  "" -> state.argumentPatterns.push "raw"
+PushGenericVerbatimArgumentPattern
+  "" -> state.argumentPatterns.push "verbatim"
+PushGenericTextArgumentPattern
+  "" -> state.argumentPatterns.push "text"
+PushGenericMathArgumentPattern
+  "" -> state.argumentPatterns.push "math"
+
+NestedArgumentList ::AST[]
+  PushIndent ArgumentList?:content PopIndent ->
+    return $skip unless content
+    return content
+
+## CONFIGURATION
 
 ColonCommandsEnabled
   "" ->
@@ -1211,6 +1870,10 @@ ColonEnvironmentsEnabled
 CiteShorthandEnabled
   "" ->
     return $skip unless state.compilerOptions.citeShorthand
+
+ScriptGroupingEnabled
+  "" ->
+    return $skip if state.compilerOptions.scriptGrouping is "none"
 
 ScriptGroupingNumeric
   "" ->
@@ -1276,14 +1939,14 @@ SmartQuotesEnabled
   "" ->
     return $skip unless state.compilerOptions.smartQuotes
 
-## Indentation management, inspired by Civet's parser.hera
+## INDENTATION MANAGEMENT (INSPIRED BY CIVET'S parser.hera)
 
 Indentation ::Indent
-  /[ \t]*/ ->
+  Space:token ->
     return {
       type: "Indent"
-      token: $0
-      level: visualWidth $0
+      token
+      level: visualWidth token
       $loc
     }
 

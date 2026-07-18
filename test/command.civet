@@ -5,8 +5,10 @@ describe '\\command:', ->
     disabled by compiler option
     ---
     \title: The Paper
+    \url: https://example.com/a_b
     ---
     \title: The Paper
+    \url: https://example.com/a_b
   ''', colonCommands: false
 
   testCase r'''
@@ -15,9 +17,11 @@ describe '\\command:', ->
     \title: Before
     ::config -colonCommands
     \title: After
+    \url: https://example.com/a_b
     ---
     \title{Before}%
     \title: After
+    \url: https://example.com/a_b
   '''
 
   // No `r` because this test uses \x20 for an intentional trailing space.
@@ -37,6 +41,16 @@ describe '\\command:', ->
     \bibliography: bib
     ---
     \bibliography{bib}%
+  '''
+
+  testCase r'''
+    failed signature dispatch restores the argument pattern
+    ---
+    \verb:raw:
+    \includegraphics: figures/*raw*.pdf
+    ---
+    \verb:raw:
+    \includegraphics{figures/*raw*.pdf}%
   '''
 
   testCase r'''
@@ -353,6 +367,36 @@ describe '\\command:', ->
   '''
 
   testCase r'''
+    generic colon arguments inherit math mode
+    ---
+    $x + \foo: y_12
+    $
+    $$
+      \foo:
+        - x_12
+        - y_34
+    $$
+    ---
+    $x + \foo{y_{12}}%
+    $
+    $$
+      \foo
+         {x_{12}}%
+         {y_{34}}%
+    $$
+  '''
+
+  testCase r'''
+    ordinary undeclared command groups use the surrounding mode
+    ---
+    \foo{*one*}{@two}
+    $\foo{x_12}{y_34}$
+    ---
+    \foo{\emph{one}}{\ref{two}}
+    $\foo{x_{12}}{y_{34}}$
+  '''
+
+  testCase r'''
     inline with unbulleted final required argument
     ---
     Text \foo:
@@ -445,6 +489,8 @@ describe '\\command:', ->
     starred
     ---
     \section*: Acknowledgements
+    \section *: Appendix
     ---
     \section*{Acknowledgements}%
+    \section*{Appendix}%
   '''

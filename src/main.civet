@@ -12,6 +12,7 @@ type { AST, CompilerOptions } from ./types.civet
 export type { AST, CompilerOptions }
 
 StateCache from ./state-cache.civet
+type { CacheKey } from ./state-cache.civet
 { makeCompilerOptions } from ./config.civet
 export {
   applyCompilerOption,
@@ -43,6 +44,35 @@ uncacheable := new Set [
   "NumberBullet"
   // ListItemLine chooses between statement/text list-item setup, both stateful.
   "ListItemLine"
+  // These rules change the active argument-pattern stack/suffix. This includes
+  // wrappers whose children consume arguments without restoring the suffix:
+  // a cache hit skips the entire subtree and would not replay that transition.
+  // Rules that only read the stack and wrappers with no net change stay cached.
+  // Push or pop the active pattern.
+  "PushTextCommandPattern"
+  "PushMathCommandPattern"
+  "PushTextColonCommandPattern"
+  "PushMathColonCommandPattern"
+  "PushGenericRawArgumentPattern"
+  "PushGenericVerbatimArgumentPattern"
+  "PushGenericTextArgumentPattern"
+  "PushGenericMathArgumentPattern"
+  "PopCommandPattern"
+  // Directly consume a finite pattern suffix.
+  "CommandArgument"
+  "CommandArgumentAfterColon"
+  "InlineCommandArgumentAfterColon"
+  "ArgumentBullet"
+  "CommandFinalArgument"
+  // Return with a suffix consumed by a child.
+  "NestedCommandArgumentList"
+  "ArgumentList"
+  "ArgumentListContinuation"
+  // Parse arguments and pop the active pattern before returning.
+  "CommandArguments"
+  "CommandArgumentsAfterColon"
+  "InlineCommandArgumentsAfterColon"
+  "EnvironmentArgumentsAfterColon"
   // Parser config mutation
   "MetaStyles"
   "MetaConfig"
@@ -117,8 +147,6 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
 
 type MetaData
   logs: string[]
-
-type CacheKey = [number, number, string]
 
 type ParseState =
   input: string

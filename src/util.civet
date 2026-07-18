@@ -1,5 +1,9 @@
 type { AST, ASTParent, Comment, Indent } from ./types.civet
 
+/** Escape text for literal use in a regular-expression pattern. */
+export function escapeRegExp(text: string): string
+  text.replace /[.*+?^${}()|[\]\\]/g, "\\$&"
+
 export function isNumeric(value: string): boolean
   /^\d+$/.test value
 
@@ -209,6 +213,7 @@ export function commentForTextBody(text: AST[], body: AST[]): [AST[], AST[], Com
   comment ?=
     type: "Comment"
     token: "%"
+    implicit: true
   [text, body, comment]
 
 export function commentForBody(body: AST[]): [AST[], Comment]

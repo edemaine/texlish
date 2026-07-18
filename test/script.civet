@@ -2,6 +2,48 @@
 
 describe 'sub/superscript autogrouping', ->
   testCase r'''
+    declared commands include all arguments in a script
+    ---
+    $x_\frac{a_12}{b_34} + y^\text{*fast*}$
+    ---
+    $x_{\frac{a_{12}}{b_{34}}} + y^{\text{\emph{fast}}}$
+  '''
+
+  testCase r'''
+    declared zero-argument commands form complete scripts
+    ---
+    $x_\alpha + y^\Gamma$
+    ---
+    $x_{\alpha} + y^{\Gamma}$
+  '''
+
+  testCase r'''
+    incomplete declared commands do not leak their argument pattern
+    ---
+    $x_\frac{a} + y_12$
+    ---
+    $x_\frac{a} + y_{12}$
+  '''
+
+  testCase r'''
+    inherited arguments follow their parent mode
+    ---
+    \phantom: *text* x_12
+    $x_\phantom{*math* x_12}$
+    ---
+    \phantom{\emph{text} x_12}%
+    $x_{\phantom{*math* x_{12}}}$
+  '''
+
+  testCase r'''
+    none mode disables declared command script grouping
+    ---
+    $x_\frac{a}{b}$
+    ---
+    $x_\frac{a}{b}$
+  ''', scriptGrouping: "none"
+
+  testCase r'''
     digits only for subscripts
     ---
     $x_12 + x_ij$

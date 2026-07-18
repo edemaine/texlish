@@ -549,9 +549,9 @@ lists, footnotes, label/ref shorthand, citations, links, code backticks, and
 horizontal rules.
 
 Texlish enters math mode inside `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, and
-standard display-math environments including
-`align`, `alignat`, `equation`, `eqnarray`, `flalign`, `gather`, and `multline`,
-plus their starred forms.
+standard math environments including `math`, `displaymath`, `align`, `alignat`,
+`equation`, `eqnarray`, `flalign`, `gather`, and `multline`, plus their starred
+forms where applicable.
 The same environment names work in Texlish shorthand such as `: align`.
 Within math mode, the text-mode features above are disabled, except where
 `\text{...}` and related font commands like `\textrm`
@@ -578,7 +578,16 @@ Texlish also groups parenthesized sub/superscripts in math mode:
   $x_(ij) + x^(i+j)$
 `}/>
 
-To change this behavior for the rest of the file, use [`::config`](#config):
+Declared commands and all of their arguments also form one sub/superscript,
+with implicit braces:
+
+<Example src={`
+  $x_\\frac{a_12}{b_34} + y^\\text{*fast*}$
+`}/>
+
+Outside math mode, sub/superscripts are not processed.
+
+To change script behavior for the rest of the file, use [`::config`](#config):
 
 <Example src={`
   ::config scriptGrouping = alphanumeric
@@ -589,12 +598,12 @@ To change this behavior for the rest of the file, use [`::config`](#config):
 
 Allowed values for `scriptGrouping` are:
 
-* `numeric` (default)
+* `numeric` (digits group together, default)
 * `alphanumeric` (letters and digits group together)
 * `alpha` (letters group together)
 * `none` (no grouping, like LaTeX)
 
-Outside math mode, sub/superscripts are not processed.
+The `none` mode also disables implicit braces around complete declared commands.
 
 In LaTeX-compat mode, `scriptGrouping` gets set to `none`
 and `scriptParens` gets set to `false`:
@@ -658,7 +667,14 @@ The final required argument can omit the bullet, reducing indentation:
   - example
 `}/>
 
-Colon command shorthand can be disabled with `::config -colonCommands`.
+Colon command shorthand is automatically disabled on commands declared
+to take no arguments, such as Greek variables:
+
+<Example src={`
+  $\\lambda: A \\to B$
+`}/>
+
+Colon command shorthand can be fully disabled with `::config -colonCommands`.
 
 ## LaTeX Environments
 
@@ -709,6 +725,20 @@ and/or on strictly indented lines.
       xxx % in figure/caption
     \\fi
 `}/>
+
+Texlish automatically preserves the contents of the following LaTeX constructs,
+in native LaTeX form and, where applicable, Texlish shorthand for
+[commands](#latex-commands) and [environments](#latex-environments):
+
+* Common verbatim environments including `verbatim`, `Verbatim`, `comment`,
+  `lstlisting`, `minted`, and `python`
+* Verbatim commands including `\verb|...|`, `\Verb|...|`, `\lstinline`,
+  `\mint`, `\mintinline`, plus `\csname ... \endcsname` and `` \char`. ``
+* URL arguments to `\url`, `\nolinkurl`, `\path`, and `\href`
+* Filename arguments to `\includegraphics`, `\include`, `\input`, `\subimport`,
+  `\inputminted`, and `\bibliography`
+* Identifiers passed to common cross-reference and citation commands such as
+  `\label`, `\ref`, and `\cite`
 
 ## Use Packages
 

@@ -185,7 +185,7 @@ function processMarkdown(root: AST[]): void
               // Remove opens[i] and any following opens,
               // because they are now nested inside this open/close pair.
               opens.splice i, opens# - i
-              (child.children ??= []).push '}'
+              (child.children ?= []).push '}'
               if close# > open#  // some close remains
                 close = child.token = close[>= open#]
               else  // close finished too
@@ -196,7 +196,7 @@ function processMarkdown(root: AST[]): void
             unless open is close+close and (opens[i].close or child.open)
               (opens[i].children ?= []).unshift opener close
               opens[i].token = open[< -close#]
-              (child.children ??= []).push '}'
+              (child.children ?= []).push '}'
               delete child.token
               break
         // Don't pursue open case if fully closed
@@ -435,6 +435,7 @@ function processDocument(root: AST[]): void
         ^document["\\maketitle"]  // \begin{document} before \maketitle
           break :line
         [ { type: "Indent" }, { type: "Command" }, ... ],
+        [ { type: "Indent" }, [ { type: "Command" }, ... ] ],
         [ { type: "Indent" }, { type: "Tex" } ]
         else
           break :line

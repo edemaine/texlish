@@ -1,6 +1,7 @@
 // based on https://github.com/DanielXMoore/Civet/blob/main/test/helper.civet
 
 { compile, type CompilerOptions } from ../src/main.civet
+{ escapeRegExp } from ../src/util.civet
 assert from assert
 
 export r := String.raw
@@ -43,9 +44,9 @@ type TestCaseOptions = CompilerOptions & {
 
 export function testCase(text: string, options: TestCaseOptions = {}, opt?: "only" | "skip")
   { separator, ...compilerOpts } .= options
-  separator ??= "---"
+  separator ?= "---"
   [desc, src, result] := text.split ///
-    \n ${separator.replace /[.*+?^${}()|[\]\\]/g, '\\$&'} (?:\n|$)
+    \n ${escapeRegExp separator} (?:\n|$)
   ///
 
   fn := opt ? it[opt] : it

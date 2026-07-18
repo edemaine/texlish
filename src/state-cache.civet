@@ -2,9 +2,10 @@
 
 type RuleName = string
 type Position = number
-type State = number
+type State = string
 
-type Key = [State, Position, RuleName]
+/** Compound parser-state cache key. */
+export type CacheKey = [State, Position, RuleName]
 
 /**
  * A multi-layer cache for the state of the parser.
@@ -14,17 +15,17 @@ export default class StateCache<T>
 
   private cache: Map<State, Map<Position, Map<RuleName, T>>> = new Map()
 
-  get(key: Key): T?
+  get(key: CacheKey): T?
     @cache.get(key[0])?.get(key[1])?.get(key[2])
 
   /**
    * Check if this multi-layer cache has the given key.
    * Since the intermediate layers are always other maps we only need to check the last layer.
    */
-  has(key: Key): boolean
+  has(key: CacheKey): boolean
     !!@cache.get(key[0])?.get(key[1])?.get(key[2])
 
-  set(key: Key, value: T): void
+  set(key: CacheKey, value: T): void
     cache0 := @cache
     let cache1: Map<Position, Map<RuleName, T>>
     if !cache0.has key[0]

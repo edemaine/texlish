@@ -8,7 +8,7 @@ import type {
   ScriptGrouping,
 } from ./types.civet
 
-export const defaultConfig: ActiveCompilerOptions = {
+export defaultConfig: ActiveCompilerOptions := {
   colonCommands: true
   colonEnvironments: true
   citeShorthand: true

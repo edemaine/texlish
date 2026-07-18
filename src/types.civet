@@ -75,6 +75,7 @@ export type ASTNode
   | Tex
   | Use
   | Uses
+  | Verbatim
 
 export interface BlockQuote extends ASTParent
   type: "BlockQuote"
@@ -161,6 +162,10 @@ export interface SmartQuote extends ASTToken
 
 export interface Tex extends ASTParent
   type: "Tex"
+
+/** Opaque LaTeX source that downstream passes must not inspect as text. */
+export interface Verbatim extends ASTToken
+  type: "Verbatim"
 
 export interface Use extends ASTParent
   type: "Use"

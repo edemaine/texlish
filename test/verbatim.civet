@@ -1,0 +1,589 @@
+{ r, testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+{ builtinEnvironmentModes } from ../src/declarations.civet
+type { AST } from ../src/types.civet
+assert from assert
+
+describe 'verbatim LaTeX', ->
+  it 'environment declarations select body modes', ->
+    builtinEnvironmentModes.set "rawbody", "raw"
+    builtinEnvironmentModes.set "verbatimbody", "verbatim"
+    builtinEnvironmentModes.set "textbody", "text"
+    builtinEnvironmentModes.set "mathbody", "math"
+    builtinEnvironmentModes.set "inheritbody", "inherit"
+    try
+      let result = await compile r'''
+        \begin{rawbody}
+        *raw* % \end{rawbody}
+        @raw
+        control space\
+        *still raw*
+        \end{rawbody}
+        \begin{verbatimbody}
+        *verbatim* % literal
+        \end{verbatimbody}
+        $\begin{textbody}*text* x_12\end{textbody} + y_34$
+        \begin{mathbody}x_12 + *math*\end{mathbody}
+        \begin{inheritbody}*text* x_12\end{inheritbody}
+        $\begin{inheritbody}*math* x_12\end{inheritbody}$
+      ''', fragment: true
+      assert.equal result, r'''
+        \begin{rawbody}
+        *raw* % \end{rawbody}
+        @raw
+        control space\
+        *still raw*
+        \end{rawbody}
+        \begin{verbatimbody}
+        *verbatim* % literal
+        \end{verbatimbody}
+        $\begin{textbody}\emph{text} x_12\end{textbody} + y_{34}$
+        \begin{mathbody}x_{12} + *math*\end{mathbody}
+        \begin{inheritbody}\emph{text} x_12\end{inheritbody}
+        $\begin{inheritbody}*math* x_{12}\end{inheritbody}$
+      '''
+
+      result = await compile r'''
+        : rawbody
+          *raw* % comment
+          @raw
+        : verbatimbody
+          *verbatim* % literal
+        : mathbody
+          x_12 + *math*
+        \[
+          : textbody
+            *text* x_12
+          : inheritbody
+            *math* x_12
+        \]
+      ''', fragment: true
+      assert.equal result, r'''
+        \begin{rawbody}
+          *raw*% comment
+          @raw
+        \end{rawbody}
+        \begin{verbatimbody}
+          *verbatim* % literal
+        \end{verbatimbody}
+        \begin{mathbody}
+          x_{12} + *math*
+        \end{mathbody}
+        \[
+          \begin{textbody}
+            \emph{text} x_12
+          \end{textbody}
+          \begin{inheritbody}
+            *math* x_{12}
+          \end{inheritbody}
+        \]
+      '''
+    finally
+      for name of [
+        "rawbody"
+        "verbatimbody"
+        "textbody"
+        "mathbody"
+        "inheritbody"
+      ]
+        builtinEnvironmentModes.delete name
+
+  it 'uses opaque AST nodes', ->
+    let ast = await compile '\\verb|\\usepackage{ulem} *raw*|',
+      ast: true
+      fragment: true
+    verb := (ast[0] as AST[])[1]
+    assert.deepEqual verb, [
+      {
+        type: 'Command'
+        token: '\\verb'
+      }
+      [
+        ''
+        {
+          type: 'Verbatim'
+          token: '|\\usepackage{ulem} *raw*|'
+        }
+      ]
+    ]
+
+    let result = await compile '\\verb|\\usepackage{ulem}| ~~used~~'
+    assert.match result, /\n\\usepackage\[normalem\]\{ulem\}\n/
+
+    result = await compile '\\verb|\\sout{not used}|'
+    assert.doesNotMatch result, /\\usepackage\{ulem\}/
+
+    ast = await compile '\\href{https://example.com/a_*raw*}{*link*}',
+      ast: true
+      fragment: true
+    href := (ast[0] as AST[])[1] as AST[]
+    assert.deepEqual (href[1] as AST[])[1],
+      type: 'Verbatim'
+      token: '{https://example.com/a_*raw*}'
+
+    result = await compile '\\includegraphics{\\sout{not used}}'
+    assert.doesNotMatch result, /\\usepackage\{ulem\}/
+
+  testCase r'''
+    environments preserve Texlish syntax
+    ---
+    \begin{verbatim}
+    *not emphasis* @not-a-ref foo_bar
+    \includegraphics: not-a-colon-command
+    \end{verbatim}
+    \begin{comment}
+    **still raw**
+    \end{comment}
+    \begin{python}
+    value_1 = "@raw"
+    \end{python}
+    ---
+    \begin{verbatim}
+    *not emphasis* @not-a-ref foo_bar
+    \includegraphics: not-a-colon-command
+    \end{verbatim}
+    \begin{comment}
+    **still raw**
+    \end{comment}
+    \begin{python}
+    value_1 = "@raw"
+    \end{python}
+  '''
+
+  testCase r'''
+    verb and csname preserve contents
+    ---
+    \verb|*_@foo| and \verb*+**@bar_2+ and \verb{ugly_@raw{ and \verb xletter_@rawx and \verb*xstarred_@rawx and \csname name_@raw*\endcsname.
+    ---
+    \verb|*_@foo| and \verb*+**@bar_2+ and \verb{ugly_@raw{ and \verb xletter_@rawx and \verb*xstarred_@rawx and \csname name_@raw*\endcsname.
+  '''
+
+  testCase r'''
+    csname handles nesting and TeX comments
+    ---
+    \def\inner{foo}
+    \csname outer_@a\csname inner\endcsname tail_@b\endcsname
+    \csname commented_@a% ignored \endcsname
+     tail_@b\endcsname
+    \csname escaped_\%_@a\endcsname
+    ---
+    \def\inner{foo}
+    \csname outer_@a\csname inner\endcsname tail_@b\endcsname
+    \csname commented_@a% ignored \endcsname
+     tail_@b\endcsname
+    \csname escaped_\%_@a\endcsname
+  '''
+
+  // No `r` because Civet escapes backticks in raw strings.
+  testCase '''
+    char alphabetic constants preserve exactly one token
+    ---
+    \\char`@name
+    \\char  `[x](y)
+    \\char`\\% @ref
+    \\char`\\command @ref
+    ---
+    \\char`@name
+    \\char  `[x](y)
+    \\char`\\% \\ref{ref}
+    \\char`\\command \\ref{ref}
+  '''
+
+  testCase r'''
+    package verbatim commands preserve contents
+    ---
+    \Verb|*_@foo|
+    \Verb{balanced_{braces}_@raw}
+    \Verb{100%_*raw*_@x}
+    \EscVerb[commandchars=\\\{\}]{**@bar_2+}
+    \lstinline[language=Python]!value_@raw*text*!
+    \lstinline{value_@raw*text*}
+    \lstinline*value_@raw*
+    \mint[linenos]{python}|value_@raw = "*text*"|
+    \mint% command comment
+    [linenos]% options comment
+    {python}% language comment
+    {value_@raw = "*text*"}
+    \mintinline{tex}{100%_*raw*_@x}
+    Use \mintinline{c++}{vector<string> value_@raw} here.
+    ---
+    \Verb|*_@foo|
+    \Verb{balanced_{braces}_@raw}
+    \Verb{100%_*raw*_@x}
+    \EscVerb[commandchars=\\\{\}]{**@bar_2+}
+    \lstinline[language=Python]!value_@raw*text*!
+    \lstinline{value_@raw*text*}
+    \lstinline*value_@raw*
+    \mint[linenos]{python}|value_@raw = "*text*"|
+    \mint% command comment
+    [linenos]% options comment
+    {python}% language comment
+    {value_@raw = "*text*"}
+    \mintinline{tex}{100%_*raw*_@x}
+    Use \mintinline{c++}{vector<string> value_@raw} here.
+  '''
+
+  testCase r'''
+    verbatim command names have TeX boundaries
+    ---
+    \Verbose*processed*o
+    \VerbatimInput{source_*raw*_@x}
+    \csname1*raw*_@x\endcsname
+    ---
+    \Verbose\emph{processed}o
+    \VerbatimInput{source_*raw*_@x}
+    \csname1*raw*_@x\endcsname
+  '''
+
+  testCase r'''
+    common verbatim environments preserve contents
+    ---
+    \begin{Verbatim}[numbers=left]
+    *_@raw
+    \end{Verbatim}
+    \begin{lstlisting}[language=Python]
+    value_@raw = "*text*"
+    \end{lstlisting}
+    \begin{minted}{python}
+    value_@raw = "*text*"
+    \end{minted}
+    \begin{Verbatim*}
+    value_@raw = "*text*"
+    \end{Verbatim*}
+    ---
+    \begin{Verbatim}[numbers=left]
+    *_@raw
+    \end{Verbatim}
+    \begin{lstlisting}[language=Python]
+    value_@raw = "*text*"
+    \end{lstlisting}
+    \begin{minted}{python}
+    value_@raw = "*text*"
+    \end{minted}
+    \begin{Verbatim*}
+    value_@raw = "*text*"
+    \end{Verbatim*}
+  '''
+
+  testCase r'''
+    URL and filename arguments are raw
+    ---
+    \url{https://example.com/a_b@c*d}
+    \href{https://example.com/a_b@c*d}{*processed* link}
+    \includegraphics{figures/foo_bar@2x.pdf}
+    \includegraphics[width=*0.5*]{figures/foo_bar@2x.pdf}
+    \includegraphics[key={a]b},other=[x]{figures/foo_bar@2x.pdf}
+    \input{chapters/my_file}
+    ---
+    \url{https://example.com/a_b@c*d}
+    \href{https://example.com/a_b@c*d}{\emph{processed} link}
+    \includegraphics{figures/foo_bar@2x.pdf}
+    \includegraphics[width=*0.5*]{figures/foo_bar@2x.pdf}
+    \includegraphics[key={a]b},other=[x]{figures/foo_bar@2x.pdf}
+    \input{chapters/my_file}
+  '''
+
+  testCase r'''
+    raw arguments balance braces
+    ---
+    \url{https://example.com/{a_b}/@raw}
+    ---
+    \url{https://example.com/{a_b}/@raw}
+  '''
+
+  testCase r'''
+    command argument patterns select each argument mode
+    ---
+    \citep[see *especially*][p. *2*]{author_*raw*_@2026}
+    \href[pdfnewwindow=*raw*]{https://example.com/a_*raw*_@target%20b}{*processed* @label}
+    \hyperlink{section_*raw*_@target}{*processed* @label}
+    ---
+    \citep[see \emph{especially}][p. \emph{2}]{author_*raw*_@2026}
+    \href[pdfnewwindow=*raw*]{https://example.com/a_*raw*_@target%20b}{\emph{processed} \ref{label}}
+    \hyperlink{section_*raw*_@target}{\emph{processed} \ref{label}}
+  '''
+
+  testCase r'''
+    raw command arguments preserve comments and escaped newlines
+    ---
+    \includegraphics% command comment
+    [width=*0.5*]% option comment
+    {figures/foo_@2x.pdf}
+    \citep[see% ] ignored
+    ][p. *2*]{author_@2026}
+    \includegraphics{figures/a% } ignored
+    b_@raw.pdf}
+    \includegraphics{figures/foo\
+    bar_*raw*_@x.pdf}
+    \url{https://example.com/foo\
+    bar_*raw*_@x}
+    ---
+    \includegraphics% command comment
+    [width=*0.5*]% option comment
+    {figures/foo_@2x.pdf}
+    \citep[see% ] ignored
+    ][p. \emph{2}]{author_@2026}
+    \includegraphics{figures/a% } ignored
+    b_@raw.pdf}
+    \includegraphics{figures/foo\
+    bar_*raw*_@x.pdf}
+    \url{https://example.com/foo\
+    bar_*raw*_@x}
+  '''
+
+  testCase r'''
+    command arguments do not cross bare newlines
+    ---
+    \includegraphics
+    {*processed* @label}
+    ---
+    \includegraphics
+    {\emph{processed} \ref{label}}
+  '''
+
+  testCase r'''
+    command comments respect indentation nesting
+    ---
+    - \includegraphics% nested continuation
+      {inside_*raw*}
+    - \includegraphics% cannot escape
+    {*outside* @label}
+    ---
+    \begin{itemize}
+    \item \includegraphics% nested continuation
+      {inside_*raw*}
+    \item \includegraphics% cannot escape
+    \end{itemize}
+    {\emph{outside} \ref{label}}
+  '''
+
+  testCase r'''
+    URL commands support paired and arbitrary delimiters
+    ---
+    \url|https://example.com/a_*raw*_@x%20b|
+    \nolinkurl+https://example.com/a_*raw*_@x%20b+
+    \path{figures/a_*raw*_@x%20b}
+    \url*https://example.com/a_b@x*
+    ---
+    \url|https://example.com/a_*raw*_@x%20b|
+    \nolinkurl+https://example.com/a_*raw*_@x%20b+
+    \path{figures/a_*raw*_@x%20b}
+    \url*https://example.com/a_b@x*
+  '''
+
+  testCase r'''
+    identifiers are raw arguments too
+    ---
+    \label{section:*raw*_@name}
+    See \ref{section:*raw*_@name} and \citep{author_@2026}.
+    ---
+    \label{section:*raw*_@name}
+    See \ref{section:*raw*_@name} and \citep{author_@2026}.
+  '''
+
+  testCase r'''
+    cross-reference command variants have raw identifiers
+    ---
+    \autopageref*{section_@name}
+    \cref*{section_@name}
+    \Cpageref*{section_@name}
+    \labelcref*{section_@name}
+    \namecref{section_@name}
+    \crefrange*{section_@first}{section_@last}
+    \Cpagerefrange*{section_@first}{section_@last}
+    ---
+    \autopageref*{section_@name}
+    \cref*{section_@name}
+    \Cpageref*{section_@name}
+    \labelcref*{section_@name}
+    \namecref{section_@name}
+    \crefrange*{section_@first}{section_@last}
+    \Cpagerefrange*{section_@first}{section_@last}
+  '''
+
+  testCase r'''
+    citation keys after two optional arguments are raw
+    ---
+    \citep[see][p. 2]{author_@2026}
+    \citep*{author_@2026}
+    \citep *{author_@2026}
+    \Citeauthor*{author_@2026}
+    ---
+    \citep[see][p. 2]{author_@2026}
+    \citep*{author_@2026}
+    \citep*{author_@2026}
+    \Citeauthor*{author_@2026}
+  '''
+
+  testCase r'''
+    second raw arguments use a separate signature
+    ---
+    \inputminted[linenos]{c++}{source/foo_bar@2x.cpp}
+    \subimport{chapters_@draft/}{intro_*raw*.tex}
+    ---
+    \inputminted[linenos]{c++}{source/foo_bar@2x.cpp}
+    \subimport{chapters_@draft/}{intro_*raw*.tex}
+  '''
+
+  testCase r'''
+    raw argument commands work inline
+    ---
+    See \href{https://example.com/a_b}{*the* link} and \includegraphics{foo_bar.pdf} here.
+    ---
+    See \href{https://example.com/a_b}{\emph{the} link} and \includegraphics{foo_bar.pdf} here.
+  '''
+
+  testCase r'''
+    colon shorthand argument is raw
+    ---
+    \url: https://example.com/a_b@c*d
+    \includegraphics: figures/*raw*_@2x.pdf
+    ---
+    \url{https://example.com/a_b@c*d}%
+    \includegraphics{figures/*raw*_@2x.pdf}%
+  '''
+
+  testCase r'''
+    percent follows the command argument mode
+    ---
+    \url{%}
+    \url{\%}
+    \url: https://example.com/a%20b
+    \url: https://example.com/a\%20b
+    \includegraphics: figures/a\%20b.pdf
+    \includegraphics: figures/a% comment
+    ---
+    \url{%}
+    \url{\%}
+    \url{https://example.com/a%20b}%
+    \url{https://example.com/a\%20b}%
+    \includegraphics{figures/a\%20b.pdf}%
+    \includegraphics{figures/a}% comment
+  '''
+
+  testCase r'''
+    bulleted arguments follow command signatures
+    ---
+    \href:
+    - https://example.com/a_*raw*_@target%20b
+    - *processed* @label
+    \href:
+    ~ pdfnewwindow=*raw*
+    - https://example.com/a_*raw*_@target%20b
+    - *processed* @label
+    ---
+    \href
+     {https://example.com/a_*raw*_@target%20b}%
+     {\emph{processed} \ref{label}}%
+    \href
+     [pdfnewwindow=*raw*]%
+     {https://example.com/a_*raw*_@target%20b}%
+     {\emph{processed} \ref{label}}%
+  '''
+
+  testCase r'''
+    text arguments can contain commands with their own signatures
+    ---
+    \href:
+    - https://example.com/a_*raw*_@target%20b
+    - See \includegraphics:
+        figures/*raw*_@2x.pdf
+    ---
+    \href
+     {https://example.com/a_*raw*_@target%20b}%
+     {See \includegraphics{%
+        figures/*raw*_@2x.pdf}}%
+  '''
+
+  testCase r'''
+    nested environments use their own generic argument pattern
+    ---
+    \href:
+    - https://example.com/a_b
+    - : theorem:
+        ~ Optional
+        - Required
+        Cool!
+    ---
+    \href
+     {https://example.com/a_b}%
+     {\begin{theorem}
+         [Optional]%
+         {Required}%
+        Cool!
+      \end{theorem}}%
+  '''
+
+  testCase r'''
+    TeX raw comments respect backslash pairs
+    ---
+    \includegraphics: figures/a\\% comment
+    \includegraphics{figures/a\\% comment
+    next_@raw.pdf}
+    ---
+    \includegraphics{figures/a\\}% comment
+    \includegraphics{figures/a\\% comment
+    next_@raw.pdf}
+  '''
+
+  testCase r'''
+    multiline verbatim colon arguments omit structural indentation
+    ---
+    \url:
+      https://example.com/a_b
+    See \url:
+      https://example.com/a_b
+    \href:
+      -
+        https://example.com/a_b
+      - text
+    \mintinline:
+      - tex
+      code_@raw
+    ---
+    \url{https://example.com/a_b}%
+    See \url{https://example.com/a_b}%
+    \href
+      {https://example.com/a_b}%
+       {text}%
+    \mintinline
+       {tex}%
+       {code_@raw}%
+  '''
+
+  testCase r'''
+    multiline colon shorthand argument is raw
+    ---
+    \includegraphics:
+      figures/*raw*_@2x.pdf
+    \bibliography: % BibTeX input
+      references_@draft
+    ---
+    \includegraphics{%
+      figures/*raw*_@2x.pdf}%
+    \bibliography{% BibTeX input
+      references_@draft}%
+  '''
+
+  testCase r'''
+    unbulleted final arguments follow command signatures
+    ---
+    \inputminted:
+      - python
+      source_*raw*_@x.py
+    ---
+    \inputminted
+       {python}%
+       {%
+      source_*raw*_@x.py}%
+  '''
+
+  testCase r'''
+    inline colon shorthand does not combine same-line and indented content
+    ---
+    See \url: https://example.com/a_b
+      following_*text*
+    ---
+    See \url{https://example.com/a_b}%
+      following_\emph{text}
+  '''

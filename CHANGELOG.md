@@ -7,6 +7,22 @@
   The command can be customized with `::styles ~~ = ...`, and strikethrough
   can be disabled with `-markdownStrikethrough`, `-markdownCompat`, or
   `latexCompat`.
+* New internal declaration system for command arguments and environment bodies
+  specifies text, math, raw-TeX, or verbatim processing,
+  enabling some of the following features.
+  [[#26](https://github.com/edemaine/texlish/issues/26)]
+* Common LaTeX verbatim environments and commands now preserve their
+  contents, as do URL, filename, and identifier arguments to commands such as
+  `\href`, `\url`, `\includegraphics`, and `\ref`,
+  as well as TeX constructs `\csname` and `` \char` ``.
+  [[#2](https://github.com/edemaine/texlish/issues/2)]
+  [[#8](https://github.com/edemaine/texlish/issues/8)]
+* Greek variable commands are declared to take no arguments,
+  so a following colon remains literal, as in `$\lambda: A \to B$`.
+  [[#6](https://github.com/edemaine/texlish/issues/6)]
+* Sub/superscripts use implicit braces around complete declared commands,
+  so `x_\frac{a}{b}` works without explicit braces around `\frac{a}{b}`.
+  [[#26](https://github.com/edemaine/texlish/issues/26)]
 * `::tex` blocks no longer interrupt automatic preamble detection.
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
 * Consumed footnote definitions no longer interrupt automatic preamble detection.

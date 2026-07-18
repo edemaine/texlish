@@ -30,6 +30,23 @@ describe '\\begin/\\end{document}', ->
   ''', fragment: false
 
   testCase r'''
+    leading signature commands stay in preamble
+    ---
+    \addbibresource{refs_@draft.bib}
+    \includeonly{chapters_@draft}
+    Body
+    ---
+    \documentclass[11pt]{article}
+    \addbibresource{refs_@draft.bib}
+    \includeonly{chapters_@draft}
+
+    \begin{document}
+    Body
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
     existing braced end
     ---
     \end{document}
