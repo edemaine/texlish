@@ -11,6 +11,9 @@
   specifies text, math, raw-TeX, or verbatim processing,
   enabling some of the following features.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
+* Declared commands can switch from LaTeX-style (`[optional]{required}`)
+  to colon shorthand (`: required` or bullets) for the remaining arguments.
+  [[#34](https://github.com/edemaine/texlish/issues/34)]
 * Common LaTeX verbatim environments and commands now preserve their
   contents, as do URL, filename, and identifier arguments to commands such as
   `\href`, `\url`, `\includegraphics`, and `\ref`,

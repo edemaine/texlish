@@ -382,6 +382,48 @@ describe 'verbatim LaTeX', ->
   '''
 
   testCase r'''
+    LaTeX-style arguments can precede remaining colon arguments
+    ---
+    \includegraphics[width=.5\textwidth]:
+      figures/*raw*_@2x.pdf
+    \href{https://example.com/a_b}:
+      *link* @label
+    See \href{https://example.com/a_b}: *link* @label
+    See \href{https://example.com/a_b}:
+      *link* @label
+    \inputminted[linenos]{python}: source_*raw*_@x.py
+    ---
+    \includegraphics[width=.5\textwidth]{%
+      figures/*raw*_@2x.pdf}%
+    \href{https://example.com/a_b}{%
+      \emph{link} \ref{label}}%
+    See \href{https://example.com/a_b}{\emph{link} \ref{label}}%
+    See \href{https://example.com/a_b}{%
+      \emph{link} \ref{label}}%
+    \inputminted[linenos]{python}{source_*raw*_@x.py}%
+  '''
+
+  testCase r'''
+    LaTeX-style arguments can precede remaining colon bullets
+    ---
+    \href[pdfnewwindow]:
+    - https://example.com/a_b
+    - *link* @label
+    ---
+    \href[pdfnewwindow]
+     {https://example.com/a_b}%
+     {\emph{link} \ref{label}}%
+  '''
+
+  testCase r'''
+    colon stays literal after all declared arguments
+    ---
+    \href{url}{*text*}: *tail*
+    ---
+    \href{url}{\emph{text}}: \emph{tail}
+  '''
+
+  testCase r'''
     cross-reference command variants have raw identifiers
     ---
     \autopageref*{section_@name}

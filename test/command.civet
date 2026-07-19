@@ -6,9 +6,11 @@ describe '\\command:', ->
     ---
     \title: The Paper
     \url: https://example.com/a_b
+    \includegraphics[width=1in]: image.png
     ---
     \title: The Paper
     \url: https://example.com/a_b
+    \includegraphics[width=1in]: image.png
   ''', colonCommands: false
 
   testCase r'''
@@ -44,13 +46,47 @@ describe '\\command:', ->
   '''
 
   testCase r'''
+    undeclared commands do not mix LaTeX-style and colon arguments
+    ---
+    \foo{*argument*}: *body*
+    \foo[*argument*]: *body*
+    ---
+    \foo{\emph{argument}}: \emph{body}
+    \foo[\emph{argument}]: \emph{body}
+  '''
+
+  testCase r'''
+    declared math commands switch from LaTeX-style to colon arguments
+    ---
+    $\frac{a_12}: b_34$
+    ---
+    $\frac{a_{12}}{b_{34}}%$
+  '''
+
+  testCase r'''
     failed signature dispatch restores the argument pattern
     ---
-    \verb:raw:
+    \verb:raw
     \includegraphics: figures/*raw*.pdf
     ---
-    \verb:raw:
+    \verb:raw
     \includegraphics{figures/*raw*.pdf}%
+  '''
+
+  testCase r'''
+    colon is a valid verb delimiter
+    ---
+    \verb:*raw*:
+    ---
+    \verb:*raw*:
+  '''
+
+  testCase r'''
+    colon shorthand takes priority over a url delimiter
+    ---
+    \url:*raw*:
+    ---
+    \url{*raw*:}%
   '''
 
   testCase r'''

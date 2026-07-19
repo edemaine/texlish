@@ -667,6 +667,15 @@ The final required argument can omit the bullet, reducing indentation:
   - example
 `}/>
 
+LaTeX-style arguments (`[optional]` and `{required}`) can precede colon
+shorthand for remaining arguments of [known commands](https://github.com/edemaine/texlish/blob/main/src/declarations.civet):
+
+<Example src={`
+  \\href{https://texlish.org}: *Texlish*
+  \\includegraphics[width=0.5\\textwidth]:
+    figures/example.pdf
+`}/>
+
 Colon command shorthand is automatically disabled on commands declared
 to take no arguments, such as Greek variables:
 
@@ -674,6 +683,8 @@ to take no arguments, such as Greek variables:
   $\\lambda: A \\to B$
 `}/>
 
+If you want to pass in `:` as a command argument, or otherwise avoid colon
+command shorthand on a single command, wrap the colon in braces (`{:}`).
 Colon command shorthand can be fully disabled with `::config -colonCommands`.
 
 ## LaTeX Environments
@@ -727,7 +738,7 @@ and/or on strictly indented lines.
 `}/>
 
 Texlish automatically preserves the contents of the following LaTeX constructs,
-in native LaTeX form and, where applicable, Texlish shorthand for
+in standard LaTeX form and, where applicable, Texlish shorthand for
 [commands](#latex-commands) and [environments](#latex-environments):
 
 * Common verbatim environments including `verbatim`, `Verbatim`, `comment`,

@@ -200,28 +200,23 @@ IsTextStatement
 
 ## TEXT
 
-# One line of text at start of the line
-# (can be empty, no newline consumption)
-# except Markdown links [...](...) can consume multiple lines
+# Text starting at the beginning of a line.
+# Can be empty. Nested constructs may span lines, but the final newline is not consumed.
 TextLine ::AST[]
   Indent Text ->
     return [ $1, ...$2 ]
 
-# One line of text, starting in the middle of a line, for inline uses
-# (can be empty, no newline consumption)
-# except Markdown links/images [...](...) can consume multiple lines
+# Text starting in the middle of a line, for inline uses.
+# Can be empty. Nested constructs may span lines, but the final newline is not consumed.
 Text ::AST[]
-  TextPart* InlineTextCommandWithColonArguments? ->
-    return $1 unless $2
-    return [ ...$1, $2 ]
+  TextPart*
 
 # TextPart treats parens/brackets as literal; BracketTextPart balances nested
 # brackets for Markdown link text.
 TextPart ::AST
   EnterMathMode
   TextOrMathPart
-  # Leave a trailing inline colon command for the context-specific Text rule.
-  !EndTextEnvironment !InlineTextCommandWithColonArguments TextCommandWithArguments -> $3
+  !EndTextEnvironment TextCommandWithArguments -> $2
   TextOnlyPart
   [()\[\]]
 
@@ -386,15 +381,12 @@ IsMathStatement
     return $skip unless statement
 
 MathText ::AST[]
-  MathPart*:body InlineMathCommandWithColonArguments?:command ->
-    return body unless command
-    return [ ...body, command ]
+  MathPart*
 
 MathPart ::AST
   MathOnlyPart
   !MathCloseDelimiter TextOrMathPart -> $2
-  # Leave a trailing inline colon command for the context-specific Math rule.
-  !MathCloseDelimiter !InlineMathCommandWithColonArguments MathCommandWithArguments -> $3
+  !MathCloseDelimiter MathCommandWithArguments -> $2
   MathLiteral
   [()\[\]]
 
@@ -1201,17 +1193,35 @@ StarredCommand ::Command
     return { ...$1, token: $1.token + "*" }
 
 TextCommandWithArguments ::AST
+  # Declared commands push their pattern on the argumentPatterns stack.
   PushTextCommandPattern:command CommandArguments:args -> [ command, ...args ]
-  # Undeclared ordinary commands leave following groups to the surrounding
-  # parser; only colon syntax gets an unlimited generic pattern.
+  # Undeclared commands get a generic pattern only when using colon shorthand;
+  # otherwise the plain Command fallback leaves their groups alone.
+  PushGenericTextColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ command, ...colonArgs ]
   Command
 
 MathCommandWithArguments ::AST
   PushMathCommandPattern:command CommandArguments:args -> [ command, ...args ]
+  PushGenericMathColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ command, ...colonArgs ]
   Command
 
+# Parse LaTeX-style arguments, optionally switch to inline colon arguments,
+# and pop the active command pattern.
 CommandArguments ::AST[]
-  CommandArgument*:args PopCommandPattern -> args
+  CommandArgument*:args InlineCommandColonArguments?:colonArgs PopCommandPattern ->
+    return args unless colonArgs?
+    [ ...args, ...colonArgs ]
+
+# Colon arguments for a command in the middle of a line in text or math.
+# Accept either indented argument bullets, or one argument that is same-line
+# or indented, but not both (unlike statement-level `\command`).
+InlineCommandColonArguments ::AST[]
+  ColonCommandsEnabled Colon NestedCommandArgumentList:args -> args
+  ColonCommandsEnabled Colon InlineCommandArgumentAfterColon:arg -> [ arg ]
 
 PushTextCommandPattern ::Command
   StarredCommand:command -> pushCommandPattern(command, "text") ?? $skip
@@ -1247,7 +1257,9 @@ CommandArgument ::AST[]
   RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:argument ->
     consumeCommandArgument "required"
     [ space, argument ]
-  DelimitedVerbatimArgument Space:space $DelimitedVerbatim:argument ->
+  # Prefer colon shorthand over `:` as a verbatim delimiter when a required
+  # argument remains, e.g. `\url: ...`, but preserve `\verb:...:`.
+  !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space $DelimitedVerbatim:argument ->
     consumeCommandArgument "delimited"
     [ space, verbatim argument ]
 
@@ -1330,27 +1342,37 @@ function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode): bo
   selected.mode is mode
 ```
 
-# `\command: args` statement in text and math mode respectively
+# These statement rules handle commands that actually have colon arguments,
+# possibly after other arguments. If no colon argument is present, they skip
+# and let the inline Text/Math parser handle the command instead.
+# This allows other content on the same line after a non-colon command.
 TextCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled Indent:indent PushTextColonCommandPattern:command CommandArgumentsAfterColon:arg ->
-    [ indent, command, arg ]
+  ColonCommandsEnabled Indent:indent PushTextCommandPattern:command CommandArgument*:args CommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ indent, command, ...args, ...colonArgs ]
+  ColonCommandsEnabled Indent:indent PushGenericTextColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ indent, command, ...colonArgs ]
 MathCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled Indent:indent PushMathColonCommandPattern:command CommandArgumentsAfterColon:arg ->
-    [ indent, command, arg ]
+  ColonCommandsEnabled Indent:indent PushMathCommandPattern:command CommandArgument*:args CommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ indent, command, ...args, ...colonArgs ]
+  ColonCommandsEnabled Indent:indent PushGenericMathColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
+    return $skip unless colonArgs?
+    [ indent, command, ...colonArgs ]
 
-PushTextColonCommandPattern ::Command
-  StarredCommand:command Colon ->
-    pushColonCommandPattern(command, "text") ?? $skip
-PushMathColonCommandPattern ::Command
-  StarredCommand:command Colon ->
-    pushColonCommandPattern(command, "math") ?? $skip
+# Undeclared colon commands repeat the surrounding text/math mode for unlimited
+# arguments. Declared commands skip these rules in favor of their declaration.
+PushGenericTextColonCommandPattern ::Command
+  StarredCommand:command &Colon ->
+    pushGenericColonCommandPattern(command, "text") ?? $skip
+PushGenericMathColonCommandPattern ::Command
+  StarredCommand:command &Colon ->
+    pushGenericColonCommandPattern(command, "math") ?? $skip
 
 ```
-function pushColonCommandPattern(command: Command, mode: ResolvedArgumentMode): Command?
-  if pattern := state.commandPatterns.get command.token
-    // An empty declaration explicitly disables colon arguments.
-    return unless pattern#
-    return pushCommandPattern command, mode
+function pushGenericColonCommandPattern(command: Command, mode: ResolvedArgumentMode): Command?
+  return if state.commandPatterns.has command.token
   state.argumentPatterns.push mode
   command
 ```
@@ -1359,11 +1381,15 @@ function pushColonCommandPattern(command: Command, mode: ResolvedArgumentMode): 
 Colon
   /:(?!:)/
 
-CommandArgumentsAfterColon ::AST[] | Braced
-  ( NestedCommandArgumentList / CommandArgumentAfterColon )?:arg PopCommandPattern ->
-    return $skip unless arg?
-    arg
+# Colon arguments for a command starting a statement.
+# Accepts either indented argument bullets, or
+# one argument that can continue same-line and/or indented following lines.
+CommandColonArguments ::AST[]
+  Colon NestedCommandArgumentList:args -> args
+  Colon CommandArgumentAfterColon:arg -> [ arg ]
 
+# Parse and consume one required colon argument according to the next remaining
+# declared mode.
 CommandArgumentAfterColon ::Braced
   RequiredRawArgument RawArgumentAfterColon:argument ->
     consumeRequiredCommandArgument argument
@@ -1464,19 +1490,8 @@ VerbatimTextPart ::string
   $VerbatimBracedContent
   /\\[^\r\n]|[^\\{}\r\n]+/
 
-# Inline versions prevent combining same-line and indented content.
-InlineTextCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled PushTextColonCommandPattern:command InlineCommandArgumentsAfterColon:arg ->
-    [ command, arg ]
-
-InlineMathCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled PushMathColonCommandPattern:command InlineCommandArgumentsAfterColon:arg ->
-    [ command, arg ]
-
-InlineCommandArgumentsAfterColon ::AST
-  ( NestedCommandArgumentList / InlineCommandArgumentAfterColon )?:arg PopCommandPattern ->
-    arg ?? $skip
-
+# Parse and consume one required inline colon argument according to the next
+# remaining declared mode, without combining same-line and indented content.
 InlineCommandArgumentAfterColon ::Braced
   RequiredRawArgument InlineRawArgumentAfterColon:argument ->
     consumeRequiredCommandArgument argument
@@ -1836,6 +1851,8 @@ TextEnvironmentColonArguments ::AST
 MathEnvironmentColonArguments ::AST
   Colon PushGenericMathArgumentPattern EnvironmentArgumentsAfterColon:args -> args
 
+# Parse colon arguments in the environment body's mode and pop the generic
+# argument pattern.
 EnvironmentArgumentsAfterColon ::AST
   ( NestedArgumentList / InlineCommandArgumentAfterColon )?:args PopCommandPattern ->
     return $skip unless args?

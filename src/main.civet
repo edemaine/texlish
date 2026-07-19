@@ -51,8 +51,8 @@ uncacheable := new Set [
   // Push or pop the active pattern.
   "PushTextCommandPattern"
   "PushMathCommandPattern"
-  "PushTextColonCommandPattern"
-  "PushMathColonCommandPattern"
+  "PushGenericTextColonCommandPattern"
+  "PushGenericMathColonCommandPattern"
   "PushGenericRawArgumentPattern"
   "PushGenericVerbatimArgumentPattern"
   "PushGenericTextArgumentPattern"
@@ -68,10 +68,10 @@ uncacheable := new Set [
   "NestedCommandArgumentList"
   "ArgumentList"
   "ArgumentListContinuation"
+  "CommandColonArguments"
+  "InlineCommandColonArguments"
   // Parse arguments and pop the active pattern before returning.
   "CommandArguments"
-  "CommandArgumentsAfterColon"
-  "InlineCommandArgumentsAfterColon"
   "EnvironmentArgumentsAfterColon"
   // Parser config mutation
   "MetaStyles"
