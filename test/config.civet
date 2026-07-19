@@ -39,6 +39,9 @@ describe 'project config', ->
       assert.equal config.styles!['*'], '\\textit'
       assert.equal config.styles!['@'], '\\cref'
       assert.equal config.styles!['**'], '\\textbf'
+      assert.equal config.styles!['[ ]'], '$\\square$'
+      assert.equal config.styles!['[x]'], '$\\boxtimes$'
+      assert.equal config.styles!['[X]'], '$\\boxtimes$'
     finally
       await fs.rm dir,
         recursive: true
@@ -53,6 +56,7 @@ describe 'project config', ->
       })
       config := await loadConfig configPath
       assert.equal config.markdownBlockquotes, false
+      assert.equal config.markdownChecklists, false
       assert.equal config.markdownEmphasis, false
       assert.equal config.markdownFootnotes, false
       assert.equal config.markdownHeadings, false
@@ -205,6 +209,9 @@ describe '--config assignment', ->
       value: false
     assert.deepEqual parseCompilerOption('markdownBlockquotes', false),
       key: 'markdownBlockquotes'
+      value: false
+    assert.deepEqual parseCompilerOption('markdownChecklists', false),
+      key: 'markdownChecklists'
       value: false
     assert.deepEqual parseCompilerOption('markdownEmphasis', false),
       key: 'markdownEmphasis'

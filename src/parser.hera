@@ -6,6 +6,7 @@ type {
   ASTParent,
   BlockQuote,
   Braced,
+  Checklist,
   Comment,
   ConfigEntry,
   Command,
@@ -1097,9 +1098,23 @@ UnorderedList ::List
     }
 
 UnorderedBullet ::AST[]
+  MarkdownChecklistsEnabled Bullet ChecklistMarker:checklist $( ActualSpace / &EOL ):space ListItemLine:text NestedBody:body ->
+    [ checklist, space, text, body ]
   Bullet:bullet ListItemLine:text NestedBody:body ->
     space := bullet[1]
-    return [ '\\item', space, text, body ]
+    [ '\\item', space, text, body ]
+
+ChecklistMarker ::Checklist
+  # Hera compiles grammar regexes with the Unicode `u` flag, so this character
+  # class matches Unicode code points, including astral characters such as
+  # emoji. Require a nonempty marker while excluding `]` and newlines.
+  /// \[ [^\]\r\n]+ \] /// ->
+    return $skip unless style? := state.compilerOptions.styles[$0]
+    {
+      type: "Checklist"
+      style
+      children: ["\\item[", style, "]"]
+    }
 
 UnorderedListContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent UnorderedBullet:bullet ->
@@ -1915,6 +1930,10 @@ MarkdownBackticksEnabled
 MarkdownBlockquotesEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownBlockquotes
+
+MarkdownChecklistsEnabled
+  "" ->
+    return $skip unless state.compilerOptions.markdownChecklists
 
 MarkdownEmphasisEnabled
   "" ->

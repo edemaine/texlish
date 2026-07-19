@@ -14,6 +14,7 @@ export defaultConfig: ActiveCompilerOptions := {
   citeShorthand: true
   markdownBackticks: 1
   markdownBlockquotes: true
+  markdownChecklists: true
   markdownEmphasis: true
   markdownFootnotes: true
   markdownHeadings: true
@@ -48,6 +49,9 @@ export defaultConfig: ActiveCompilerOptions := {
     '@^': '\\ref'
     '@#': '\\pageref'
     '[[': '\\cite'
+    '[ ]': '$\\square$'
+    '[x]': '$\\boxtimes$'
+    '[X]': '$\\boxtimes$'
   set latexCompat(value: boolean)
     if value
       @scriptGrouping = "none"
@@ -57,6 +61,7 @@ export defaultConfig: ActiveCompilerOptions := {
   set markdownCompat(value: boolean)
     @markdownBackticks = if value then 1 else 0
     @markdownBlockquotes = value
+    @markdownChecklists = value
     @markdownEmphasis = value
     @markdownFootnotes = value
     @markdownHeadings = value
@@ -127,6 +132,7 @@ type BooleanCompilerOption
   | "latexCompat"
   | "markdownCompat"
   | "markdownBlockquotes"
+  | "markdownChecklists"
   | "markdownEmphasis"
   | "markdownFootnotes"
   | "markdownHeadings"
@@ -146,6 +152,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["latexcompat", "latexCompat"]
   . ["markdowncompat", "markdownCompat"]
   . ["markdownblockquotes", "markdownBlockquotes"]
+  . ["markdownchecklists", "markdownChecklists"]
   . ["markdownemphasis", "markdownEmphasis"]
   . ["markdownfootnotes", "markdownFootnotes"]
   . ["markdownheadings", "markdownHeadings"]

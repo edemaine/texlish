@@ -235,6 +235,225 @@ describe 'unordered lists', ->
     \end{itemize}
   '''
 
+describe 'checklists', ->
+  testCase r'''
+    unchecked and checked items
+    ---
+    - [ ] To do
+    - [x] Done
+    - [X] Also done
+    ---
+    \begin{itemize}
+    \item[$\square$] To do
+    \item[$\boxtimes$] Done
+    \item[$\boxtimes$] Also done
+    \end{itemize}
+  '''
+
+  testCase r'''
+    mixed and nested checklist items
+    ---
+    - ordinary
+    - [ ] parent
+      - [x] child
+      continuation
+    * [x] last
+    ---
+    \begin{itemize}
+    \item ordinary
+    \item[$\square$] parent
+      \begin{itemize}
+      \item[$\boxtimes$] child
+      \end{itemize}
+      continuation
+    \item[$\boxtimes$] last
+    \end{itemize}
+  '''
+
+  testCase r'''
+    custom checklist styles
+    ---
+    ::styles
+      [ ] = EMPTY
+      [x] = CHECKED
+      [X] = VERIFIED
+    - [ ] To do
+    - [x] Done
+    - [X] Verified
+    ---
+    \begin{itemize}
+    \item[EMPTY] To do
+    \item[CHECKED] Done
+    \item[VERIFIED] Verified
+    \end{itemize}
+  '''
+
+  testCase r'''
+    custom styled markers
+    ---
+    ::styles
+      [+] = $\boxplus$
+      [skip] = SKIP
+      [no] = NO
+      [in progress] = WAITING
+      [🚀] = ROCKET
+    - [+] Added
+    - [skip] Optional
+    - [no] Rejected
+    - [in progress] Started
+    - [🚀] Launched
+    - [NO] Case-sensitive
+    - [unknown] Ordinary
+    ---
+    \begin{itemize}
+    \item[$\boxplus$] Added
+    \item[SKIP] Optional
+    \item[NO] Rejected
+    \item[WAITING] Started
+    \item[ROCKET] Launched
+    \item [NO] Case-sensitive
+    \item [unknown] Ordinary
+    \end{itemize}
+  '''
+
+  testCase r'''
+    styled multi-character markers and empty marker
+    ---
+    ::styles
+      [++] = PLUSPLUS
+      [] = EMPTY
+    - [++] Incremented
+    - [] Ordinary
+    ---
+    \begin{itemize}
+    \item[PLUSPLUS] Incremented
+    \item [] Ordinary
+    \end{itemize}
+  '''
+
+  testCase r'''
+    marker-only items with nested content and at end of file
+    ---
+    - [ ]
+      Nested content
+    - [x]
+    ---
+    \begin{itemize}
+    \item[$\square$]
+      Nested content
+    \item[$\boxtimes$]
+    \end{itemize}
+  '''
+
+  testCase r'''
+    disabled by compiler option
+    ---
+    - [ ] To do
+    - [x] Done
+    ---
+    \begin{itemize}
+    \item [ ] To do
+    \item [x] Done
+    \end{itemize}
+  ''', markdownChecklists: false
+
+  testCase r'''
+    disabled by in-file config
+    ---
+    ::config -markdownChecklists
+    - [ ] To do
+    - [x] Done
+    ---
+    \begin{itemize}
+    \item [ ] To do
+    \item [x] Done
+    \end{itemize}
+  '''
+
+  testCase r'''
+    disabled by markdownCompat when lists are re-enabled
+    ---
+    ::config -markdownCompat
+    ::config markdownLists
+    - [x] Done
+    ---
+    \begin{itemize}
+    \item [x] Done
+    \end{itemize}
+  '''
+
+  testCase r'''
+    checkbox marker requires following whitespace
+    ---
+    ::styles [skip] = SKIP
+    - [x]not a checklist
+    - [skip]not a checklist
+    - [?] unstyled marker
+    - [other] also not a checklist
+    ---
+    \begin{itemize}
+    \item [x]not a checklist
+    \item [skip]not a checklist
+    \item [?] unstyled marker
+    \item [other] also not a checklist
+    \end{itemize}
+  '''
+
+  testCase r'''
+    automatic amssymb package
+    ---
+    - [ ] To do
+    - [x] Done
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{amssymb}
+
+    \begin{document}
+    \begin{itemize}
+    \item[$\square$] To do
+    \item[$\boxtimes$] Done
+    \end{itemize}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    custom checklist styles do not load amssymb
+    ---
+    ::styles
+      [ ] = EMPTY
+      [x] = CHECKED
+    - [ ] To do
+    - [x] Done
+    ---
+    \documentclass[11pt]{article}
+
+    \begin{document}
+    \begin{itemize}
+    \item[EMPTY] To do
+    \item[CHECKED] Done
+    \end{itemize}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    existing amssymb package is not duplicated
+    ---
+    ::use amssymb
+    - [ ] To do
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{amssymb}
+
+    \begin{document}
+    \begin{itemize}
+    \item[$\square$] To do
+    \end{itemize}
+    \end{document}
+
+  ''', fragment: false
+
 describe 'ordered lists', ->
   testCase r'''
     single-line bullets

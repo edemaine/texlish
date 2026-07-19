@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* Markdown-style checklist items such as `- [ ]` and `- [x]` compile to
+  configurable `\item` labels, using `\square` and `\boxtimes` by default with
+  automatic `amssymb` package inclusion. Any styled nonempty bracketed marker
+  can be used, and `[x]` and `[X]` can be styled independently.
+  Checklist-marker recognition can be disabled with `-markdownChecklists` or
+  `-markdownCompat`.
+  [[#36](https://github.com/edemaine/texlish/issues/36)]
 * Markdown-style strikethrough `~~text~~` in text mode, compiling by default
   to `\sout{text}` with automatic `ulem` package inclusion.
   The command can be customized with `::styles ~~ = ...`, and strikethrough

@@ -19,6 +19,7 @@ export type CompilerOptions
   markdownCompat?: boolean
   markdownBackticks?: number | boolean
   markdownBlockquotes?: boolean
+  markdownChecklists?: boolean
   markdownEmphasis?: boolean
   markdownFootnotes?: boolean
   markdownHeadings?: boolean
@@ -60,6 +61,7 @@ type Loc = ???
 export type ASTNode
   | BlockQuote
   | Braced
+  | Checklist
   | Comment
   | Command
   | Delimiter
@@ -83,6 +85,11 @@ export interface BlockQuote extends ASTParent
 export interface Braced extends ASTParent
   type: "Braced"
   body: AST
+
+export interface Checklist extends ASTParent
+  type: "Checklist"
+  /** Configured LaTeX label placed in the optional argument to `\\item`. */
+  style: string
 
 export interface Comment extends ASTToken
   type: "Comment"

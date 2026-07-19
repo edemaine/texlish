@@ -18,6 +18,7 @@ type {
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 defaultDefnCommand := "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
 defaultUlemPackage := "\\usepackage[normalem]{ulem}"
+defaultAmssymbPackage := "\\usepackage{amssymb}"
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
@@ -298,6 +299,8 @@ function usesCommand(node: AST, command: string): boolean
   switch node
     { type: "Command", token }
       token is command
+    { type: "Checklist", style }
+      textUsesCommand style, command
     { type: "Delimiter", style }
       textUsesCommand style, command
     { type: "Tex" }
@@ -451,6 +454,12 @@ function processDocument(root: AST[]): void
   // Load ulem for \sout, e.g. from default Markdown strikethrough `~~`.
   if find(root, usesCommand ., "\\sout") and not usesPackage root, "ulem"
     preamble.push [defaultUlemPackage]
+
+  // Load amssymb for the default Markdown checklist item labels.
+  if (find(root, usesCommand ., "\\square") or
+      find(root, usesCommand ., "\\boxtimes")) and
+      not usesPackage root, "amssymb"
+    preamble.push [defaultAmssymbPackage]
 
   if preamble#
     copy :=
