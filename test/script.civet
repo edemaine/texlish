@@ -18,6 +18,26 @@ describe 'sub/superscript autogrouping', ->
   '''
 
   testCase r'''
+    autoimport commands activate their package declarations while parsing
+    ---
+    $x_\sout{y} + a^\square + b_\boxtimes$
+    ---
+    $x_{\sout{y}} + a^{\square} + b_{\boxtimes}$
+  '''
+
+  testCase r'''
+    use activates package-only commands after a cached miss
+    ---
+    $x_\uline{a}$
+    ::use ulem
+    $x_\uline{b}$
+    ---
+    $x_\uline{a}$
+    \usepackage{ulem}
+    $x_{\uline{b}}$
+  '''
+
+  testCase r'''
     incomplete declared commands do not leak their argument pattern
     ---
     $x_\frac{a} + y_12$

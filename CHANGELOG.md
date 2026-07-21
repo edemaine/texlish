@@ -16,7 +16,8 @@
   `latexCompat`.
 * New internal declaration system for command arguments and environment bodies
   specifies text, math, raw-TeX, or verbatim processing,
-  enabling some of the following features.
+  including package-specific declarations activated through `::use`,
+  and auto-import of packages when using certain commands or environments.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
 * Declared commands can switch from LaTeX-style (`[optional]{required}`)
   to colon shorthand (`: required` or bullets) for the remaining arguments.

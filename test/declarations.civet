@@ -1,0 +1,115 @@
+{ compile, generate, process } from ../src/main.civet
+{ Declarations, type PackageDeclarations } from ../src/declarations.civet
+{ getDeclarations } from ../src/parser.hera
+assert from assert
+
+describe 'declarations', ->
+  it 'caches missing command and environment lookups', ->
+    declarations := new Declarations
+    findCommand := declarations.findCommand.bind declarations
+    findEnvironment := declarations.findEnvironment.bind declarations
+    commandFinds .= 0
+    environmentFinds .= 0
+    declarations.findCommand = (name) ->
+      commandFinds++
+      findCommand name
+    declarations.findEnvironment = (name) ->
+      environmentFinds++
+      findEnvironment name
+
+    assert.equal declarations.getCommand("\\missing"), undefined
+    assert.equal declarations.getCommand("\\missing"), undefined
+    assert.equal declarations.getEnvironment("missing"), undefined
+    assert.equal declarations.getEnvironment("missing"), undefined
+    assert.equal commandFinds, 1
+    assert.equal environmentFinds, 1
+
+  it 'postprocess uses the current autoimport state', ->
+    packages := new Map<string, PackageDeclarations> Object.entries
+      custom:
+        autoimportOptions: "option"
+    autoimports :=
+      commands: new Map Object.entries
+        "\\custom": "custom"
+    ast := compile '\\custom', ast: true, fragment: true
+    declarations := getDeclarations()
+    declarations.packages = packages
+    declarations.autoimports = autoimports
+
+    process ast, {}
+
+    assert.match generate(ast), /\\usepackage\[option\]\{custom\}/
+
+  it 'postprocess uses the current preamble autoimports', ->
+    ast := compile '\\fallback', ast: true, fragment: true
+    declarations := getDeclarations()
+    declarations.packages = new Map Object.entries
+      fallback:
+        preamble: "\\providecommand\\fallback{provided}"
+    declarations.autoimports =
+      commands: new Map Object.entries
+        "\\fallback": "fallback"
+
+    process ast, {}
+
+    assert.match generate(ast), /\\providecommand\\fallback\{provided\}/
+
+  it 'empty preamble suppresses package insertion', ->
+    ast := compile '\\custom', ast: true, fragment: true
+    declarations := getDeclarations()
+    declarations.autoimports =
+      commands: new Map Object.entries
+        "\\custom": ""
+
+    process ast, {}
+
+    assert.doesNotMatch generate(ast), /\\usepackage/
+
+  it 'autoimports environment declarations during lookup', ->
+    packages := new Map<string, PackageDeclarations> Object.entries
+      "":
+        preamble: ""
+      custom:
+        environments: new Map Object.entries
+          customenv: "verbatim"
+    declarations := new Declarations packages,
+      environments: new Map Object.entries
+        customenv: "custom"
+
+    assert.equal declarations.getEnvironment("customenv"), "verbatim"
+    assert declarations.loadedPackageNames.has "custom"
+
+  it 'postprocess autoimports packages for used environments', ->
+    ast := compile ': customenv\n  body', ast: true, fragment: true
+    declarations := getDeclarations()
+    declarations.packages = new Map Object.entries
+      custom:
+        autoimportOptions: "option"
+    declarations.autoimports =
+      environments: new Map Object.entries
+        customenv: "custom"
+
+    process ast, {}
+
+    assert.match generate(ast), /\\usepackage\[option\]\{custom\}/
+
+  it 'does not autoimport locally defined environments', ->
+    ast := compile '''
+      \\newenvironment{customenv}{}{}
+      \\newtheorem*{customtheorem}{Custom}
+      : customenv
+        body
+      : customtheorem
+        body
+    ''', ast: true, fragment: true
+    declarations := getDeclarations()
+    declarations.packages = new Map Object.entries
+      custom: {}
+    declarations.autoimports =
+      environments: new Map Object.entries
+        customenv: "custom"
+        customtheorem: "custom"
+
+    process ast, {}
+
+    assert.doesNotMatch generate(ast), /\\usepackage\{custom\}/

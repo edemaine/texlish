@@ -111,6 +111,21 @@ describe 'Markdown strikethrough', ->
   ''', fragment: false
 
   testCase r'''
+    starred local sout definition suppresses automatic ulem package
+    ---
+    \newcommand*\sout[1]{CUSTOM #1}
+    ~~deleted~~
+    ---
+    \documentclass[11pt]{article}
+    \newcommand*\sout[1]{CUSTOM #1}
+
+    \begin{document}
+    \sout{deleted}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
     no automatic ulem package for custom style
     ---
     ::styles ~~ = \strike

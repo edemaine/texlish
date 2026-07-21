@@ -7,18 +7,15 @@ type {
   SmartQuote,
 } from ./types.civet
 {
-  find,
   isNumeric,
   iterate,
   iteratePrePost,
   iterateFlatArrays,
   iterateTextRuns,
 } from ./util.civet
+{ getDeclarations } from ./parser.hera
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
-defaultDefnCommand := "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
-defaultUlemPackage := "\\usepackage[normalem]{ulem}"
-defaultAmssymbPackage := "\\usepackage{amssymb}"
 
 /** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
@@ -284,43 +281,91 @@ function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
 
 /**
- * Whether text contains a TeX command with the given exact name.
- * This lexical scan can produce false positives inside constructs like `\verb`.
+ * Collect TeX commands directly or structurally emitted by an AST.
+ * Its lexical scans can produce false positives inside constructs like `\verb`
+ * where verbatim TeX is not modeled.
  */
-function textUsesCommand(text: string, command: string): boolean
-  for some match of text.matchAll /\\(?:[a-zA-Z@]+|[^\r\n])/g
-    match[0] is command
+function usedCommands(root: AST): Set<string>
+  commands := new Set<string>
+
+  function addTextCommands(text: string): void
+    for match of text.matchAll /\\(?:[a-zA-Z@]+|[^\r\n])/g
+      commands.add match[0]
+
+  for node of iterate root
+    switch node
+      { type: "Command", token }
+        commands.add token
+      { type: "Checklist", style }
+        addTextCommands style
+      { type: "Delimiter", style }
+        addTextCommands style
+      { type: "Tex" }
+        for text of iterateTextRuns node
+          addTextCommands text
+  commands
 
 /**
- * Whether an AST node directly or structurally emits a TeX command.
- * This can likewise produce false positives where verbatim TeX is not modeled.
+ * Collect LaTeX environments emitted by an AST.
+ * The lexical scan can produce false positives inside constructs like `\verb`.
  */
-function usesCommand(node: AST, command: string): boolean
-  switch node
-    { type: "Command", token }
-      token is command
-    { type: "Checklist", style }
-      textUsesCommand style, command
-    { type: "Delimiter", style }
-      textUsesCommand style, command
-    { type: "Tex" }
-      for some text of iterateTextRuns node
-        textUsesCommand text, command
-    else
-      false
+function usedEnvironments(root: AST): Set<string>
+  environments := new Set<string>
 
-/** Whether the AST visibly defines a TeX command with a standard definition command. */
-function definesCommand(root: AST[], command: string): boolean
+  for node of iterate root
+    switch node
+      { type: "Environment", env }
+        environments.add env
+      { type: "Command", token: "\\begin", env }
+        environments.add env if env?
+
+  // This also finds environments emitted as configured block styles.
+  for text of iterateTextRuns root
+    for match of text.matchAll /\\begin\s*\{([^{}\r\n]+)\}/g
+      environments.add match[1]
+  environments
+
+/** Skip whitespace and an optional definition-command star. */
+function skipSpacesAndStar(parent: AST[], index: number): number
+  while parent[++index] is like /^\s*$/
+  if parent[index] is like "*", { type: "Delimiter", token: "*" }
+    while parent[++index] is like /^\s*$/
+  index
+
+/** TeX commands visibly defined by standard definition commands in the AST. */
+function definedCommands(root: AST[]): Set<string>
+  commands := new Set<string>
   for parent of iterateFlatArrays root
-    for each child, let i of parent
+    for each child, i of parent
       continue unless child is like { type: "Command" }
       continue unless child.token is like "\\newcommand", "\\renewcommand", "\\providecommand", "\\def"
-      while parent[++i] is like /^\s*$/
-      next := parent[i]
-      return true if usesCommand next, command
-      if next is like { type: "Braced" }
-        return true if find next.body, usesCommand ., command
-  false
+      next := parent[skipSpacesAndStar parent, i]
+      commands.add command for command of usedCommands next
+  commands
+
+/** LaTeX environments visibly defined by standard definition commands. */
+function definedEnvironments(root: AST[]): Set<string>
+  environments := new Set<string>
+  definitionCommands := new Set [
+    "\\newenvironment"
+    "\\renewenvironment"
+    "\\provideenvironment"
+    "\\NewDocumentEnvironment"
+    "\\RenewDocumentEnvironment"
+    "\\ProvideDocumentEnvironment"
+    "\\DeclareDocumentEnvironment"
+    "\\newtheorem"
+  ]
+  for parent of iterateFlatArrays root
+    for each child, i of parent
+      continue unless child is like { type: "Command" }
+      continue unless definitionCommands.has child.token
+      continue unless argument := parent[skipSpacesAndStar parent, i]
+      continue unless argument is like { type: "Braced" }
+      {body} .= argument
+      body = body[0] while Array.isArray(body) and body# is 1
+      environments.add body.trim() if body <? "string"
+  environments
 
 /**
  * Skip one TeX optional argument from the specified index, if present,
@@ -333,22 +378,27 @@ function skipOptionalArgument(parent: AST[], index: number): number
     return index + 1 if parent[index] is "]"
   index
 
-/** Whether raw TeX text loads a package with `\usepackage` or `\RequirePackage`. */
-function textUsesPackage(text: string, packageName: string): boolean
-  for some match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
-    match[1].split(',').some .trim() is packageName
+/** Packages structurally or textually loaded by the AST. */
+function usedPackages(root: AST[]): Set<string>
+  packages := new Set<string>
 
-/** Whether the AST structurally or textually loads a package. */
-function usesPackage(root: AST[], packageName: string): boolean
+  function addPackageNames(names: string): void
+    packages.add name.trim() for name of names.split ','
+
+  function addTextPackages(text: string): void
+    for match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
+      addPackageNames match[1]
+
   for parent of iterateFlatArrays root
     for each child, i of parent
       continue unless child <? "object" and "type" in child
       switch child.type
         when "Use"
-          return true if packageName is in child.packages
+          for each packageName of child.packages
+            packages.add packageName
         when "Tex"
           for text of iterateTextRuns child
-            return true if textUsesPackage text, packageName
+            addTextPackages text
         when "Command"
           continue unless child.token is like "\\usepackage", "\\RequirePackage"
           argumentIndex .= i + 1
@@ -359,9 +409,37 @@ function usesPackage(root: AST[], packageName: string): boolean
           continue unless argument is like { type: "Braced" }
           {body} .= argument
           body = body[0] while Array.isArray(body) and body# is 1
-          return true if body <? "string" and
-            body.split(',').some .trim() is packageName
-  false
+          addPackageNames body if body <? "string"
+  packages
+
+/** Add preamble support for used declarations not defined in this document. */
+function autoimportDeclarations(
+  root: AST[]
+  preamble: AST[][]
+): void
+  declarations := getDeclarations()
+  packages := usedPackages root
+  required := new Set<string>
+  defined := definedCommands root
+  for command of usedCommands root
+    continue if defined.has command
+    if packageName? := declarations.autoimports.commands?.get command
+      required.add packageName
+  definedEnvs := definedEnvironments root
+  for environment of usedEnvironments root
+    continue if definedEnvs.has environment
+    if packageName? := declarations.autoimports.environments?.get environment
+      required.add packageName
+  for packageName of required
+    continue if packages.has packageName
+    packageDeclarations := declarations.packages.get packageName
+    // Fake packages represented by manual preamble code instead of \usepackage
+    if packageDeclarations?.preamble?
+      preamble.push [packageDeclarations.preamble] if packageDeclarations.preamble
+    else
+      options := packageDeclarations?.autoimportOptions
+      optionArgument := if options? then `[${options}]` else ""
+      preamble.push [`\\usepackage${optionArgument}{${packageName}}`]
 
 /** Attach environment names to \begin and \end commands */
 function processBeginEnd(root: AST[]): void
@@ -446,20 +524,7 @@ function processDocument(root: AST[]): void
     if document["\\title"] and not document["\\maketitle"]
       document["\\begin"][0] += "\\maketitle\n"
 
-  // Provide \defn command if used, e.g. from default Markdown emphasis `***`.
-  // and not already obviously defined.
-  if find(root, usesCommand ., "\\defn") and not definesCommand root, "\\defn"
-    preamble.push [defaultDefnCommand]
-
-  // Load ulem for \sout, e.g. from default Markdown strikethrough `~~`.
-  if find(root, usesCommand ., "\\sout") and not usesPackage root, "ulem"
-    preamble.push [defaultUlemPackage]
-
-  // Load amssymb for the default Markdown checklist item labels.
-  if (find(root, usesCommand ., "\\square") or
-      find(root, usesCommand ., "\\boxtimes")) and
-      not usesPackage root, "amssymb"
-    preamble.push [defaultAmssymbPackage]
+  autoimportDeclarations root, preamble
 
   if preamble#
     copy :=

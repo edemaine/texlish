@@ -35,11 +35,9 @@ type {
   type ArgumentMode
   type ArgumentPattern
   type ArgumentSpec
-  type CommandPattern
   type ResolvedArgumentMode
+  Declarations
   argumentPatternKey
-  builtinCommandPatterns
-  builtinEnvironmentModes
 } from ./declarations.civet
 { assertTexlishVersion } from ./version.civet
 {
@@ -71,10 +69,8 @@ type ParserState
   codeMarker: string?
   /** Active compiler options, including options changed by ::config. */
   compilerOptions: ActiveCompilerOptions
-  /** Active command patterns, defining arguments for known commands. */
-  commandPatterns: Map<string, CommandPattern>
-  /** Active environment body modes, keyed by environment name. */
-  environmentModes: Map<string, ArgumentMode>
+  /** Active declared command and environment declarations. */
+  declarations: Declarations
   /** Stack of finite command patterns or repeated generic colon-argument modes. */
   argumentPatterns: ArgumentPattern[]
 
@@ -90,8 +86,7 @@ export state: ParserState := {
   pendingLineIndent: undefined
   codeMarker: undefined
   compilerOptions: makeCompilerOptions()
-  commandPatterns: new Map
-  environmentModes: new Map
+  declarations: new Declarations
   argumentPatterns: []
 }
 
@@ -100,6 +95,9 @@ export function getCompilerOptions(): ActiveCompilerOptions
 
 export function setCompilerOptions(options: ActiveCompilerOptions): void
   state.compilerOptions = options
+
+export function getDeclarations(): Declarations
+  state.declarations
 
 export function getStateKey(): string
   state.currentIndent.level +
@@ -139,8 +137,7 @@ Init
     state.listItemIndent = initialIndent
     state.pendingLineIndent = undefined
     state.codeMarker = undefined
-    state.commandPatterns = new Map builtinCommandPatterns
-    state.environmentModes = new Map builtinEnvironmentModes
+    state.declarations = new Declarations
     state.argumentPatterns = []
 
 Content ::AST[]
@@ -682,7 +679,7 @@ CodeSpan ::string
     style ?= "\\verb"
     let argument: ArgumentSpec?
     if command := /\\(?:[a-zA-Z@]+|[^\r\n])\*?$/.exec(style)?[0]
-      argument = state.commandPatterns.get(command)?.-1
+      argument = state.declarations.getCommand(command)?.-1
     unless argument?.mode is "verbatim" and
            argument.delimiter is like "delimited", "required-or-delimited"
       return `${style}{${body}}`
@@ -987,9 +984,11 @@ UseItem ::Use
     match := /\s*$/.exec(name)!
     space := match[0]
     name = name[< match.index]
+    packages := name.split(',').map .trim()
+    state.declarations.loadPackage packageName for packageName of packages
     return {
       type: "Use"
-      packages: name.split(',').map .trim()
+      packages
       children: [
         '\\usepackage'
         arg
@@ -1251,7 +1250,7 @@ function pushCommandPattern(
   command: Command
   parentMode: ResolvedArgumentMode
 ): Command?
-  return unless pattern .= state.commandPatterns.get command.token
+  return unless pattern .= state.declarations.getCommand command.token
   if (argument.mode is "inherit" for some each argument of pattern)
     pattern = for each argument of pattern
       if argument.mode is "inherit"
@@ -1387,7 +1386,7 @@ PushGenericMathColonCommandPattern ::Command
 
 ```
 function pushGenericColonCommandPattern(command: Command, mode: ResolvedArgumentMode): Command?
-  return if state.commandPatterns.has command.token
+  return if state.declarations.hasCommand command.token
   state.argumentPatterns.push mode
   command
 ```
@@ -1785,27 +1784,27 @@ EnvironmentHeader ::string
 
 RawEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.environmentModes.get(env) is "raw"
+    return $skip unless state.declarations.getEnvironment(env) is "raw"
     env
 
 VerbatimEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.environmentModes.get(env) is "verbatim"
+    return $skip unless state.declarations.getEnvironment(env) is "verbatim"
     env
 
 TextEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.environmentModes.get(env) is "text"
+    return $skip unless state.declarations.getEnvironment(env) is "text"
     env
 
 MathEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.environmentModes.get(env) is "math"
+    return $skip unless state.declarations.getEnvironment(env) is "math"
     env
 
 InheritedEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    mode := state.environmentModes.get env
+    mode := state.declarations.getEnvironment env
     return $skip if mode? and mode is not "inherit"
     env
 
@@ -1819,32 +1818,32 @@ EndEnvironment ::{env: string, children: AST[]}
 
 BeginRawEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "raw"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "raw"
     environment
 
 BeginVerbatimEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "verbatim"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "verbatim"
     environment
 
 BeginTextEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "text"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "text"
     environment
 
 EndTextEnvironment ::{env: string, children: AST[]}
   EndEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "text"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "text"
     environment
 
 BeginMathEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "math"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "math"
     environment
 
 EndMathEnvironment ::{env: string, children: AST[]}
   EndEnvironment:environment ->
-    return $skip unless state.environmentModes.get(environment.env) is "math"
+    return $skip unless state.declarations.getEnvironment(environment.env) is "math"
     environment
 
 BeginEndMathEnvironment ::AST[]

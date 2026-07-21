@@ -47,6 +47,24 @@ export type CommandPattern = ArgumentSpec[]
 /** A finite command pattern or mode repeated by generic colon arguments. */
 export type ArgumentPattern = CommandPattern | ResolvedArgumentMode
 
+/** Declarations and autoimport behavior for a package. */
+export interface PackageDeclarations
+  /** Command declarations activated by loading this package. */
+  commands?: Map<string, CommandPattern>
+  /** Environment declarations activated by loading this package. */
+  environments?: Map<string, ArgumentMode>
+  /** Default \usepackage options used when Texlish automatically loads this package. */
+  autoimportOptions?: string
+  /** Preamble text inserted instead of `\usepackage` when Texlish automatically loads this package. */
+  preamble?: string
+
+/** Commands and environments that automatically load declaration packages. */
+export interface Autoimports
+  /** "\\command" -> "packageName" */
+  commands?: Map<string, string>
+  /** "environment" -> "packageName" */
+  environments?: Map<string, string>
+
 /**
  * Compact parse-cache key; argument names do not affect parsing.
  *
@@ -152,212 +170,302 @@ optionsLanguageCodePattern: CommandPattern :=
   . { name: "code", ...verbatimRequiredOrDelimited }
 
 /** Built-in command declarations. */
-export builtinCommandPatterns := new Map<string, CommandPattern>
-  . ["\\include", filenamePattern]
-  . ["\\input", filenamePattern]
-  . ["\\verbatiminput", filenamePattern]
-  . ["\\bibliography", filenamesPattern]
-  . ["\\bibliographystyle", stylePattern]
-  . ["\\includeonly", filenamesPattern]
-  . ["\\graphicspath", directoriesPattern]
-  . ["\\label", labelPattern]
-  . ["\\ref", labelPattern]
-  . ["\\ref*", labelPattern]
-  . ["\\pageref", labelPattern]
-  . ["\\pageref*", labelPattern]
-  . ["\\eqref", labelPattern]
-  . ["\\autoref", labelPattern]
-  . ["\\autoref*", labelPattern]
-  . ["\\autopageref", labelPattern]
-  . ["\\autopageref*", labelPattern]
-  . ["\\nameref", labelPattern]
-  . ["\\nameref*", labelPattern]
-  . ["\\vref", labelPattern]
-  . ["\\Vref", labelPattern]
-  . ["\\cref", labelPattern]
-  . ["\\cref*", labelPattern]
-  . ["\\Cref", labelPattern]
-  . ["\\Cref*", labelPattern]
-  . ["\\cpageref", labelPattern]
-  . ["\\cpageref*", labelPattern]
-  . ["\\Cpageref", labelPattern]
-  . ["\\Cpageref*", labelPattern]
-  . ["\\labelcref", labelPattern]
-  . ["\\labelcref*", labelPattern]
-  . ["\\labelcpageref", labelPattern]
-  . ["\\labelcpageref*", labelPattern]
-  . ["\\namecref", labelPattern]
-  . ["\\nameCref", labelPattern]
-  . ["\\lcnamecref", labelPattern]
-  . ["\\namecrefs", labelPattern]
-  . ["\\nameCrefs", labelPattern]
-  . ["\\lcnamecrefs", labelPattern]
-  . ["\\nocite", keysPattern]
-  . ["\\includegraphics", optionsFilenamePattern]
-  . ["\\includegraphics*", optionsFilenamePattern]
-  . ["\\addbibresource", optionsFilenamePattern]
-  . ["\\VerbatimInput", optionsFilenamePattern]
-  . ["\\BVerbatimInput", optionsFilenamePattern]
-  . ["\\LVerbatimInput", optionsFilenamePattern]
-  . ["\\lstinputlisting", optionsFilenamePattern]
-  . ["\\cite", prenotePostnoteKeysPattern]
-  . ["\\citep", prenotePostnoteKeysPattern]
-  . ["\\citep*", prenotePostnoteKeysPattern]
-  . ["\\citet", prenotePostnoteKeysPattern]
-  . ["\\citet*", prenotePostnoteKeysPattern]
-  . ["\\Citep", prenotePostnoteKeysPattern]
-  . ["\\Citep*", prenotePostnoteKeysPattern]
-  . ["\\Citet", prenotePostnoteKeysPattern]
-  . ["\\Citet*", prenotePostnoteKeysPattern]
-  . ["\\citealt", prenotePostnoteKeysPattern]
-  . ["\\citealt*", prenotePostnoteKeysPattern]
-  . ["\\citealp", prenotePostnoteKeysPattern]
-  . ["\\citealp*", prenotePostnoteKeysPattern]
-  . ["\\Citealt", prenotePostnoteKeysPattern]
-  . ["\\Citealt*", prenotePostnoteKeysPattern]
-  . ["\\Citealp", prenotePostnoteKeysPattern]
-  . ["\\Citealp*", prenotePostnoteKeysPattern]
-  . ["\\citeauthor", prenotePostnoteKeysPattern]
-  . ["\\citeauthor*", prenotePostnoteKeysPattern]
-  . ["\\Citeauthor", prenotePostnoteKeysPattern]
-  . ["\\Citeauthor*", prenotePostnoteKeysPattern]
-  . ["\\citeyear", prenotePostnoteKeysPattern]
-  . ["\\citeyearpar", prenotePostnoteKeysPattern]
-  . ["\\parencite", prenotePostnoteKeysPattern]
-  . ["\\textcite", prenotePostnoteKeysPattern]
-  . ["\\autocite", prenotePostnoteKeysPattern]
-  . ["\\footcite", prenotePostnoteKeysPattern]
-  . ["\\supercite", prenotePostnoteKeysPattern]
-  . ["\\text", textPattern]
-  . ["\\textnormal", textPattern]
-  . ["\\textrm", textPattern]
-  . ["\\textsf", textPattern]
-  . ["\\texttt", textPattern]
-  . ["\\textbf", textPattern]
-  . ["\\textmd", textPattern]
-  . ["\\textit", textPattern]
-  . ["\\textsl", textPattern]
-  . ["\\textsc", textPattern]
-  . ["\\textup", textPattern]
-  . ["\\textsuperscript", textPattern]
-  . ["\\textsubscript", textPattern]
-  . ["\\href", optionsUrlTextPattern]
-  . ["\\hyperimage", urlTextPattern]
-  . ["\\hyperref", labelTextPattern]
-  . ["\\frac", numeratorDenominatorPattern]
+export builtinCommandPatterns := new Map<string, CommandPattern> Object.entries
+  "\\include": filenamePattern
+  "\\input": filenamePattern
+  "\\verbatiminput": filenamePattern
+  "\\bibliography": filenamesPattern
+  "\\bibliographystyle": stylePattern
+  "\\includeonly": filenamesPattern
+  "\\graphicspath": directoriesPattern
+  "\\label": labelPattern
+  "\\ref": labelPattern
+  "\\ref*": labelPattern
+  "\\pageref": labelPattern
+  "\\pageref*": labelPattern
+  "\\eqref": labelPattern
+  "\\autoref": labelPattern
+  "\\autoref*": labelPattern
+  "\\autopageref": labelPattern
+  "\\autopageref*": labelPattern
+  "\\nameref": labelPattern
+  "\\nameref*": labelPattern
+  "\\vref": labelPattern
+  "\\Vref": labelPattern
+  "\\cref": labelPattern
+  "\\cref*": labelPattern
+  "\\Cref": labelPattern
+  "\\Cref*": labelPattern
+  "\\cpageref": labelPattern
+  "\\cpageref*": labelPattern
+  "\\Cpageref": labelPattern
+  "\\Cpageref*": labelPattern
+  "\\labelcref": labelPattern
+  "\\labelcref*": labelPattern
+  "\\labelcpageref": labelPattern
+  "\\labelcpageref*": labelPattern
+  "\\namecref": labelPattern
+  "\\nameCref": labelPattern
+  "\\lcnamecref": labelPattern
+  "\\namecrefs": labelPattern
+  "\\nameCrefs": labelPattern
+  "\\lcnamecrefs": labelPattern
+  "\\nocite": keysPattern
+  "\\includegraphics": optionsFilenamePattern
+  "\\includegraphics*": optionsFilenamePattern
+  "\\addbibresource": optionsFilenamePattern
+  "\\VerbatimInput": optionsFilenamePattern
+  "\\BVerbatimInput": optionsFilenamePattern
+  "\\LVerbatimInput": optionsFilenamePattern
+  "\\lstinputlisting": optionsFilenamePattern
+  "\\cite": prenotePostnoteKeysPattern
+  "\\citep": prenotePostnoteKeysPattern
+  "\\citep*": prenotePostnoteKeysPattern
+  "\\citet": prenotePostnoteKeysPattern
+  "\\citet*": prenotePostnoteKeysPattern
+  "\\Citep": prenotePostnoteKeysPattern
+  "\\Citep*": prenotePostnoteKeysPattern
+  "\\Citet": prenotePostnoteKeysPattern
+  "\\Citet*": prenotePostnoteKeysPattern
+  "\\citealt": prenotePostnoteKeysPattern
+  "\\citealt*": prenotePostnoteKeysPattern
+  "\\citealp": prenotePostnoteKeysPattern
+  "\\citealp*": prenotePostnoteKeysPattern
+  "\\Citealt": prenotePostnoteKeysPattern
+  "\\Citealt*": prenotePostnoteKeysPattern
+  "\\Citealp": prenotePostnoteKeysPattern
+  "\\Citealp*": prenotePostnoteKeysPattern
+  "\\citeauthor": prenotePostnoteKeysPattern
+  "\\citeauthor*": prenotePostnoteKeysPattern
+  "\\Citeauthor": prenotePostnoteKeysPattern
+  "\\Citeauthor*": prenotePostnoteKeysPattern
+  "\\citeyear": prenotePostnoteKeysPattern
+  "\\citeyearpar": prenotePostnoteKeysPattern
+  "\\parencite": prenotePostnoteKeysPattern
+  "\\textcite": prenotePostnoteKeysPattern
+  "\\autocite": prenotePostnoteKeysPattern
+  "\\footcite": prenotePostnoteKeysPattern
+  "\\supercite": prenotePostnoteKeysPattern
+  "\\text": textPattern
+  "\\textnormal": textPattern
+  "\\textrm": textPattern
+  "\\textsf": textPattern
+  "\\texttt": textPattern
+  "\\textbf": textPattern
+  "\\textmd": textPattern
+  "\\textit": textPattern
+  "\\textsl": textPattern
+  "\\textsc": textPattern
+  "\\textup": textPattern
+  "\\textsuperscript": textPattern
+  "\\textsubscript": textPattern
+  "\\href": optionsUrlTextPattern
+  "\\hyperimage": urlTextPattern
+  "\\hyperref": labelTextPattern
+  "\\frac": numeratorDenominatorPattern
   // Standard Greek letter commands are variables with no arguments.
-  . ["\\alpha", noArguments]
-  . ["\\beta", noArguments]
-  . ["\\gamma", noArguments]
-  . ["\\delta", noArguments]
-  . ["\\epsilon", noArguments]
-  . ["\\varepsilon", noArguments]
-  . ["\\zeta", noArguments]
-  . ["\\eta", noArguments]
-  . ["\\theta", noArguments]
-  . ["\\vartheta", noArguments]
-  . ["\\iota", noArguments]
-  . ["\\kappa", noArguments]
-  . ["\\lambda", noArguments]
-  . ["\\mu", noArguments]
-  . ["\\nu", noArguments]
-  . ["\\xi", noArguments]
-  . ["\\pi", noArguments]
-  . ["\\varpi", noArguments]
-  . ["\\rho", noArguments]
-  . ["\\varrho", noArguments]
-  . ["\\sigma", noArguments]
-  . ["\\varsigma", noArguments]
-  . ["\\tau", noArguments]
-  . ["\\upsilon", noArguments]
-  . ["\\phi", noArguments]
-  . ["\\varphi", noArguments]
-  . ["\\chi", noArguments]
-  . ["\\psi", noArguments]
-  . ["\\omega", noArguments]
-  . ["\\Gamma", noArguments]
-  . ["\\Delta", noArguments]
-  . ["\\Theta", noArguments]
-  . ["\\Lambda", noArguments]
-  . ["\\Xi", noArguments]
-  . ["\\Pi", noArguments]
-  . ["\\Sigma", noArguments]
-  . ["\\Upsilon", noArguments]
-  . ["\\Phi", noArguments]
-  . ["\\Psi", noArguments]
-  . ["\\Omega", noArguments]
-  . ["\\phantom", inheritedContentPattern]
-  . ["\\hphantom", inheritedContentPattern]
-  . ["\\vphantom", inheritedContentPattern]
-  . ["\\hyperlink", targetTextPattern]
-  . ["\\hypertarget", targetTextPattern]
-  . ["\\hyperbaseurl", bracedUrlPattern]
-  . ["\\url", urlPattern]
-  . ["\\nolinkurl", urlPattern]
-  . ["\\path", pathPattern]
-  . ["\\inputminted", optionsLanguageFilenamePattern]
-  . ["\\import", directoryFilenamePattern]
-  . ["\\subimport", directoryFilenamePattern]
-  . ["\\inputfrom", directoryFilenamePattern]
-  . ["\\subinputfrom", directoryFilenamePattern]
-  . ["\\includefrom", directoryFilenamePattern]
-  . ["\\subincludefrom", directoryFilenamePattern]
-  . ["\\crefrange", firstLastPattern]
-  . ["\\crefrange*", firstLastPattern]
-  . ["\\Crefrange", firstLastPattern]
-  . ["\\Crefrange*", firstLastPattern]
-  . ["\\cpagerefrange", firstLastPattern]
-  . ["\\cpagerefrange*", firstLastPattern]
-  . ["\\Cpagerefrange", firstLastPattern]
-  . ["\\Cpagerefrange*", firstLastPattern]
-  . ["\\verb", delimitedTextPattern]
-  . ["\\verb*", delimitedTextPattern]
-  . ["\\Verb", optionsVerbatimTextPattern]
-  . ["\\Verb*", optionsVerbatimTextPattern]
-  . ["\\EscVerb", optionsRawTextPattern]
-  . ["\\EscVerb*", optionsRawTextPattern]
-  . ["\\lstinline", optionsVerbatimTextPattern]
-  . ["\\mintinline", optionsLanguageCodePattern]
-  . ["\\mintinline*", optionsLanguageCodePattern]
-  . ["\\mint", optionsLanguageCodePattern]
-  . ["\\mint*", optionsLanguageCodePattern]
+  "\\alpha": noArguments
+  "\\beta": noArguments
+  "\\gamma": noArguments
+  "\\delta": noArguments
+  "\\epsilon": noArguments
+  "\\varepsilon": noArguments
+  "\\zeta": noArguments
+  "\\eta": noArguments
+  "\\theta": noArguments
+  "\\vartheta": noArguments
+  "\\iota": noArguments
+  "\\kappa": noArguments
+  "\\lambda": noArguments
+  "\\mu": noArguments
+  "\\nu": noArguments
+  "\\xi": noArguments
+  "\\pi": noArguments
+  "\\varpi": noArguments
+  "\\rho": noArguments
+  "\\varrho": noArguments
+  "\\sigma": noArguments
+  "\\varsigma": noArguments
+  "\\tau": noArguments
+  "\\upsilon": noArguments
+  "\\phi": noArguments
+  "\\varphi": noArguments
+  "\\chi": noArguments
+  "\\psi": noArguments
+  "\\omega": noArguments
+  "\\Gamma": noArguments
+  "\\Delta": noArguments
+  "\\Theta": noArguments
+  "\\Lambda": noArguments
+  "\\Xi": noArguments
+  "\\Pi": noArguments
+  "\\Sigma": noArguments
+  "\\Upsilon": noArguments
+  "\\Phi": noArguments
+  "\\Psi": noArguments
+  "\\Omega": noArguments
+  "\\phantom": inheritedContentPattern
+  "\\hphantom": inheritedContentPattern
+  "\\vphantom": inheritedContentPattern
+  "\\hyperlink": targetTextPattern
+  "\\hypertarget": targetTextPattern
+  "\\hyperbaseurl": bracedUrlPattern
+  "\\url": urlPattern
+  "\\nolinkurl": urlPattern
+  "\\path": pathPattern
+  "\\inputminted": optionsLanguageFilenamePattern
+  "\\import": directoryFilenamePattern
+  "\\subimport": directoryFilenamePattern
+  "\\inputfrom": directoryFilenamePattern
+  "\\subinputfrom": directoryFilenamePattern
+  "\\includefrom": directoryFilenamePattern
+  "\\subincludefrom": directoryFilenamePattern
+  "\\crefrange": firstLastPattern
+  "\\crefrange*": firstLastPattern
+  "\\Crefrange": firstLastPattern
+  "\\Crefrange*": firstLastPattern
+  "\\cpagerefrange": firstLastPattern
+  "\\cpagerefrange*": firstLastPattern
+  "\\Cpagerefrange": firstLastPattern
+  "\\Cpagerefrange*": firstLastPattern
+  "\\verb": delimitedTextPattern
+  "\\verb*": delimitedTextPattern
+  "\\Verb": optionsVerbatimTextPattern
+  "\\Verb*": optionsVerbatimTextPattern
+  "\\EscVerb": optionsRawTextPattern
+  "\\EscVerb*": optionsRawTextPattern
+  "\\lstinline": optionsVerbatimTextPattern
+  "\\mintinline": optionsLanguageCodePattern
+  "\\mintinline*": optionsLanguageCodePattern
+  "\\mint": optionsLanguageCodePattern
+  "\\mint*": optionsLanguageCodePattern
 
 /**
  * Built-in environments and the modes of their body.
  * An absent or `inherit` value preserves the surrounding text or math mode.
  */
-export builtinEnvironmentModes := new Map<string, ArgumentMode>
-  . ["math", "math"]
-  . ["displaymath", "math"]
-  . ["equation", "math"]
-  . ["equation*", "math"]
-  . ["alignat", "math"]
-  . ["alignat*", "math"]
-  . ["align", "math"]
-  . ["align*", "math"]
-  . ["gather", "math"]
-  . ["gather*", "math"]
-  . ["multline", "math"]
-  . ["multline*", "math"]
-  . ["flalign", "math"]
-  . ["flalign*", "math"]
-  . ["eqnarray", "math"]
-  . ["eqnarray*", "math"]
-  . ["verbatim", "verbatim"]
-  . ["verbatim*", "verbatim"]
-  . ["comment", "verbatim"]
-  . ["python", "verbatim"]
-  . ["Verbatim", "verbatim"]
-  . ["Verbatim*", "verbatim"]
-  . ["BVerbatim", "verbatim"]
-  . ["BVerbatim*", "verbatim"]
-  . ["LVerbatim", "verbatim"]
-  . ["LVerbatim*", "verbatim"]
-  . ["SaveVerbatim", "verbatim"]
-  . ["SaveVerbatim*", "verbatim"]
-  . ["VerbatimOut", "verbatim"]
-  . ["VerbatimOut*", "verbatim"]
-  . ["lstlisting", "verbatim"]
-  . ["minted", "verbatim"]
-  . ["filecontents", "verbatim"]
-  . ["filecontents*", "verbatim"]
+export builtinEnvironmentModes := new Map<string, ArgumentMode> Object.entries
+  "math": "math"
+  "displaymath": "math"
+  "equation": "math"
+  "equation*": "math"
+  "alignat": "math"
+  "alignat*": "math"
+  "align": "math"
+  "align*": "math"
+  "gather": "math"
+  "gather*": "math"
+  "multline": "math"
+  "multline*": "math"
+  "flalign": "math"
+  "flalign*": "math"
+  "eqnarray": "math"
+  "eqnarray*": "math"
+  "verbatim": "verbatim"
+  "verbatim*": "verbatim"
+  "comment": "verbatim"
+  "python": "verbatim"
+  "Verbatim": "verbatim"
+  "Verbatim*": "verbatim"
+  "BVerbatim": "verbatim"
+  "BVerbatim*": "verbatim"
+  "LVerbatim": "verbatim"
+  "LVerbatim*": "verbatim"
+  "SaveVerbatim": "verbatim"
+  "SaveVerbatim*": "verbatim"
+  "VerbatimOut": "verbatim"
+  "VerbatimOut*": "verbatim"
+  "lstlisting": "verbatim"
+  "minted": "verbatim"
+  "filecontents": "verbatim"
+  "filecontents*": "verbatim"
+
+/** Core (`""`) and package-specific built-in declarations. */
+export builtinPackageDeclarations := new Map<string, PackageDeclarations> Object.entries
+  "": // built-in core LaTeX
+    commands: builtinCommandPatterns
+    environments: builtinEnvironmentModes
+    preamble: ""
+  "texlish:defn": // \defn as needed by default *** style
+    preamble: "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
+  ulem:
+    commands: new Map Object.entries
+      "\\uline": textPattern
+      "\\sout": textPattern
+    autoimportOptions: "normalem"
+  amssymb:
+    commands: new Map Object.entries
+      "\\square": noArguments
+      "\\boxtimes": noArguments
+
+/** Preamble support automatically added for used commands and environments. */
+export builtinAutoimports: Autoimports =
+  commands: new Map<string, string> Object.entries
+    "\\defn": "texlish:defn"
+    "\\sout": "ulem"
+    "\\square": "amssymb"
+    "\\boxtimes": "amssymb"
+  environments: new Map
+
+/** Active package declarations with cached command/environment lookup. */
+export class Declarations
+  loadedPackages: PackageDeclarations[]
+  loadedPackageNames: Set<string>
+  commandCache: Map<string, CommandPattern?> = new Map
+  environmentCache: Map<string, ArgumentMode?> = new Map
+
+  constructor(
+    @packages: Map<string, PackageDeclarations> = builtinPackageDeclarations
+    @autoimports: Autoimports = builtinAutoimports
+  )
+    @loadedPackages = []
+    @loadedPackageNames = new Set
+    @loadPackage ""
+
+  /** Activate a known package, with later packages taking precedence. */
+  loadPackage(name: string): PackageDeclarations?
+    return unless declarations := @packages.get name
+    unless @loadedPackageNames.has name
+      @loadedPackageNames.add name
+      @loadedPackages.push declarations
+      @commandCache.clear()
+      @environmentCache.clear()
+    declarations
+
+  /** Find a command, autoimporting its package when necessary. */
+  getCommand(name: string): CommandPattern?
+    // `has` distinguishes a cached miss (`undefined`) from no cache entry.
+    return @commandCache.get name if @commandCache.has name
+    pattern .= @findCommand name
+    unless pattern?
+      if packageName? := @autoimports.commands?.get name
+        if declarations := @loadPackage packageName
+          pattern = declarations.commands?.get name
+    @commandCache.set name, return = pattern
+
+  /** Find an environment among the currently loaded declarations. */
+  getEnvironment(name: string): ArgumentMode?
+    // `has` distinguishes a cached miss (`undefined`) from no cache entry.
+    return @environmentCache.get name if @environmentCache.has name
+    mode .= @findEnvironment name
+    unless mode?
+      if packageName? := @autoimports.environments?.get name
+        if declarations := @loadPackage packageName
+          mode = declarations.environments?.get name
+    @environmentCache.set name, return = mode
+
+  hasCommand(name: string): boolean
+    @getCommand(name)?
+
+  hasEnvironment(name: string): boolean
+    @getEnvironment(name)?
+
+  findCommand(name: string): CommandPattern?
+    for first i of [@loadedPackages#>..0]
+      continue unless pattern := @loadedPackages[i].commands?.get name
+      pattern
+
+  findEnvironment(name: string): ArgumentMode?
+    for first i of [@loadedPackages#>..0]
+      continue unless mode := @loadedPackages[i].environments?.get name
+      mode
