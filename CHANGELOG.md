@@ -35,9 +35,15 @@
   so `x_\frac{a}{b}` works without explicit braces around `\frac{a}{b}`.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
 * `::tex` blocks no longer interrupt automatic preamble detection.
-* CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
 * Consumed footnote definitions no longer interrupt automatic preamble detection.
   [[#35](https://github.com/edemaine/texlish/issues/35)]
+* `%` comments now supported within `::use`, `::config`, and `::styles`.
+* `%` comments within `\begin`/`\end` arguments no longer confuse Texlish.
+* Smart quotes work better around commands, references, citations,
+  images, and inline code.
+* AST refactor in particular represents declared command calls, making it
+  easier to detect used and defined commands and environments.
+* CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
 
 ## 0.2.0
 
