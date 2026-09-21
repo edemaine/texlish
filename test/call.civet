@@ -1,0 +1,182 @@
+{ compile, generate } from ../src/main.civet
+type { AST, Call } from ../src/types.civet
+{ find, iterate, withNodeReplaced, modifyEnd, removeLeadingIndent } from ../src/util.civet
+assert from assert
+
+function findCall(ast: AST, token: string): Call?
+  find ast, (node): node is Call =>
+    node is like { type: "Call", command: { ^token } }
+
+function compileCall(source: string, token: string): Call
+  ast := compile source, ast: true, fragment: true
+  call := findCall ast, token
+  assert call, `Missing ${token} Call node`
+  call
+
+function assertAliases(ast: AST): void
+  for node of iterate ast
+    if node is like { type: "Call" }
+      assert.strictEqual node.command, node.children[0]
+      assert.strictEqual node.args, node.children[1]
+    else if node is like { type: "Argument" }
+      assert [...iterate(node.children)].includes node.body
+
+describe 'declared command call AST', ->
+  it 'preserves backslash-delimited verbatim arguments', ->
+    for each token of ['\\url', '\\path', '\\verb']
+      source := `${token}\\foo*bar*\\`
+      call := compileCall source, token
+      assert.equal generate(call), source
+      assert.equal call.args[0].form, 'delimited'
+      assert.deepEqual call.args[0].body, { type: 'Verbatim', token: 'foo*bar*' }
+      assert.equal call.complete, true
+
+  it 'represents environment boundaries as calls with raw names', ->
+    for each token of ['\\begin', '\\end']
+      for each source of [`${token}{custom_name}`, `${token}: custom_name`]
+        call := compileCall source, token
+        assert.equal call.argsSpec[0].name, 'environment'
+        assert.equal generate(call.args[0].body), 'custom_name'
+        assert [...iterate(call.args[0].body)].some (node) => node is like { type: "Raw" }
+        assert not ('env' in call.command)
+        assertAliases call
+
+  it 'groups arguments and aliases their physical representation', ->
+    call := compileCall '\\includegraphics[width=.5]{figure}', '\\includegraphics'
+
+    assert.equal call.package, ""
+    assert.equal call.complete, true
+    assert.deepEqual call.argsSpec.map(.name),
+      [ "options", "filename" ]
+    assert.strictEqual call.command, call.children[0]
+    assert.strictEqual call.args, call.children[1]
+    assert.deepEqual call.args.map(.form),
+      [ "bracketed", "braced" ]
+    assert.deepEqual call.args.map(.specIndex), [ 0, 1 ]
+    for arg of call.args
+      physical := arg.children[1] as AST[]
+      assert.strictEqual arg.body, physical[1]
+
+  it 'records skipped optional arguments and incomplete calls', ->
+    complete := compileCall '\\includegraphics{figure}', '\\includegraphics'
+    assert.equal complete.complete, true
+    assert.equal complete.args#, 1
+    assert.equal complete.args[0].specIndex, 1
+
+    incomplete := compileCall '\\frac{a}', '\\frac'
+    assert.equal incomplete.complete, false
+    assert.equal incomplete.args#, 1
+    assert.equal incomplete.args[0].specIndex, 0
+
+  it 'accepts single control sequences as required arguments', ->
+    source := '\\frac\\alpha\\beta'
+    ast := compile source, ast: true, fragment: true
+    call := findCall ast, '\\frac'
+    assert call
+
+    assert.equal call.complete, true
+    assert.deepEqual call.args.map(.form),
+      [ "unbraced", "unbraced" ]
+    assert.deepEqual call.args.map(.body), [
+      { type: "Command", token: "\\alpha" }
+      { type: "Command", token: "\\beta" }
+    ]
+    assert.equal generate(ast), source
+
+  it 'represents primitive definitions as a declared prefix', ->
+    source := '\\def\\foo#1!{value}'
+    ast := compile source, ast: true, fragment: true
+    call := findCall ast, '\\def'
+    assert call
+
+    assert.equal call.complete, true
+    assert.equal call.argsSpec#, 1
+    assert.equal call.argsSpec[0].defines, "command"
+    assert.equal call.args[0].form, "unbraced"
+    assert.deepEqual call.args[0].body,
+      type: "Command"
+      token: "\\foo"
+    assert.equal generate(ast), source
+
+  it 'records declaration package provenance on the call', ->
+    call := compileCall '\\sout{removed}', '\\sout'
+    assert.equal call.package, "ulem"
+
+  it 'preserves aliases when moving comments out of nested colon calls', ->
+    for source of [
+      '\\emph: \\textbf: hi'
+      '\\textit: \\textbf: hi % comment'
+      '\\textit:\n  - \\textbf: hi'
+    ]
+      ast := compile source, ast: true, fragment: true
+      assertAliases ast
+      call := findCall ast, '\\textbf'
+      assert call
+      before := generate ast
+      call.args[0].children[0] = '['
+      assert.equal generate(ast), before.replace('\\textbf{', '\\textbf[')
+
+  it 'records colon, bullet, and final forms with skipped optional arguments', ->
+    for [source, token, forms, indices] of [
+      ['\\includegraphics: figure', '\\includegraphics', ['colon'], [1]]
+      ['\\includegraphics:\n  - figure', '\\includegraphics', ['bullet'], [1]]
+      ['\\includegraphics:\n  ~ width=.5\n  - figure', '\\includegraphics', ['bullet', 'bullet'], [0, 1]]
+      ['\\href:\n  - url\n  link', '\\href', ['bullet', 'final'], [1, 2]]
+    ] as const
+      call := compileCall source, token
+      assert.equal call.complete, true
+      assert.deepEqual call.args.map(.form), forms
+      assert.deepEqual call.args.map(.specIndex), indices
+      assertAliases call
+
+  it 'replaces argument bodies and updates aliases without modifying the source tree', ->
+    call := compileCall '\\textbf{hi}', '\\textbf'
+    body := call.args[0].body
+    replaced := withNodeReplaced body, ['bye'], call
+    assertAliases replaced
+    assert.equal generate(replaced), '\\textbf{bye}'
+    assert.equal generate(call), '\\textbf{hi}'
+    assert.throws (-> withNodeReplaced({ token: 'missing' }, [], call)), /node not found/
+
+  it 'updates argument and body aliases when modifying the end of a call', ->
+    call := compileCall '\\textbf\\alpha', '\\textbf'
+    modified := modifyEnd call, (node) =>
+      if node is like { type: 'Command', token: '\\alpha' }
+        { ...node, token: '\\beta' }
+      else
+        node
+    assertAliases modified
+    assert.equal generate(modified), '\\textbf\\beta'
+    assert.equal generate(call), '\\textbf\\alpha'
+
+  it 'replaces text without changing equal-valued metadata', ->
+    for each text of ['Argument', 'braced', 'Call']
+      call := compileCall `\\textbf{${text}}`, '\\textbf'
+      replaced := withNodeReplaced text, 'replacement', call
+      assertAliases replaced
+      assert.equal generate(replaced), '\\textbf{replacement}'
+      updated := findCall replaced, '\\textbf'
+      assert updated
+      assert.equal updated.args[0].type, 'Argument'
+      assert.equal updated.args[0].form, 'braced'
+      assert.equal generate(call), `\\textbf{${text}}`
+
+  it 'modifies trailing text without changing equal-valued metadata', ->
+    for each text of ['Argument', 'braced']
+      call := compileCall `\\textbf{${text}}`, '\\textbf'
+      // End the physical argument at its body so modifyEnd visits the text.
+      arg := { ...call.args[0], children: [call.args[0].body] }
+      modified := modifyEnd arg, (node) =>
+        if node is text then 'replacement' else node
+      assert modified is like { type: 'Argument', form: 'braced' }
+      assertAliases modified
+      assert.equal generate(modified), 'replacement'
+      assert.equal generate(arg), text
+
+  it 'updates aliases when removing leading indentation', ->
+    indent := { type: 'Indent', token: '  ', level: 2 } as const
+    parent := { children: [indent, 'body', indent], indent }
+    result := removeLeadingIndent parent
+    assert.strictEqual (result as typeof parent).indent, result.children[0]
+    assert.equal generate(result), 'body  '
+    assert.equal generate(parent), '  body  '

@@ -11,6 +11,9 @@ export type ArgumentMode = "text" | "math" | "raw" | "verbatim" | "inherit"
 /** An argument mode after resolving `inherit` against its surrounding mode. */
 export type ResolvedArgumentMode = Exclude<ArgumentMode, "inherit">
 
+/** Namespace in which an argument introduces a definition */
+export type DefinitionKind = "command" | "environment"
+
 /**
  * The LaTeX delimiter(s) surrounding a command argument:
  * - `optional` uses square brackets: `[argument]`
@@ -26,15 +29,19 @@ export type ArgumentDelimiter =
   | "delimited"
   | "required-or-delimited"
 
-/** A paired command argument, whose contents can use any parsing mode. */
-type PairedArgumentSpec
+/** Fields shared by all declared command arguments */
+interface ArgumentSpecBase
   name: string
+  /** The argument's value defines a symbol in this namespace. */
+  defines?: DefinitionKind
+
+/** A paired command argument, whose contents can use any parsing mode */
+interface PairedArgumentSpec extends ArgumentSpecBase
   delimiter: "optional" | "required"
   mode: ArgumentMode
 
 /** An arbitrary-delimiter argument, whose contents must stay verbatim. */
-type DelimitedArgumentSpec
-  name: string
+interface DelimitedArgumentSpec extends ArgumentSpecBase
   delimiter: "delimited" | "required-or-delimited"
   mode: "verbatim"
 
@@ -42,15 +49,14 @@ type DelimitedArgumentSpec
 export type ArgumentSpec = PairedArgumentSpec | DelimitedArgumentSpec
 
 /** Ordered argument specifications for a LaTeX command. */
-export type CommandPattern = ArgumentSpec[]
-
-/** A finite command pattern or mode repeated by generic colon arguments. */
-export type ArgumentPattern = CommandPattern | ResolvedArgumentMode
+export type ArgumentsPattern = ArgumentSpec[]
 
 /** Declarations and autoimport behavior for a package. */
 export interface PackageDeclarations
+  /** Package name; empty string identifies core declarations */
+  name: string
   /** Command declarations activated by loading this package. */
-  commands?: Map<string, CommandPattern>
+  commands?: Map<string, ArgumentsPattern>
   /** Environment declarations activated by loading this package. */
   environments?: Map<string, ArgumentMode>
   /** Default \usepackage options used when Texlish automatically loads this package. */
@@ -65,6 +71,11 @@ export interface Autoimports
   /** "environment" -> "packageName" */
   environments?: Map<string, string>
 
+/** The declaration and package selected by a command lookup */
+export interface CommandResolution
+  args: ArgumentsPattern
+  package: PackageDeclarations
+
 /**
  * Compact parse-cache key; argument names do not affect parsing.
  *
@@ -78,7 +89,9 @@ export interface Autoimports
  * Codes must remain unique within each position; the same character can be
  * used in both positions, as `r` is for required delimiters and raw mode.
  */
-export function argumentPatternKey(pattern: ArgumentPattern): string
+export function argumentPatternKey(
+  pattern: ArgumentsPattern | ResolvedArgumentMode
+): string
   return "*" + pattern[0] if pattern <? "string"
   for join each {delimiter, mode} of pattern
     if delimiter is "required-or-delimited"
@@ -100,77 +113,139 @@ mathRequired := { delimiter: "required", mode: "math" } as const
 inheritRequired := { delimiter: "required", mode: "inherit" } as const
 
 // Shared patterns group commands with the same syntax and argument meanings.
-noArguments: CommandPattern := []
-filenamePattern: CommandPattern :=
+noArguments: ArgumentsPattern := []
+environmentPattern: ArgumentsPattern :=
+  . { name: "environment", ...rawRequired }
+filenamePattern: ArgumentsPattern :=
   . { name: "filename", ...rawRequired }
-filenamesPattern: CommandPattern :=
+filenamesPattern: ArgumentsPattern :=
   . { name: "filenames", ...rawRequired }
-stylePattern: CommandPattern :=
+stylePattern: ArgumentsPattern :=
   . { name: "style", ...rawRequired }
-directoriesPattern: CommandPattern :=
+directoriesPattern: ArgumentsPattern :=
   . { name: "directories", ...rawRequired }
-labelPattern: CommandPattern :=
+labelPattern: ArgumentsPattern :=
   . { name: "label", ...rawRequired }
-keysPattern: CommandPattern :=
+keysPattern: ArgumentsPattern :=
   . { name: "keys", ...rawRequired }
-textPattern: CommandPattern :=
+textPattern: ArgumentsPattern :=
   . { name: "text", ...textRequired }
-numeratorDenominatorPattern: CommandPattern :=
+numeratorDenominatorPattern: ArgumentsPattern :=
   . { name: "numerator", ...mathRequired }
   . { name: "denominator", ...mathRequired }
-inheritedContentPattern: CommandPattern :=
+inheritedContentPattern: ArgumentsPattern :=
   . { name: "content", ...inheritRequired }
-optionsFilenamePattern: CommandPattern :=
+optionsFilenamePattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "filename", ...rawRequired }
-prenotePostnoteKeysPattern: CommandPattern :=
+prenotePostnoteKeysPattern: ArgumentsPattern :=
   . { name: "prenote", ...textOptional }
   . { name: "postnote", ...textOptional }
   . { name: "keys", ...rawRequired }
-optionsUrlTextPattern: CommandPattern :=
+optionsUrlTextPattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "url", ...verbatimRequired }
   . { name: "text", ...textRequired }
-urlTextPattern: CommandPattern :=
+urlTextPattern: ArgumentsPattern :=
   . { name: "url", ...verbatimRequired }
   . { name: "text", ...textRequired }
-labelTextPattern: CommandPattern :=
+labelTextPattern: ArgumentsPattern :=
   . { name: "label", ...rawOptional }
   . { name: "text", ...textRequired }
-targetTextPattern: CommandPattern :=
+targetTextPattern: ArgumentsPattern :=
   . { name: "target", ...rawRequired }
   . { name: "text", ...textRequired }
-urlPattern: CommandPattern :=
+urlPattern: ArgumentsPattern :=
   . { name: "url", ...verbatimRequiredOrDelimited }
-pathPattern: CommandPattern :=
+pathPattern: ArgumentsPattern :=
   . { name: "path", ...verbatimRequiredOrDelimited }
-bracedUrlPattern: CommandPattern :=
+bracedUrlPattern: ArgumentsPattern :=
   . { name: "url", ...verbatimRequired }
-optionsLanguageFilenamePattern: CommandPattern :=
+optionsLanguageFilenamePattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "language", ...rawRequired }
   . { name: "filename", ...rawRequired }
-directoryFilenamePattern: CommandPattern :=
+directoryFilenamePattern: ArgumentsPattern :=
   . { name: "directory", ...rawRequired }
   . { name: "filename", ...rawRequired }
-firstLastPattern: CommandPattern :=
+firstLastPattern: ArgumentsPattern :=
   . { name: "first", ...rawRequired }
   . { name: "last", ...rawRequired }
-delimitedTextPattern: CommandPattern :=
+delimitedTextPattern: ArgumentsPattern :=
   . { name: "text", ...verbatimDelimited }
-optionsVerbatimTextPattern: CommandPattern :=
+optionsVerbatimTextPattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "text", ...verbatimRequiredOrDelimited }
-optionsRawTextPattern: CommandPattern :=
+optionsRawTextPattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "text", ...rawRequired }
-optionsLanguageCodePattern: CommandPattern :=
+optionsLanguageCodePattern: ArgumentsPattern :=
   . { name: "options", ...rawOptional }
   . { name: "language", ...rawRequired }
   . { name: "code", ...verbatimRequiredOrDelimited }
+packagesPattern: ArgumentsPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "packages", ...rawRequired }
+commandDefinitionPattern: ArgumentsPattern :=
+  . { name: "command", ...rawRequired, defines: "command" }
+latexCommandDefinitionPattern: ArgumentsPattern :=
+  . { name: "command", ...rawRequired, defines: "command" }
+  . { name: "arguments", ...rawOptional }
+  . { name: "default", ...textOptional }
+  . { name: "definition", ...textRequired }
+latexEnvironmentDefinitionPattern: ArgumentsPattern :=
+  . { name: "environment", ...rawRequired, defines: "environment" }
+  . { name: "arguments", ...rawOptional }
+  . { name: "default", ...textOptional }
+  . { name: "begin", ...textRequired }
+  . { name: "end", ...textRequired }
+documentCommandDefinitionPattern: ArgumentsPattern :=
+  . { name: "command", ...rawRequired, defines: "command" }
+  . { name: "arguments", ...rawRequired }
+  . { name: "definition", ...textRequired }
+documentEnvironmentDefinitionPattern: ArgumentsPattern :=
+  . { name: "environment", ...rawRequired, defines: "environment" }
+  . { name: "arguments", ...rawRequired }
+  . { name: "begin", ...textRequired }
+  . { name: "end", ...textRequired }
+theoremDefinitionPattern: ArgumentsPattern :=
+  . { name: "environment", ...rawRequired, defines: "environment" }
+  . { name: "counter", ...rawOptional }
+  . { name: "caption", ...textRequired }
+  . { name: "within", ...rawOptional }
 
 /** Built-in command declarations. */
-export builtinCommandPatterns := new Map<string, CommandPattern> Object.entries
+export builtinCommandPatterns := new Map<string, ArgumentsPattern> Object.entries
+  "\\begin": environmentPattern
+  "\\end": environmentPattern
+  "\\usepackage": packagesPattern
+  "\\RequirePackage": packagesPattern
+  "\\def": commandDefinitionPattern
+  "\\gdef": commandDefinitionPattern
+  "\\edef": commandDefinitionPattern
+  "\\xdef": commandDefinitionPattern
+  "\\newcommand": latexCommandDefinitionPattern
+  "\\newcommand*": latexCommandDefinitionPattern
+  "\\renewcommand": latexCommandDefinitionPattern
+  "\\renewcommand*": latexCommandDefinitionPattern
+  "\\providecommand": latexCommandDefinitionPattern
+  "\\providecommand*": latexCommandDefinitionPattern
+  "\\newenvironment": latexEnvironmentDefinitionPattern
+  "\\newenvironment*": latexEnvironmentDefinitionPattern
+  "\\renewenvironment": latexEnvironmentDefinitionPattern
+  "\\renewenvironment*": latexEnvironmentDefinitionPattern
+  "\\provideenvironment": latexEnvironmentDefinitionPattern
+  "\\provideenvironment*": latexEnvironmentDefinitionPattern
+  "\\NewDocumentCommand": documentCommandDefinitionPattern
+  "\\RenewDocumentCommand": documentCommandDefinitionPattern
+  "\\ProvideDocumentCommand": documentCommandDefinitionPattern
+  "\\DeclareDocumentCommand": documentCommandDefinitionPattern
+  "\\NewDocumentEnvironment": documentEnvironmentDefinitionPattern
+  "\\RenewDocumentEnvironment": documentEnvironmentDefinitionPattern
+  "\\ProvideDocumentEnvironment": documentEnvironmentDefinitionPattern
+  "\\DeclareDocumentEnvironment": documentEnvironmentDefinitionPattern
+  "\\newtheorem": theoremDefinitionPattern
+  "\\newtheorem*": theoremDefinitionPattern
   "\\include": filenamePattern
   "\\input": filenamePattern
   "\\verbatiminput": filenamePattern
@@ -381,22 +456,27 @@ export builtinEnvironmentModes := new Map<string, ArgumentMode> Object.entries
   "filecontents*": "verbatim"
 
 /** Core (`""`) and package-specific built-in declarations. */
-export builtinPackageDeclarations := new Map<string, PackageDeclarations> Object.entries
-  "": // built-in core LaTeX
+builtinPackageDeclarations: PackageDeclarations[] :=
+  . name: "" // built-in core LaTeX
     commands: builtinCommandPatterns
     environments: builtinEnvironmentModes
     preamble: ""
-  "texlish:defn": // \defn as needed by default *** style
+  . name: "texlish:defn" // \defn as needed by default *** style
     preamble: "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
-  ulem:
+  . name: "ulem"
     commands: new Map Object.entries
       "\\uline": textPattern
       "\\sout": textPattern
     autoimportOptions: "normalem"
-  amssymb:
+  . name: "amssymb"
     commands: new Map Object.entries
       "\\square": noArguments
       "\\boxtimes": noArguments
+
+/** Built-in package declarations indexed by name */
+export builtinPackages := new Map<string, PackageDeclarations>
+for declarations of builtinPackageDeclarations
+  builtinPackages.set declarations.name, declarations
 
 /** Preamble support automatically added for used commands and environments. */
 export builtinAutoimports: Autoimports =
@@ -411,11 +491,11 @@ export builtinAutoimports: Autoimports =
 export class Declarations
   loadedPackages: PackageDeclarations[]
   loadedPackageNames: Set<string>
-  commandCache: Map<string, CommandPattern?> = new Map
+  commandCache: Map<string, CommandResolution?> = new Map
   environmentCache: Map<string, ArgumentMode?> = new Map
 
   constructor(
-    @packages: Map<string, PackageDeclarations> = builtinPackageDeclarations
+    @packages: Map<string, PackageDeclarations> = builtinPackages
     @autoimports: Autoimports = builtinAutoimports
   )
     @loadedPackages = []
@@ -433,15 +513,16 @@ export class Declarations
     declarations
 
   /** Find a command, autoimporting its package when necessary. */
-  getCommand(name: string): CommandPattern?
+  getCommand(name: string): CommandResolution?
     // `has` distinguishes a cached miss (`undefined`) from no cache entry.
     return @commandCache.get name if @commandCache.has name
-    pattern .= @findCommand name
-    unless pattern?
+    resolution .= @findCommand name
+    unless resolution?
       if packageName? := @autoimports.commands?.get name
         if declarations := @loadPackage packageName
-          pattern = declarations.commands?.get name
-    @commandCache.set name, return = pattern
+          if args := declarations.commands?.get name
+            resolution = { args, package: declarations }
+    @commandCache.set name, return = resolution
 
   /** Find an environment among the currently loaded declarations. */
   getEnvironment(name: string): ArgumentMode?
@@ -460,10 +541,11 @@ export class Declarations
   hasEnvironment(name: string): boolean
     @getEnvironment(name)?
 
-  findCommand(name: string): CommandPattern?
+  findCommand(name: string): CommandResolution?
     for first i of [@loadedPackages#>..0]
-      continue unless pattern := @loadedPackages[i].commands?.get name
-      pattern
+      declarations := @loadedPackages[i]
+      continue unless args := declarations.commands?.get name
+      { args, package: declarations }
 
   findEnvironment(name: string): ArgumentMode?
     for first i of [@loadedPackages#>..0]

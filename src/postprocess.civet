@@ -1,4 +1,5 @@
 type {
+  Argument,
   AST,
   CompilerOptions,
   Delimiter,
@@ -7,6 +8,7 @@ type {
   SmartQuote,
 } from ./types.civet
 {
+  getEndString,
   isNumeric,
   iterate,
   iteratePrePost,
@@ -22,7 +24,6 @@ export function process(root: AST[], options: CompilerOptions): AST
   processSmartQuotes root
   processMarkdown root
   processFootnotes root
-  processBeginEnd root
   processDocument root unless options.fragment
   root
 
@@ -61,7 +62,7 @@ function processSmartQuotes(root: AST[]): void
         // Separate adjacent source quotes so TeX cannot combine their
         // rewritten fragments into a different quote ligature. For example,
         // `'"` would otherwise produce `'''`, which TeX reads as {''}{'}.
-        if (previous is '"' or previous is "'") and previousNode is not like { token: /\{\}$/ }
+        if (previous is like '"', "'") and previousNode is not like { token: /\{\}$/ }
           output = "{}" + output
         node.token = output
 
@@ -138,7 +139,7 @@ function nodeText(node: AST): string
     node.replace /\0/g, ""
   else if { type: "SmartQuote", quote } := node
     quote
-  else if node is like { type: "Braced" }
+  else if node is like { type: "Braced" }, { type: "Call" }, { type: "Argument" }, { type: "Ref" }, { type: "Citation" }, { type: "Image" }, { type: "CodeSpan" }
     "{}"
   else if { token } := node
     // Delimiter can have both token and children
@@ -281,102 +282,81 @@ function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
 
 /**
- * Collect TeX commands directly or structurally emitted by an AST.
+ * Collect TeX commands and LaTeX environments emitted by an AST.
  * Its lexical scans can produce false positives inside constructs like `\verb`
  * where verbatim TeX is not modeled.
  */
-function usedCommands(root: AST): Set<string>
+function usedNames(root: AST): {commands: Set<string>, environments: Set<string>}
   commands := new Set<string>
+  environments := new Set<string>
 
-  function addTextCommands(text: string): void
+  function addTextNames(text: string): void
     for match of text.matchAll /\\(?:[a-zA-Z@]+|[^\r\n])/g
       commands.add match[0]
+    for match of text.matchAll /\\begin\s*\{([^{}\r\n]+)\}/g
+      environments.add match[1]
 
   for node of iterate root
+    if { style } := node
+      addTextNames style if style <? "string"
+    if { env } := node
+      environments.add env if env <? "string"
     switch node
       { type: "Command", token }
         commands.add token
-      { type: "Checklist", style }
-        addTextCommands style
-      { type: "Delimiter", style }
-        addTextCommands style
+      { type: "Call", command: { token: "\\begin" }, args }
+        environments.add argumentText args[0] if args[0]?
       { type: "Tex" }
         for text of iterateTextRuns node
-          addTextCommands text
-  commands
+          addTextNames text
+  { commands, environments }
 
 /**
- * Collect LaTeX environments emitted by an AST.
- * The lexical scan can produce false positives inside constructs like `\verb`.
+ * Trimmed argument content with TeX comments removed and verbatim text preserved.
+ * Buffer adjacent TeX fragments so comments can consume their following newline.
  */
-function usedEnvironments(root: AST): Set<string>
-  environments := new Set<string>
+function argumentText(arg: Argument): string
+  text .= ""
+  tex .= ""
 
-  for node of iterate root
-    switch node
-      { type: "Environment", env }
-        environments.add env
-      { type: "Command", token: "\\begin", env }
-        environments.add env if env?
+  function flushTex(): void
+    // Match control sequences before comments so escaped percent signs survive.
+    text += tex.replace /\\(?:[a-zA-Z@]+|[^\r\n])|%[^\r\n]*(?:(?:\r\n?|\n)[ \t]*)?/g,
+      (token) => if token.startsWith "%" then "" else token
+    tex = ""
 
-  // This also finds environments emitted as configured block styles.
-  for text of iterateTextRuns root
-    for match of text.matchAll /\\begin\s*\{([^{}\r\n]+)\}/g
-      environments.add match[1]
-  environments
+  function visit(node: AST): void
+    return unless node?
+    if node <? "string"
+      tex += node
+    else if Array.isArray node
+      node.forEach visit
+    else if node is like { type: "Verbatim" }
+      flushTex()
+      text += node.token
+    else if "children" in node
+      node.children.forEach visit
+    else if "token" in node
+      tex += node.token
 
-/** Skip whitespace and an optional definition-command star. */
-function skipSpacesAndStar(parent: AST[], index: number): number
-  while parent[++index] is like /^\s*$/
-  if parent[index] is like "*", { type: "Delimiter", token: "*" }
-    while parent[++index] is like /^\s*$/
-  index
+  visit arg.body
+  flushTex()
+  text.trim()
 
-/** TeX commands visibly defined by standard definition commands in the AST. */
-function definedCommands(root: AST[]): Set<string>
+/** Symbols visibly defined by declared command arguments in the AST */
+function definedNames(root: AST[]): {commands: Set<string>, environments: Set<string>}
   commands := new Set<string>
-  for parent of iterateFlatArrays root
-    for each child, i of parent
-      continue unless child is like { type: "Command" }
-      continue unless child.token is like "\\newcommand", "\\renewcommand", "\\providecommand", "\\def"
-      next := parent[skipSpacesAndStar parent, i]
-      commands.add command for command of usedCommands next
-  commands
-
-/** LaTeX environments visibly defined by standard definition commands. */
-function definedEnvironments(root: AST[]): Set<string>
   environments := new Set<string>
-  definitionCommands := new Set [
-    "\\newenvironment"
-    "\\renewenvironment"
-    "\\provideenvironment"
-    "\\NewDocumentEnvironment"
-    "\\RenewDocumentEnvironment"
-    "\\ProvideDocumentEnvironment"
-    "\\DeclareDocumentEnvironment"
-    "\\newtheorem"
-  ]
-  for parent of iterateFlatArrays root
-    for each child, i of parent
-      continue unless child is like { type: "Command" }
-      continue unless definitionCommands.has child.token
-      continue unless argument := parent[skipSpacesAndStar parent, i]
-      continue unless argument is like { type: "Braced" }
-      {body} .= argument
-      body = body[0] while Array.isArray(body) and body# is 1
-      environments.add body.trim() if body <? "string"
-  environments
-
-/**
- * Skip one TeX optional argument from the specified index, if present,
- * returning the index after its first top-level `]`,
- * or the out-of-bounds index if it's never matched.
- */
-function skipOptionalArgument(parent: AST[], index: number): number
-  return index unless parent[index] is "["
-  while ++index < parent#
-    return index + 1 if parent[index] is "]"
-  index
+  for node of iterate root
+    continue unless node is like { type: "Call" }
+    for each arg of node.args
+      continue unless kind := node.argsSpec[arg.specIndex].defines
+      name := argumentText arg
+      if kind is "command"
+        commands.add name if /^\\(?:[a-zA-Z@]+|[^\r\n])$/.test name
+      else
+        environments.add name if name
+  { commands, environments }
 
 /** Packages structurally or textually loaded by the AST. */
 function usedPackages(root: AST[]): Set<string>
@@ -389,27 +369,18 @@ function usedPackages(root: AST[]): Set<string>
     for match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
       addPackageNames match[1]
 
-  for parent of iterateFlatArrays root
-    for each child, i of parent
-      continue unless child <? "object" and "type" in child
-      switch child.type
-        when "Use"
-          for each packageName of child.packages
-            packages.add packageName
-        when "Tex"
-          for text of iterateTextRuns child
-            addTextPackages text
-        when "Command"
-          continue unless child.token is like "\\usepackage", "\\RequirePackage"
-          argumentIndex .= i + 1
-          argumentIndex++ while parent[argumentIndex] is like /^\s*$/
-          argumentIndex = skipOptionalArgument parent, argumentIndex
-          argumentIndex++ while parent[argumentIndex] is like /^\s*$/
-          continue unless argument := parent[argumentIndex]
-          continue unless argument is like { type: "Braced" }
-          {body} .= argument
-          body = body[0] while Array.isArray(body) and body# is 1
-          addPackageNames body if body <? "string"
+  for node of iterate root
+    switch node
+      { type: "Use", packages: packageNames }
+        packages.add packageName for packageName of packageNames
+      { type: "Tex" }
+        for text of iterateTextRuns node
+          addTextPackages text
+      { type: "Call", command: { token }, argsSpec }
+        continue unless token is like "\\usepackage", "\\RequirePackage"
+        continue unless arg := node.args.find (arg) =>
+          argsSpec[arg.specIndex].name is "packages"
+        addPackageNames argumentText arg
   packages
 
 /** Add preamble support for used declarations not defined in this document. */
@@ -420,14 +391,14 @@ function autoimportDeclarations(
   declarations := getDeclarations()
   packages := usedPackages root
   required := new Set<string>
-  defined := definedCommands root
-  for command of usedCommands root
-    continue if defined.has command
+  defined := definedNames root
+  used := usedNames root
+  for command of used.commands
+    continue if defined.commands.has command
     if packageName? := declarations.autoimports.commands?.get command
       required.add packageName
-  definedEnvs := definedEnvironments root
-  for environment of usedEnvironments root
-    continue if definedEnvs.has environment
+  for environment of used.environments
+    continue if defined.environments.has environment
     if packageName? := declarations.autoimports.environments?.get environment
       required.add packageName
   for packageName of required
@@ -440,24 +411,6 @@ function autoimportDeclarations(
       options := packageDeclarations?.autoimportOptions
       optionArgument := if options? then `[${options}]` else ""
       preamble.push [`\\usepackage${optionArgument}{${packageName}}`]
-
-/** Attach environment names to \begin and \end commands */
-function processBeginEnd(root: AST[]): void
-  for parent of iterateFlatArrays root
-    for each child, let i of parent
-      if child is like { type: "Command" } and
-         child.token is like "\\begin", "\\end"
-        while parent[++i] is like /^\s*$/
-        next := parent[i]
-        switch next
-          <? "string"
-            if match := next.match /^\s*(.)/
-              child.env = match[1]
-          { type: "Braced" }
-            //@ts-ignore deep type recursion
-            body := next.body.flat Infinity
-            if body[0] <? "string"
-              child.env = body[0]
 
 /** Automatic `\begin{document}`, `\end{document}`, `\maketitle` */
 function processDocument(root: AST[]): void
@@ -480,13 +433,15 @@ function processDocument(root: AST[]): void
     for each child of parent
       if child is like { type: "Environment", env: "document" }
         document["\\begin"] = document["\\end"] = parent
-      else if child is like { type: "Command" }
-        switch child.token
+      else if child is like { type: "Command" }, { type: "Call" }
+        command := if child is like { type: "Call" } then child.command else child
+        switch command.token
           when "\\begin", "\\end"
-            if child.env is "document"
-              document[child.token] ?= parent
+            if child is like { type: "Call" } and child.args[0]? and
+               argumentText(child.args[0]) is "document"
+              document[command.token] ?= parent
           when "\\maketitle", "\\title", "\\documentclass"
-            document[child.token] ?= parent
+            document[command.token] ?= parent
       else if preambleDepth is 0 and liftsToPreamble child
         preamble.push parent
 
@@ -516,7 +471,9 @@ function processDocument(root: AST[]): void
         ^document["\\maketitle"]  // \begin{document} before \maketitle
           break :line
         [ { type: "Indent" }, { type: "Command" }, ... ],
+        [ { type: "Indent" }, { type: "Call" }, ... ],
         [ { type: "Indent" }, [ { type: "Command" }, ... ] ],
+        [ { type: "Indent" }, [ { type: "Call" }, ... ] ],
         [ { type: "Indent" }, { type: "Tex" } ]
         else
           break :line
@@ -530,6 +487,12 @@ function processDocument(root: AST[]): void
     copy :=
       for each line of preamble
         line[..], '\n'
+    // A source preamble line may lack a final newline. Separate it from the
+    // inserted preamble, which precedes the newline in the document opener.
+    beginIndex := root.indexOf document["\\begin"]
+    if beginIndex > 0
+      text := getEndString root[<beginIndex]
+      copy.unshift "\n" if text and not /[\r\n]$/.test text
     (document["\\begin"] as AST[]).splice 0, 0, ...copy
     for each line of preamble
       line.splice 0, line#, "\0"

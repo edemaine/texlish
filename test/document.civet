@@ -1,6 +1,28 @@
 { r, testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+assert from assert
 
 describe '\\begin/\\end{document}', ->
+  it 'recognizes environment names split by TeX comments', ->
+    source := '\\begin{doc% comment\nument}\nHello\n\\end{doc% comment\nument}'
+    result := compile source
+    assert result.includes source
+    assert not result.includes '\\begin{document}'
+    assert not result.includes '\\end{document}'
+
+  it 'treats calls with trailing content like command-led preamble lines', ->
+    result := compile '\\def\\custom#1{#1}\n\\textbf{Hello} world\nBody'
+    begin := result.indexOf '\\begin{document}'
+    assert result.indexOf('\\def\\custom#1{#1}') < begin
+    assert result.indexOf('\\textbf{Hello} world') < begin
+    assert result.indexOf('Body') > begin
+
+  it 'keeps package calls with trailing comments before the document body', ->
+    result := compile '\\usepackage{custom} % package\nHello'
+    begin := result.indexOf '\\begin{document}'
+    assert result.indexOf('\\usepackage{custom} % package') < begin
+    assert result.indexOf('Hello') > begin
+
   testCase r'''
     add around text
     ---

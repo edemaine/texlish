@@ -1,0 +1,55 @@
+{ compile, generate } from ../src/main.civet
+type { ASTNode } from ../src/types.civet
+{ find, iterate } from ../src/util.civet
+assert from assert
+
+function findNode(source: string, type: ASTNode["type"]): ASTNode
+  ast := compile source, ast: true, fragment: true
+  node := find ast, (node): node is ASTNode =>
+    node is like { ^type }
+  assert node, `Missing ${type} node`
+  node
+
+describe 'semantic shorthand AST', ->
+  it 'records reference targets and variants', ->
+    node := findNode '@^note', 'Ref'
+    assert node is like { type: "Ref" }
+    assert.equal node.variant, '@^'
+    assert.equal node.target, 'footnote:note'
+    assert.equal generate(node), `${node.style}{footnote:note}`
+
+  it 'records citation keys without normalizing emitted whitespace', ->
+    node := findNode '[[first, second]]', 'Citation'
+    assert node is like { type: "Citation" }
+    assert.deepEqual node.keys, ['first', 'second']
+    assert.equal generate(node), `${node.style}{first, second}`
+
+  it 'exposes image destinations and aliases parsed alternative text', ->
+    node := findNode '![*caption*](image.pdf)', 'Image'
+    assert node is like { type: "Image" }
+    assert.equal node.url, 'image.pdf'
+    assert [...iterate(node.children)].includes node.alt
+    assert.equal generate(node.alt), '\\emph{caption}'
+
+  it 'keeps inline code literal and aliases its normalized body', ->
+    node := findNode '` a%b `', 'CodeSpan'
+    assert node is like { type: "CodeSpan" }
+    assert.equal node.delimiter, '`'
+    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b' }
+    assert node.children.includes node.body
+    assert.equal generate(node), '\\verb`a%b`'
+
+  it 'distinguishes fenced code from ordinary environments', ->
+    node := findNode '```text\na%b\n```', 'CodeBlock'
+    assert node is like { type: "CodeBlock" }
+    assert.equal node.info, 'text'
+    assert.equal node.env, 'verbatim'
+    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b\n' }
+    assert node.children.includes node.body
+    assert.equal generate(node), '\\begin{verbatim}\na%b\n\\end{verbatim}'
+
+  it 'records horizontal-rule markers and selected styles', ->
+    node := findNode '- - -', 'HorizontalRule'
+    assert node is like { type: "HorizontalRule" }
+    assert.equal node.marker, '- - -'
+    assert.equal generate(node), node.style

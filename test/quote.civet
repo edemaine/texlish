@@ -1,6 +1,13 @@
 { testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+assert from assert
 
 describe 'Markdown smart quotes', ->
+  it 'pairs quotes around semantic inline nodes without changing their contents', ->
+    for source of ["@'label'", '[[key]]', '![alt](image.pdf)', '`a"b%literal`']
+      body := compile source, fragment: true
+      assert.equal compile(`"${source}"`, { fragment: true }), "``" + body + "''"
+
   testCase '''
     double quotes become TeX quotes
     ---
@@ -130,6 +137,14 @@ describe 'Markdown smart quotes', ->
     ---
     {"} and {'} and {``x''}
   """
+
+  testCase '''
+    quotes treat declared calls like braced groups
+    ---
+    "\\textbf{"inside"}"
+    ---
+    ``\\textbf{``inside''}''
+  '''
 
   testCase '''
     unmatched double quotes after digits stay literal

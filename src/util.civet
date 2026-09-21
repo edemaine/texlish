@@ -1,4 +1,4 @@
-type { AST, ASTParent, Comment, Indent } from ./types.civet
+type { AST, ASTObject, ASTParent, Comment, Indent } from ./types.civet
 
 /** Escape text for literal use in a regular-expression pattern. */
 export function escapeRegExp(text: string): string
@@ -118,30 +118,72 @@ export function getEnd(node: AST, match: (candidate: AST) => boolean): AST
     else if "children" in node
       getEnd node.children, match
 
+/** Final string or token at the end of a subtree, or an empty string if absent */
+export function getEndString(node: AST): string
+  end := getEnd node, (node) => node <? "string" or node is like { token }
+  if end <? "string"
+    end
+  else if { token } := end
+    token
+  else
+    ""
+
 /**
 Modify an "end" node (some step down the path of last nonempties)
 where the modify function returns something different.
 */
 export function modifyEnd(node: AST, modify: (candidate: AST) => AST): AST
-  mod := modify node
-  if mod is not node
-    mod
-  else
-    return node unless node <? "object"
-    if Array.isArray node
-      node = [ ...node ]
-      // Remove trailing undefined and empty string
-      while node# and isEmpty node.-1
-        node.pop()
-      node.-1 = modifyEnd node.-1, modify
-      node
-    else if "children" in node
-      {
-        ...node
-        children: modifyEnd(node.children, modify) as AST[]
-      }
-    else
-      node
+  replacements := new Map<ASTObject, AST>
+  function recurse(node: AST): AST
+    result .= modify node
+    if result is node and node <? "object"
+      if Array.isArray node
+        children := [ ...node ]
+        // Remove trailing undefined and empty string.
+        while children# and isEmpty children.-1
+          children.pop()
+        children.-1 = recurse children.-1 if children#
+        result = children
+      else if "children" in node
+        recurse node.children
+        result = withReplacements node, replacements
+    replacements.set node, result if node <? "object" and result is not node
+    result
+  recurse node
+
+/** Shallow copy with matching object references replaced */
+function withReplacements<T extends { children?: AST[] }>(node: T, replacements: ReadonlyMap<object, AST>): T
+  copy := { ...node }
+  for key, value in node
+    if value? <? "object" and replacements.has value
+      copy[key] = replacements.get(value) as T[typeof key]
+  copy
+
+/**
+ * Replace the first occurrence in a subtree, copying ancestors and aliases.
+ * Based on Civet's replaceNode, adapted to copy instead of mutate:
+ * https://github.com/DanielXMoore/Civet/blob/main/source/parser/util.civet
+ */
+export function withNodeReplaced(node: AST, newNode: AST, parent: AST): AST
+  replacements := new Map<ASTObject, AST>
+  found .= false
+  function recurse(current: AST): AST
+    return current if found
+    result .= current
+    if current is node
+      found = true
+      result = newNode
+    else if Array.isArray current
+      children := current.map recurse
+      result = children if children.some (child, i) => child is not current[i]
+    else if current <? "object" and "children" in current
+      children := recurse current.children
+      result = withReplacements current, replacements if children is not current.children
+    replacements.set current, result if current <? "object" and result is not current
+    result
+  result := recurse parent
+  throw new Error "withNodeReplaced: node not found in subtree" unless found
+  result
 
 /**
  * Return the leading emitted indent.
@@ -164,12 +206,8 @@ export function getLeadingIndent(node: AST): Indent
 export function removeLeadingIndent<T extends AST[]>(node: T): T
 export function removeLeadingIndent<T extends ASTParent>(node: T): T
 export function removeLeadingIndent(node: AST[] | ASTParent): AST[] | ASTParent
-  if Array.isArray node
-    unless node[0] is like { type: "Indent" }
-      throw new Error "Expected leading indent"
-    [ { ...node[0] as Indent, token: "" }, ...node[>=1] ]
-  else
-    { ...node, children: removeLeadingIndent node.children }
+  indent := getLeadingIndent node
+  withNodeReplaced(indent, { ...indent, token: "" }, node) as AST[] | ASTParent
 
 /** Trim end whitespace */
 export function trimEnd(node: AST[]): AST[]

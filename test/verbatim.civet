@@ -1,10 +1,41 @@
 { r, testCase } from ./helper.civet
 { compile } from ../src/main.civet
 { builtinEnvironmentModes } from ../src/declarations.civet
+{ iterate } from ../src/util.civet
 type { AST } from ../src/types.civet
 assert from assert
 
 describe 'verbatim LaTeX', ->
+  it 'records complete environments while preserving their body modes', ->
+    for each mode of ['raw', 'verbatim', 'text', 'math'] as const
+      builtinEnvironmentModes.set 'custombody', mode
+      try
+        source := '\\begin{custombody}x_12 *body*\\end{custombody}'
+        ast := compile source, ast: true, fragment: true
+        environments := [...iterate(ast)].filter (node) =>
+          node is like { type: "Environment", env: "custombody" }
+        assert.equal environments#, 1
+        if mode is like 'raw', 'verbatim'
+          assert.equal compile(source, fragment: true), source
+      finally
+        builtinEnvironmentModes.delete 'custombody'
+
+  it 'distinguishes raw and verbatim bodies across argument forms', ->
+    for [command, type] of [['includegraphics', 'Raw'], ['url', 'Verbatim']]
+      for input of [
+        `\\${command}{a%b\nc}`
+        `\\${command}: a%b\nc`
+        `\\${command}:\n  - a%b\n    c`
+        `\\${command}:\n  a%b\n  c`
+      ]
+        ast := compile input, ast: true, fragment: true
+        nodes := Array.from(iterate ast).filter (node) =>
+          node is like { type: "Raw" }, { type: "Verbatim" }
+        assert nodes# > 0, input
+        for node of nodes
+          assert node is like { type: "Raw" }, { type: "Verbatim" }
+          assert.equal node.type, type
+
   it 'environment declarations select body modes', ->
     builtinEnvironmentModes.set "rawbody", "raw"
     builtinEnvironmentModes.set "verbatimbody", "verbatim"
@@ -93,19 +124,19 @@ describe 'verbatim LaTeX', ->
       ast: true
       fragment: true
     verb := (ast[0] as AST[])[1]
-    assert.deepEqual verb, [
-      {
-        type: 'Command'
-        token: '\\verb'
-      }
-      [
-        ''
-        {
-          type: 'Verbatim'
-          token: '|\\usepackage{ulem} *raw*|'
-        }
-      ]
-    ]
+    assert verb is like {
+      type: "Call"
+      command: { token: "\\verb" }
+      args: [ { type: "Argument" } ]
+      complete: true
+    }
+    arg := verb.args[0]
+    assert.equal arg.form, "delimited"
+    assert.deepEqual arg.body,
+      type: "Verbatim"
+      token: "\\usepackage{ulem} *raw*"
+    assert.strictEqual verb.args, verb.children[1]
+    assert.strictEqual arg.body, arg.children[2]
 
     let result = await compile '\\verb|\\usepackage{ulem}| ~~used~~'
     assert.match result, /\n\\usepackage\[normalem\]\{ulem\}\n/
@@ -116,13 +147,25 @@ describe 'verbatim LaTeX', ->
     ast = await compile '\\href{https://example.com/a_*raw*}{*link*}',
       ast: true
       fragment: true
-    href := (ast[0] as AST[])[1] as AST[]
-    assert.deepEqual (href[1] as AST[])[1],
+    href := (ast[0] as AST[])[1]
+    assert href is like { type: "Call", command: { token: "\\href" } }
+    url := href.args.find (arg) =>
+      href.argsSpec[arg.specIndex].name is "url"
+    assert.deepEqual url?.body,
       type: 'Verbatim'
-      token: '{https://example.com/a_*raw*}'
+      token: 'https://example.com/a_*raw*'
 
     result = await compile '\\includegraphics{\\sout{not used}}'
     assert.doesNotMatch result, /\\usepackage\{ulem\}/
+
+    ast = await compile '\\includegraphics{image% } hidden by comment\n.png}',
+      ast: true
+      fragment: true
+    graphics := (ast[0] as AST[])[1]
+    assert graphics is like { type: "Call", command: { token: "\\includegraphics" } }
+    assert.deepEqual graphics.args[0].body,
+      type: "Raw"
+      token: "image% } hidden by comment\n.png"
 
   testCase r'''
     environments preserve Texlish syntax

@@ -8,16 +8,22 @@ export { parse, ParseError }
 { process } from ./postprocess.civet
 export { process }
 
-type { AST, CompilerOptions } from ./types.civet
-export type { AST, CompilerOptions }
+type {
+  Argument
+  ArgumentForm
+  AST
+  Call
+  CompilerOptions
+} from ./types.civet
+export type { Argument, ArgumentForm, AST, Call, CompilerOptions }
 
 StateCache from ./state-cache.civet
 type { CacheKey } from ./state-cache.civet
 { makeCompilerOptions } from ./config.civet
 export {
-  applyCompilerOption,
-  makeCompilerOptions,
-  parseConfigAssignment,
+  applyCompilerOption
+  makeCompilerOptions
+  parseConfigAssignment
 } from ./config.civet
 export { version } from ./version.civet
 

@@ -197,10 +197,10 @@ function parseString(key: string, value: ???): string
   value
 
 function isQuoteChar(value: string): value is QuoteChar
-  value is '"' or value is "'"
+  value is like '"', "'"
 
 function isQuoteRole(value: string): value is QuoteRole
-  value is "open" or value is "close"
+  value is like "open", "close"
 
 function parseQuoteOption(path: string[], value: ???): ParsedCompilerOption
   [, quote, role] := path

@@ -1,9 +1,119 @@
 { compile, generate, process } from ../src/main.civet
-{ Declarations, type PackageDeclarations } from ../src/declarations.civet
+{
+  builtinPackages,
+  builtinAutoimports,
+  Declarations,
+  type PackageDeclarations,
+} from ../src/declarations.civet
 { getDeclarations } from ../src/parser.hera
 assert from assert
 
+function compileWithEnvironmentAutoimport(source: string, styles: Record<string, string>, env: string): string
+  environments := builtinAutoimports.environments!
+  previous := environments.get env
+  packageName := "test-generated-style"
+  builtinPackages.set packageName, { name: packageName }
+  environments.set env, packageName
+  try
+    compile source, { styles }
+  finally
+    if previous?
+      environments.set env, previous
+    else
+      environments.delete env
+    builtinPackages.delete packageName
+
 describe 'declarations', ->
+  it 'finds generated environments through node and style metadata', ->
+    for [source, styles, env] of [
+      ['> quoted', { '>': 'customenv' }, 'customenv']
+      ['```\ncode\n```', { '```*': 'customenv' }, 'customenv']
+      ['- item', {}, 'itemize']
+      ['1. item', {}, 'enumerate']
+      ['*styled*', { '*': '\\begin{customenv}' }, 'customenv']
+      ['- [x] item', { '[x]': '\\begin{customenv}' }, 'customenv']
+      ['---', { '---': '\\begin{customenv}' }, 'customenv']
+      ['`code`', { '`': '\\begin{customenv}' }, 'customenv']
+      ['@label', { '@': '\\begin{customenv}' }, 'customenv']
+      ['[[citation]]', { '[[': '\\begin{customenv}' }, 'customenv']
+      ['![alt](image)', { '!': '\\begin{customenv}' }, 'customenv']
+      ['::tex \\begin{customenv}body\\end{customenv}', {}, 'customenv']
+    ] as const
+      result := compileWithEnvironmentAutoimport source, styles, env
+      assert.match result, /\\usepackage\{test-generated-style\}/, source
+
+  it 'does not discover environments inside literal code bodies', ->
+    for source of [
+      '`\\begin{customenv}`'
+      '```\n\\begin{customenv}\n```'
+    ]
+      result := compileWithEnvironmentAutoimport source, {}, 'customenv'
+      assert.doesNotMatch result, /\\usepackage\{test-generated-style\}/
+
+  it 'preserves literal percent signs in verbatim definition names', ->
+    packageDeclarations: PackageDeclarations :=
+      name: "literal-definitions"
+      commands: new Map Object.entries
+        "\\defineenvironment": [
+          {
+            name: "environment"
+            delimiter: "required"
+            mode: "verbatim"
+            defines: "environment"
+          }
+        ]
+    builtinPackages.set packageDeclarations.name, packageDeclarations
+    try
+      for input of [
+        '\\defineenvironment{custom%literal}'
+        '\\defineenvironment: custom%literal'
+        '\\defineenvironment:\n  - custom%literal'
+        '\\defineenvironment:\n  custom%literal'
+      ]
+        ast := compile `::use literal-definitions\n${input}`, ast: true, fragment: true
+        declarations := getDeclarations()
+        declarations.packages = new Map [['custom', { name: "custom" }]]
+        declarations.autoimports =
+          environments: new Map [['custom%literal', 'custom']]
+        ast.push { type: "Environment", env: "custom%literal", children: [] }
+        process ast, {}
+        assert.doesNotMatch generate(ast), /\\usepackage\{custom\}/
+    finally
+      builtinPackages.delete packageDeclarations.name
+
+  it 'recognizes command definitions containing comments without changing their source', ->
+    for newline of ['\n', '\r\n', '\r']
+      definition := `\\newcommand{\\sout% comment${newline}}[1]{#1}`
+      result := compile `${definition}${newline}Text \\sout{Hello}`
+      assert result.includes definition
+      assert.doesNotMatch result, /\\usepackage(?:\[[^\]]*\])?\{ulem\}/
+
+  it 'preserves escaped percent commands when extracting definition names', ->
+    ast := compile '\\newcommand{\\%}{percent}\nText \\%', ast: true, fragment: true
+    getDeclarations().autoimports =
+      commands: new Map [['\\%', 'custom']]
+    process ast, {}
+    assert.doesNotMatch generate(ast), /\\usepackage\{custom\}/
+
+  it 'recognizes environment names and package lists containing comments', ->
+    ast := compile '''
+      \\newenvironment{custom% comment
+      }{}{}
+      \\usepackage{ul% comment
+      em}
+      Text \\sout{Hello}
+      : custom
+        body
+    ''', ast: true, fragment: true
+    getDeclarations().autoimports = {
+      ...getDeclarations().autoimports
+      environments: new Map [['custom', 'custom-package']]
+    }
+    process ast, {}
+    result := generate ast
+    assert.doesNotMatch result, /\\usepackage\{custom-package\}/
+    assert.doesNotMatch result, /\\usepackage\[normalem\]\{ulem\}/
+
   it 'caches missing command and environment lookups', ->
     declarations := new Declarations
     findCommand := declarations.findCommand.bind declarations
@@ -27,6 +137,7 @@ describe 'declarations', ->
   it 'postprocess uses the current autoimport state', ->
     packages := new Map<string, PackageDeclarations> Object.entries
       custom:
+        name: "custom"
         autoimportOptions: "option"
     autoimports :=
       commands: new Map Object.entries
@@ -45,6 +156,7 @@ describe 'declarations', ->
     declarations := getDeclarations()
     declarations.packages = new Map Object.entries
       fallback:
+        name: "fallback"
         preamble: "\\providecommand\\fallback{provided}"
     declarations.autoimports =
       commands: new Map Object.entries
@@ -68,8 +180,10 @@ describe 'declarations', ->
   it 'autoimports environment declarations during lookup', ->
     packages := new Map<string, PackageDeclarations> Object.entries
       "":
+        name: ""
         preamble: ""
       custom:
+        name: "custom"
         environments: new Map Object.entries
           customenv: "verbatim"
     declarations := new Declarations packages,
@@ -80,18 +194,20 @@ describe 'declarations', ->
     assert declarations.loadedPackageNames.has "custom"
 
   it 'postprocess autoimports packages for used environments', ->
-    ast := compile ': customenv\n  body', ast: true, fragment: true
-    declarations := getDeclarations()
-    declarations.packages = new Map Object.entries
-      custom:
-        autoimportOptions: "option"
-    declarations.autoimports =
-      environments: new Map Object.entries
-        customenv: "custom"
+    for each source of [': customenv\n  body', '\\begin{custom% comment\nenv}body\\end{customenv}']
+      ast := compile source, ast: true, fragment: true
+      declarations := getDeclarations()
+      declarations.packages = new Map Object.entries
+        custom:
+          name: "custom"
+          autoimportOptions: "option"
+      declarations.autoimports =
+        environments: new Map Object.entries
+          customenv: "custom"
 
-    process ast, {}
+      process ast, {}
 
-    assert.match generate(ast), /\\usepackage\[option\]\{custom\}/
+      assert.match generate(ast), /\\usepackage\[option\]\{custom\}/
 
   it 'does not autoimport locally defined environments', ->
     ast := compile '''
@@ -104,7 +220,7 @@ describe 'declarations', ->
     ''', ast: true, fragment: true
     declarations := getDeclarations()
     declarations.packages = new Map Object.entries
-      custom: {}
+      custom: { name: "custom" }
     declarations.autoimports =
       environments: new Map Object.entries
         customenv: "custom"
@@ -113,3 +229,26 @@ describe 'declarations', ->
     process ast, {}
 
     assert.doesNotMatch generate(ast), /\\usepackage\{custom\}/
+
+  it 'uses metadata from custom definition-command declarations', ->
+    packageDeclarations: PackageDeclarations :=
+      name: "custom-definitions"
+      commands: new Map Object.entries
+        "\\definecommand": [
+          {
+            name: "command"
+            delimiter: "required"
+            mode: "raw"
+            defines: "command"
+          }
+        ]
+    builtinPackages.set packageDeclarations.name, packageDeclarations
+    try
+      result := compile '''
+        ::use custom-definitions
+        \\definecommand\\defn
+        That's ***important***.
+      '''
+      assert.doesNotMatch result, /\\providecommand\\defn/
+    finally
+      builtinPackages.delete packageDeclarations.name

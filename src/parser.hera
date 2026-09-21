@@ -3,10 +3,16 @@
 type {
   ActiveCompilerOptions,
   AST,
+  ASTObject,
   ASTParent,
+  Argument,
   BlockQuote,
   Braced,
+  Call,
   Checklist,
+  Citation,
+  CodeBlock,
+  CodeSpan,
   Comment,
   ConfigEntry,
   Command,
@@ -16,10 +22,12 @@ type {
   FootnoteDefinition,
   FootnoteRef,
   Heading,
+  Image,
   Indent,
   List,
   Preamble,
   QuoteChar,
+  Ref,
   SmartQuote,
   Tex,
   Use,
@@ -33,8 +41,8 @@ type {
 {
   type ArgumentDelimiter
   type ArgumentMode
-  type ArgumentPattern
   type ArgumentSpec
+  type ArgumentsPattern
   type ResolvedArgumentMode
   Declarations
   argumentPatternKey
@@ -72,7 +80,18 @@ type ParserState
   /** Active declared command and environment declarations. */
   declarations: Declarations
   /** Stack of finite command patterns or repeated generic colon-argument modes. */
-  argumentPatterns: ArgumentPattern[]
+  argumentPatterns: ActiveArgumentPattern[]
+
+/**
+ * A finite declared command pattern or a repeating generic argument mode.
+ * Mode strings allow unlimited colon arguments for undeclared commands and
+ * environments; unlike command patterns, they do not advance an argument index.
+ */
+type ActiveArgumentPattern = ActiveCommandPattern | ResolvedArgumentMode
+
+type ActiveCommandPattern
+  args: ArgumentsPattern
+  index: number
 
 initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
@@ -102,7 +121,11 @@ export function getDeclarations(): Declarations
 export function getStateKey(): string
   state.currentIndent.level +
   for join each pattern of state.argumentPatterns
-    "/" + argumentPatternKey pattern
+    "/" + argumentPatternKey
+      if pattern <? "string"
+        pattern
+      else
+        pattern.args[>=pattern.index]
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
@@ -240,22 +263,29 @@ TextOnlyPart ::AST
   # Skip to next interesting text-mode character.
   /[^\r\n'"\\()\[\]{}%][^\r\n!'"@#<`\\()\[\]{}%$*~]*/
 
-RefShorthand ::AST
+RefShorthand ::Ref
   # @'long ref'
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)('[^']*'|"[^"]*"|\{[^{}]*\})/ ->
     label := $2[<..<]
     prefix := labelPrefix $1, label
     return $skip unless prefix?
-    return `${state.compilerOptions.styles[$1]}{${prefix}${label}}`
+    style := state.compilerOptions.styles[$1]
+    target := prefix + label
+    return { type: "Ref", style, variant: $1, target, children: [style, "{", target, "}"] }
   # @ref without spaces and without grabbing trailing punctuation
   /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^()\[\]\s'"{}=~][^()\[\]\s{}~]*)(?<!\p{Punctuation})/ ->
     prefix := labelPrefix $1, $2
     return $skip unless prefix?
-    return `${state.compilerOptions.styles[$1]}{${prefix}${$2}}`
+    style := state.compilerOptions.styles[$1]
+    target := prefix + $2
+    return { type: "Ref", style, variant: $1, target, children: [style, "{", target, "}"] }
 
-CiteShorthand ::AST
+CiteShorthand ::Citation
   /\[\[(.*?)\]\]/ ->
-    return `${state.compilerOptions.styles['[[']}{${$1}}`
+    style := state.compilerOptions.styles['[[']
+    content: string := $1
+    keys := content.split(',').map .trim()
+    return { type: "Citation", style, keys, children: [style, "{", content, "}"] }
 
 ```
 // These predicates run just after capture group 1, the delimiter run.
@@ -321,19 +351,9 @@ TextOrMathPart ::AST
   BeginEndMathEnvironment
   BeginEndTextEnvironment
   Comment
-  $Verbatim -> verbatim $1
-
-```
-function verbatim(token: string): Verbatim
-  { type: "Verbatim", token }
-```
-
-# LaTeX constructs whose contents must not be interpreted as Texlish.
-Verbatim
   VerbatimEnvironment
   RawEnvironment
-  $Csname
-  $CharCommand
+  $( Csname / CharCommand ):token -> { type: "Raw", token }
 
 Csname ::AST[]
   /\\csname(?![a-zA-Z@])/ CsnamePart* /\\endcsname(?![a-zA-Z@])/
@@ -414,17 +434,15 @@ MathOnlyPart ::AST
     return [ script[0], '{', body[1], '}' ]
 
 ScriptCommand ::AST[]
-  [\^_]:script PushMathCommandPattern:command CommandArgument*:args CompleteCommandPattern?:complete PopCommandPattern ->
-    return $skip unless complete?
-    [ script[0], "{", command, args, "}" ]
+  [\^_]:script PushMathCommandPattern:head CommandArgument*:args CommandPatternComplete:complete PopCommandPattern ->
+    return $skip unless complete
+    [ script[0], "{", buildCall(head, { args, complete }), "}" ]
 
-CompleteCommandPattern ::boolean
+CommandPatternComplete ::boolean
   "" ->
     pattern := state.argumentPatterns.-1
-    return $skip unless Array.isArray pattern
-    return $skip unless pattern.every (argument) =>
-      argument.delimiter is "optional"
-    true
+    return false if pattern <? "string"
+    pattern.args[>=pattern.index].every .delimiter is "optional"
 
 MathParenthesizedText ::AST[]
   "(" MathParenContent ")"
@@ -589,12 +607,17 @@ BracketTextPart ::AST
   # Keep brackets balanced
   BracketedText
 
-MarkdownImage ::AST
+MarkdownImage ::Image
   "!" BracketedText:alt "(" MarkdownLinkDestination:url ")" ->
     altText := alt[1]
+    style := state.compilerOptions.styles['!']
     {
+      type: "Image"
+      style
+      url
+      alt: altText
       children: [
-        state.compilerOptions.styles['!']
+        style
         ...if isEmpty trimContent altText then [] else
           ["[alt={", altText, "}]"]
         "{", url, "}"
@@ -663,41 +686,54 @@ SmartQuote ::SmartQuote
       $loc
     }
 
-CodeSpan ::string
-  CodeSpanOpen:marker CodeSpanBody:body CodeSpanClose ->
+CodeSpan ::CodeSpan
+  CodeSpanOpen:marker CodeSpanBody:content CodeSpanClose ->
     state.codeMarker = undefined
     // CommonMark code spans convert line endings to spaces.
     // Texlish also absorbs indentation after line endings,
     // similar to LaTeX line endings and better behaved with indentation model.
-    body = body.replace /(?:\r\n?|\n)[ \t]*/g, " "
+    content = content.replace /(?:\r\n?|\n)[ \t]*/g, " "
     // CommonMark code spans strip exactly one leading/trailing space.
-    if body.startsWith(" ") and body.endsWith(" ") and /[^ ]/.test body
-      body = body[<..<]
+    if content.startsWith(" ") and content.endsWith(" ") and /[^ ]/.test content
+      content = content[<..<]
+    body: Verbatim := { type: "Verbatim", token: content }
     style .= for first length of [marker# >=..1]
       continue unless style := state.compilerOptions.styles["`".repeat length]
       style
     style ?= "\\verb"
-    let argument: ArgumentSpec?
+    let arg: ArgumentSpec?
     if command := /\\(?:[a-zA-Z@]+|[^\r\n])\*?$/.exec(style)?[0]
-      argument = state.declarations.getCommand(command)?.-1
-    unless argument?.mode is "verbatim" and
-           argument.delimiter is like "delimited", "required-or-delimited"
-      return `${style}{${body}}`
+      if resolution := state.declarations.getCommand command
+        arg = resolution.args.-1
+    unless arg?.mode is "verbatim" and
+           arg.delimiter is like "delimited", "required-or-delimited"
+      return {
+        type: "CodeSpan"
+        style
+        body
+        children: [style, "{", body, "}"]
+      }
     // Delimited arguments use matching before/after delimiters. Find one absent
     // from the body.
     let delimiter: string?
-    unless "`" is in body
+    unless "`" is in content
       delimiter = "`"
-    else unless "|" is in body
+    else unless "|" is in content
       delimiter = "|"
     else
       for char of ["!".."~"] // 33..126 printable ASCII
-        unless body.includes char
+        unless content.includes char
           delimiter = char
           break
       unless delimiter?
-        throw new Error `Could not find printable ASCII delimiter for \\verb in ${JSON.stringify body}`
-    return `${style}${delimiter}${body}${delimiter}`
+        throw new Error `Could not find printable ASCII delimiter for \\verb in ${JSON.stringify content}`
+    return {
+      type: "CodeSpan"
+      style
+      body
+      delimiter
+      children: [style, delimiter, body, delimiter]
+    }
 
 CodeSpanOpen ::string
   /// (?<!`) `{${Math.max(1, state.compilerOptions.markdownBackticks)},} (?!`) /// ->
@@ -716,7 +752,7 @@ CodeSpanBodyPart ::string
 CodeSpanClose ::string
   /// (?<!`) ${state.codeMarker} (?!`) ///
 
-CodeBlock ::AST[]
+CodeBlock ::CodeBlock
   CodeBlockOpen:blockOpen CodeBlockBody:content CodeBlockClose ->
     state.codeMarker = undefined
     { indent, marker, info } .= blockOpen
@@ -736,14 +772,22 @@ CodeBlock ::AST[]
       // https://spec.commonmark.org/0.31.2/#fenced-code-blocks
       content = content.replace /(^|\r\n?|\n)([ \t]*)/g, (_, lineStart, lineIndent) =>
         lineStart + reduceVisualIndent lineIndent, indent.level
-    [
-      indent
-      env.open
-      "\n"
-      content
-      if content# and not /(?:\r\n?|\n)$/.test content then "\n"
-      env.close
-    ]
+    body: Verbatim := { type: "Verbatim", token: content }
+    {
+      type: "CodeBlock"
+      style
+      info
+      body
+      env.env
+      children: [
+        indent
+        env.open
+        "\n"
+        body
+        if content# and not /(?:\r\n?|\n)$/.test content then "\n"
+        env.close
+      ]
+    }
 
 ```
 /**
@@ -752,16 +796,18 @@ CodeBlock ::AST[]
  * or a literal `\begin{environment}` prefix; optional text is appended to
  * the opening environment for fenced-code options.
  */
-function environmentStyle(style: string, description: string, option: string = ""): {open: string, close: string}
+function environmentStyle(style: string, description: string, option: string = ""): {env: string, open: string, close: string}
   style = style.trim()
   style = style[>=2].trimStart() if /^:[ \t]/.test style
   if match := /^\\begin\s*\{([^}]+)\}(.*)$/.exec style
     return {
+      env: match[1]
       open: style + option
       close: `\\end{${match[1]}}`
     }
   if match := /^([^\s\[\{]+)(.*)$/.exec style
     return {
+      env: match[1]
       open: `\\begin{${match[1]}}${match[2]}${option}`
       close: `\\end{${match[1]}}`
     }
@@ -792,6 +838,7 @@ BlockQuote ::BlockQuote
     env := environmentStyle style, "blockquote"
     {
       type: "BlockQuote"
+      env.env
       children: [
         indent
         env.open
@@ -836,14 +883,16 @@ Heading ::Heading
 
 HorizontalRule ::AST[]
   Indent:indent $/-(?:[ \t]*-){2,}/:marker Space Comment?:comment &EOL ->
+    function rule(style: string): AST[]
+      [ indent, { type: "HorizontalRule", style, marker, children: [style] }, comment ]
     if style := state.compilerOptions.styles[marker]
-      return [ indent, style, comment ]
+      return rule style
     // For rules consisting of just -, use the closest configured shorter style
     unless /[ \t]/.test marker
       for length of [marker# >..3]
         if style := state.compilerOptions.styles['-'.repeat length]
-          return [ indent, style, comment ]
-    return [ indent, state.compilerOptions.styles['---'] ?? "\\hrule", comment ]
+          return rule style
+    rule state.compilerOptions.styles['---'] ?? "\\hrule"
 
 FootnoteRef ::FootnoteRef
   /\[\^([^\]\r\n]+)\]/:marker (&EOL)?:eolNext ->
@@ -1083,7 +1132,7 @@ UnorderedList ::List
     return $skip unless items
     return {
       type: "List"
-      subtype: "itemize"
+      env: "itemize"
       children: [
         indent
         "\\begin{itemize}"
@@ -1134,8 +1183,8 @@ OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
     return {
-      type: "List",
-      subtype: "enumerate",
+      type: "List"
+      env: "enumerate"
       children: [
         indent
         "\\begin{enumerate}"
@@ -1208,7 +1257,8 @@ StarredCommand ::Command
 
 TextCommandWithArguments ::AST
   # Declared commands push their pattern on the argumentPatterns stack.
-  PushTextCommandPattern:command CommandArguments:args -> [ command, ...args ]
+  PushTextCommandPattern:head CommandArguments:parsed ->
+    buildCall head, parsed
   # Undeclared commands get a generic pattern only when using colon shorthand;
   # otherwise the plain Command fallback leaves their groups alone.
   PushGenericTextColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
@@ -1217,18 +1267,45 @@ TextCommandWithArguments ::AST
   Command
 
 MathCommandWithArguments ::AST
-  PushMathCommandPattern:command CommandArguments:args -> [ command, ...args ]
+  PushMathCommandPattern:head CommandArguments:parsed ->
+    buildCall head, parsed
   PushGenericMathColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
     return $skip unless colonArgs?
     [ command, ...colonArgs ]
   Command
 
+```
+type PendingCall =
+  command: Command
+  argsSpec: ArgumentsPattern
+  package: string
+
+type ParsedCallArguments =
+  args: AST[]
+  complete: boolean
+
+function buildCall(
+  head: PendingCall
+  { args, complete }: ParsedCallArguments
+): Call
+  for each arg of args
+    unless arg is like { type: "Argument" }
+      throw new Error "Expected declared command argument"
+  {
+    type: "Call"
+    head.{command,argsSpec,package}
+    args as Argument[]
+    complete
+    children: [ head.command, args ]
+  }
+```
+
 # Parse LaTeX-style arguments, optionally switch to inline colon arguments,
 # and pop the active command pattern.
-CommandArguments ::AST[]
-  CommandArgument*:args InlineCommandColonArguments?:colonArgs PopCommandPattern ->
-    return args unless colonArgs?
-    [ ...args, ...colonArgs ]
+CommandArguments ::ParsedCallArguments
+  CommandArgument*:args InlineCommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
+    args = [ ...args, ...colonArgs ] if colonArgs?
+    { args, complete }
 
 # Colon arguments for a command in the middle of a line in text or math.
 # Accept either indented argument bullets, or one argument that is same-line
@@ -1237,11 +1314,11 @@ InlineCommandColonArguments ::AST[]
   ColonCommandsEnabled Colon NestedCommandArgumentList:args -> args
   ColonCommandsEnabled Colon InlineCommandArgumentAfterColon:arg -> [ arg ]
 
-PushTextCommandPattern ::Command
+PushTextCommandPattern ::PendingCall
   StarredCommand:command -> pushCommandPattern(command, "text") ?? $skip
   CommandWithoutNewline:command -> pushCommandPattern(command, "text") ?? $skip
 
-PushMathCommandPattern ::Command
+PushMathCommandPattern ::PendingCall
   StarredCommand:command -> pushCommandPattern(command, "math") ?? $skip
   CommandWithoutNewline:command -> pushCommandPattern(command, "math") ?? $skip
 
@@ -1249,62 +1326,102 @@ PushMathCommandPattern ::Command
 function pushCommandPattern(
   command: Command
   parentMode: ResolvedArgumentMode
-): Command?
-  return unless pattern .= state.declarations.getCommand command.token
-  if (argument.mode is "inherit" for some each argument of pattern)
-    pattern = for each argument of pattern
-      if argument.mode is "inherit"
-        { ...argument, mode: parentMode }
+): PendingCall?
+  return unless resolution := state.declarations.getCommand command.token
+  { args } .= resolution
+  if (arg.mode is "inherit" for some each arg of args)
+    args = for each arg of args
+      if arg.mode is "inherit"
+        { ...arg, mode: parentMode }
       else
-        argument
-  state.argumentPatterns.push pattern
-  command
+        arg
+  state.argumentPatterns.push { args, index: 0 }
+  {
+    command
+    argsSpec: resolution.args
+    package: resolution.package.name
+  }
+
 ```
 
 PopCommandPattern
   "" -> state.argumentPatterns.pop()
 
-CommandArgument ::AST[]
-  OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:argument ->
-    consumeCommandArgument "optional"
-    [ space, argument ]
-  RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:argument ->
-    consumeCommandArgument "required"
-    [ space, argument ]
+CommandArgument ::AST
+  OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:content ->
+    commandArgument "optional", "bracketed", content.body,
+      [ space, content.children ]
+  RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:content ->
+    commandArgument "required", "braced", content.body,
+      [ space, content.children ]
   # Prefer colon shorthand over `:` as a verbatim delimiter when a required
   # argument remains, e.g. `\url: ...`, but preserve `\verb:...:`.
-  !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space $DelimitedVerbatim:argument ->
-    consumeCommandArgument "delimited"
-    [ space, verbatim argument ]
+  !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space $DelimitedVerbatim:arg ->
+    delimiter := arg[0]
+    body: Verbatim := { type: "Verbatim", token: arg[<..<] }
+    commandArgument "delimited", "delimited", body,
+      [ space, delimiter, body, delimiter ]
+  # Try delimiters first so a backslash-delimited verbatim argument stays literal.
+  # TeX undelimited required arguments can be single control-sequence tokens.
+  RequiredArgumentPossible CommandSpace:space CommandWithoutNewline:body ->
+    commandArgument "required", "unbraced", body, [ space, body ]
 
 ```
-function consumeCommandArgument(delimiter: ArgumentDelimiter): void
-  return unless state.argumentPatterns#
-  unless argument := selectCommandArgument delimiter
+type SelectedArgument
+  arg: ArgumentSpec
+  /** Index in the declared pattern, or -1 for a repeating generic argument mode */
+  index: number
+
+function consumeCommandArgument(delimiter: ArgumentDelimiter): SelectedArgument
+  unless state.argumentPatterns#
+    throw new Error "No current command pattern"
+  unless selected := selectCommandArgument delimiter
     throw new Error "No current command argument"
   // A mode string is generic and therefore remains active for later arguments.
   pattern := state.argumentPatterns.-1
-  return unless Array.isArray pattern
-  state.argumentPatterns.-1 = pattern[> pattern.indexOf argument]
+  unless pattern <? "string"
+    pattern.index = selected.index + 1
+  selected
 
-function selectCommandArgument(delimiter: ArgumentDelimiter): ArgumentSpec?
+function selectCommandArgument(delimiter: ArgumentDelimiter): SelectedArgument?
   return unless pattern := state.argumentPatterns.-1
-  unless Array.isArray pattern
+  if pattern <? "string"
     // Generic colon arguments use only paired optional/required syntax.
-    return unless delimiter is "optional" or delimiter is "required"
-    return { name: "argument", delimiter, mode: pattern }
+    return unless delimiter is like "optional", "required"
+    return {
+      arg: { name: "argument", delimiter, mode: pattern }
+      index: -1
+    }
   if delimiter is "optional"
-    argument := pattern[0]
-    return argument if argument?.delimiter is delimiter
+    arg := pattern.args[pattern.index]
+    return { arg, index: pattern.index } if arg?.delimiter is delimiter
     return
-  for each argument of pattern
-    if argument.delimiter is delimiter or
-       argument.delimiter is "required-or-delimited" and
-       (delimiter is "required" or delimiter is "delimited")
-      return argument
+  for index .= pattern.index; index < pattern.args#; index++
+    arg := pattern.args[index]
+    if arg.delimiter is delimiter or
+       arg.delimiter is "required-or-delimited" and
+       delimiter is like "required", "delimited"
+      return { arg, index }
     // Only allow skipping over optional arguments
-    return unless argument.delimiter is "optional"
+    return unless arg.delimiter is "optional"
   return
+
+function commandArgument(
+  delimiter: ArgumentDelimiter
+  form: Argument["form"]
+  body: ASTObject
+  children: AST[]
+  fallback: AST = children
+): AST
+  selected := consumeCommandArgument delimiter
+  return fallback if selected.index < 0
+  {
+    type: "Argument"
+    specIndex: selected.index
+    form
+    body
+    children
+  }
 ```
 
 OptionalArgumentPossible
@@ -1321,17 +1438,42 @@ CommandSpace ::AST[]
 CommandCommentContinuation ::AST[]
   Comment:comment EOL:eol &IndentedAtLeast Indent:indent -> [ comment, eol, indent ]
 
-OptionalArgumentContent ::AST
-  OptionalRawArgument $RawBracketedContent:argument -> verbatim argument
-  OptionalVerbatimArgument $VerbatimBracketedContent:argument -> verbatim argument
-  OptionalTextArgument TextBracketedContent:argument -> argument
-  OptionalMathArgument MathBracketedContent:argument -> argument
+OptionalArgumentContent ::ParsedArgumentContent
+  OptionalRawArgument $RawBracketedContent:arg -> unparsedArgument arg, "Raw"
+  OptionalVerbatimArgument $VerbatimBracketedContent:arg -> unparsedArgument arg, "Verbatim"
+  OptionalTextArgument TextBracketedContent:arg -> parsedArgument arg
+  OptionalMathArgument MathBracketedContent:arg -> parsedArgument arg
 
-RequiredArgumentContent ::AST
-  RequiredRawArgument $RawBracedContent:argument -> verbatim argument
-  RequiredVerbatimArgument $VerbatimBracedContent:argument -> verbatim argument
-  RequiredTextArgument TextBracedContent:argument -> argument
-  RequiredMathArgument MathBracedContent:argument -> argument
+RequiredArgumentContent ::ParsedArgumentContent
+  RequiredRawArgument $RawBracedContent:arg -> unparsedArgument arg, "Raw"
+  RequiredVerbatimArgument $VerbatimBracedContent:arg -> unparsedArgument arg, "Verbatim"
+  RequiredTextArgument TextBracedContent:arg ->
+    arg.{body,children}
+  RequiredMathArgument MathBracedContent:arg ->
+    arg.{body,children}
+
+```
+type ParsedArgumentContent = { body: ASTObject, children: AST[] }
+
+/**
+ * Exclude the opening and closing brace or bracket characters from the body.
+ * Preserve those delimiters in children alongside the raw or verbatim body.
+ */
+function unparsedArgument(
+  source: string
+  type: "Raw" | "Verbatim"
+): ParsedArgumentContent
+  body := { type, token: source[<..<] }
+  { body, children: [ source[0], body, source.-1 ] }
+
+/**
+ * Exclude the opening and closing bracket items from the parsed argument body.
+ * Preserve those delimiters in children alongside the body.
+ */
+function parsedArgument(arg: AST[]): ParsedArgumentContent
+  body := arg[<..<]
+  { body, children: [ arg[0], body, arg.-1 ] }
+```
 
 OptionalRawArgument
   "" -> $skip unless commandArgumentIs "optional", "raw"
@@ -1353,7 +1495,7 @@ RequiredMathArgument
 ```
 function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode): boolean
   return false unless selected := selectCommandArgument delimiter
-  selected.mode is mode
+  selected.arg.mode is mode
 ```
 
 # These statement rules handle commands that actually have colon arguments,
@@ -1361,16 +1503,16 @@ function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode): bo
 # and let the inline Text/Math parser handle the command instead.
 # This allows other content on the same line after a non-colon command.
 TextCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled Indent:indent PushTextCommandPattern:command CommandArgument*:args CommandColonArguments?:colonArgs PopCommandPattern ->
+  ColonCommandsEnabled Indent:indent PushTextCommandPattern:head CommandArgument*:args CommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
     return $skip unless colonArgs?
-    [ indent, command, ...args, ...colonArgs ]
+    [ indent, buildCall(head, { args: [ ...args, ...colonArgs ], complete }) ]
   ColonCommandsEnabled Indent:indent PushGenericTextColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
     return $skip unless colonArgs?
     [ indent, command, ...colonArgs ]
 MathCommandWithColonArguments ::AST[]
-  ColonCommandsEnabled Indent:indent PushMathCommandPattern:command CommandArgument*:args CommandColonArguments?:colonArgs PopCommandPattern ->
+  ColonCommandsEnabled Indent:indent PushMathCommandPattern:head CommandArgument*:args CommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
     return $skip unless colonArgs?
-    [ indent, command, ...args, ...colonArgs ]
+    [ indent, buildCall(head, { args: [ ...args, ...colonArgs ], complete }) ]
   ColonCommandsEnabled Indent:indent PushGenericMathColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
     return $skip unless colonArgs?
     [ indent, command, ...colonArgs ]
@@ -1404,20 +1546,19 @@ CommandColonArguments ::AST[]
 
 # Parse and consume one required colon argument according to the next remaining
 # declared mode.
-CommandArgumentAfterColon ::Braced
-  RequiredRawArgument RawArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredVerbatimArgument VerbatimArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredTextArgument TextArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredMathArgument MathArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
+CommandArgumentAfterColon ::AST
+  RequiredRawArgument RawArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredVerbatimArgument VerbatimArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredTextArgument TextArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredMathArgument MathArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
 
 ```
-function consumeRequiredCommandArgument(argument: Braced): Braced
-  consumeCommandArgument "required"
-  argument
+function consumeRequiredCommandArgument(arg: Braced): AST
+  commandArgument "required", "colon", arg.body, arg.children, arg
 ```
 
 TextArgumentAfterColon ::Braced
@@ -1468,7 +1609,7 @@ RawText ::{text: string, comment: Comment?, children: AST[]}
     {
       text
       comment
-      children: rawTextChildren { text, comment }
+      children: unparsedTextChildren { text, comment }, "Raw"
     }
 
 VerbatimText ::{text: string, comment: undefined, children: AST[]}
@@ -1477,23 +1618,24 @@ VerbatimText ::{text: string, comment: undefined, children: AST[]}
     {
       text
       comment: undefined
-      children: rawTextChildren { text, comment: undefined }
+      children: unparsedTextChildren { text }, "Verbatim"
     }
 
 ```
-function rawTextChildren(
-  raw: {text: string, comment: Comment?}
+function unparsedTextChildren(
+  content: {text: string, comment?: Comment?}
+  type: "Raw" | "Verbatim"
   trim = false
 ): AST[]
   text :=
     if trim
-      raw.text.trim()
-    else if raw.comment
-      raw.text.trimEnd()
+      content.text.trim()
+    else if content.comment
+      content.text.trimEnd()
     else
-      raw.text
-  return [] unless text or raw.comment
-  [ verbatim text if text, raw.comment ]
+      content.text
+  return [] unless text or content.comment
+  [ { type, token: text } if text, content.comment ]
 ```
 
 RawTextPart ::string
@@ -1506,15 +1648,15 @@ VerbatimTextPart ::string
 
 # Parse and consume one required inline colon argument according to the next
 # remaining declared mode, without combining same-line and indented content.
-InlineCommandArgumentAfterColon ::Braced
-  RequiredRawArgument InlineRawArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredVerbatimArgument InlineVerbatimArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredTextArgument InlineTextArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
-  RequiredMathArgument InlineMathArgumentAfterColon:argument ->
-    consumeRequiredCommandArgument argument
+InlineCommandArgumentAfterColon ::AST
+  RequiredRawArgument InlineRawArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredVerbatimArgument InlineVerbatimArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredTextArgument InlineTextArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
+  RequiredMathArgument InlineMathArgumentAfterColon:arg ->
+    consumeRequiredCommandArgument arg
 
 InlineTextArgumentAfterColon ::Braced
   NonEmptyNestedBody:body ->
@@ -1551,15 +1693,23 @@ function trimVerbatimNestedBody(body: AST[]): AST[]
 ```
 
 TrimmedRawText ::AST[]
-  RawText:text -> rawTextChildren text, true
+  RawText:text -> unparsedTextChildren text, "Raw", true
 TrimmedVerbatimText ::AST[]
-  VerbatimText:text -> rawTextChildren text, true
+  VerbatimText:text -> unparsedTextChildren text, "Verbatim", true
 
 # Argument bullets plus an optional final nested body block,
 # which becomes another braced command argument.
 NestedCommandArgumentList ::AST[]
-  PushIndent ( ArgumentList CommandFinalArgument?:final )?:content PopIndent ->
-    content ?? $skip
+  PushIndent ( ArgumentList CommandFinalArgument? )?:content PopIndent ->
+    return $skip unless content
+    [listArguments, final] := content
+    if listArguments?[0] is like { type: "Argument" }
+      if final?
+        [ ...listArguments, final ]
+      else
+        listArguments
+    else
+      content
 
 StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
   PushStrictCurrentIndent NestedStatement*:body PopIndent -> body
@@ -1567,13 +1717,18 @@ StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
 ArgumentList ::AST[]
   NestedComment*:comments Nested:eol &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ArgumentListContinuation* )?:content PopIndent ->
     return $skip unless content
+    [first, continuations] := content
+    if { type: "Argument", children } := first
+      return [ { ...first, children: [ comments, eol, children ] }, ...continuations ]
     return [ comments, eol, content ]
 
-ArgumentListContinuation ::AST[]
+ArgumentListContinuation ::AST
   NestedComment*:comments SameLevel:eol ArgumentBullet:bullet ->
+    if { type: "Argument", children } := bullet
+      return { ...bullet, children: [ comments, eol, children ] }
     return [ comments, eol, bullet ]
 
-ArgumentBullet ::AST[]
+ArgumentBullet ::AST
   RawArgumentBulletEnabled Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
   VerbatimArgumentBulletEnabled Indent:indent Bullet:bullet VerbatimArgumentListItemLine:text VerbatimNestedBody:body ->
@@ -1590,15 +1745,17 @@ function commandArgumentBullet(
   text: AST[]
   body: AST[]
   verbatimMode = false
-): AST[]
+): AST
   [ symbol, space ] := bullet
   body = trimVerbatimNestedBody body if verbatimMode and not text# and body#
   let comment
   [text, body, comment] = commentForTextBody text, body
-  consumeCommandArgument if symbol is '~' then "optional" else "required"
+  delimiter: ArgumentDelimiter := if symbol is '~' then "optional" else "required"
   open := if symbol is '~' then '[' else '{'
   close := if symbol is '~' then ']' else '}'
-  [ indent, space, open, text, body, close, comment ]
+  argumentBody := [ text, body ]
+  commandArgument delimiter, "bullet", argumentBody,
+    [ indent, space, open, argumentBody, close, comment ]
 ```
 
 RawArgumentBulletEnabled
@@ -1618,15 +1775,15 @@ MathArgumentBulletEnabled
   &(Space RequiredBullet) RequiredMathArgument
 
 RawArgumentListItemLine ::AST[]
-  PushListItemIndent RawText:text PopListItemIndent -> rawTextChildren text
+  PushListItemIndent RawText:text PopListItemIndent -> unparsedTextChildren text, "Raw"
 
 VerbatimArgumentListItemLine ::AST[]
-  PushListItemIndent VerbatimText:text PopListItemIndent -> rawTextChildren text
+  PushListItemIndent VerbatimText:text PopListItemIndent -> unparsedTextChildren text, "Verbatim"
 
 MathArgumentListItemLine ::AST[]
   PushListItemIndent MathText:text PopListItemIndent -> text
 
-CommandFinalArgument ::AST[]
+CommandFinalArgument ::AST
   RequiredRawArgument NonEmptyStrictRawArgumentStatements:body ->
     finalCommandArgument body
   RequiredVerbatimArgument NonEmptyStrictVerbatimArgumentStatements:body ->
@@ -1643,7 +1800,7 @@ type ArgumentBodyStatement =
 function finalCommandArgument(
   body: ArgumentBodyStatement[]
   verbatimMode = false
-): AST[]
+): AST
   { eols: [ eol ], statement: firstStatement } := body[0]
   indent := getLeadingIndent firstStatement
   let finalBody, comment
@@ -1659,9 +1816,9 @@ function finalCommandArgument(
       }
       ...finalBody[>=1]
     ]
-  consumeCommandArgument "required"
   open := if verbatimMode then "{" else "{%"
-  [ eol, indent, " ", open, finalBody, "}", comment ]
+  commandArgument "required", "final", finalBody,
+    [ eol, indent, " ", open, finalBody, "}", comment ]
 ```
 
 NonEmptyStrictNestedStatements ::ArgumentBodyStatement[]
@@ -1698,16 +1855,21 @@ NestedMathArgumentStatement ::ArgumentBodyStatement
 
 ## ENVIRONMENTS
 
-VerbatimEnvironment ::string
-  &BeginVerbatimEnvironment $///
+VerbatimEnvironment ::Environment
+  &BeginVerbatimEnvironment ///
     \\begin[ \t]*\{ ([^{}\r\n]+) \}
     [^]*?
     \\end[ \t]*\{ \1 \}
-  /// -> $2
+  ///:match ->
+    {
+      type: "Environment"
+      env: match[1]
+      children: [{ type: "Verbatim", token: match[0] }]
+    }
 
 # Raw environments treat `%` as comments, so `%...\end` doesn't terminate
-RawEnvironment ::string
-  &BeginRawEnvironment $///
+RawEnvironment ::Environment
+  &BeginRawEnvironment ///
     \\begin[ \t]*\{ ([^{}\r\n]+) \}
     (?:
       [^\\%]+
@@ -1717,7 +1879,12 @@ RawEnvironment ::string
       (?! \\end[ \t]*\{ \1 \} ) \\[^]
     )*?
     \\end[ \t]*\{ \1 \}
-  /// -> $2
+  ///:match ->
+    {
+      type: "Environment"
+      env: match[1]
+      children: [{ type: "Raw", token: match[0] }]
+    }
 
 TextEnvironment ::Environment
   # Push the body indentation before parsing mode-specific colon arguments.
@@ -1846,15 +2013,15 @@ EndMathEnvironment ::{env: string, children: AST[]}
     return $skip unless state.declarations.getEnvironment(environment.env) is "math"
     environment
 
-BeginEndMathEnvironment ::AST[]
+BeginEndMathEnvironment ::Environment
   BeginMathEnvironment:open MathContent EndMathEnvironment:close ->
     return $skip unless open.env is close.env
-    $0
+    { type: "Environment", open.env, children: $0 }
 
-BeginEndTextEnvironment ::AST[]
+BeginEndTextEnvironment ::Environment
   BeginTextEnvironment:open TextAndContent EndTextEnvironment:close ->
     return $skip unless open.env is close.env
-    $0
+    { type: "Environment", open.env, children: $0 }
 
 RawEnvironmentColonArguments ::AST
   Colon PushGenericRawArgumentPattern EnvironmentArgumentsAfterColon:args -> args
