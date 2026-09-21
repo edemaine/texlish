@@ -112,6 +112,48 @@ describe '::use', ->
   '''
 
   testCase r'''
+    comment on use line permits nested packages
+    ---
+    ::use % packages
+      % first
+      foo
+      bar
+    Body
+    ---
+     % packages
+      % first
+      \usepackage{foo}
+      \usepackage{bar}
+    Body
+  '''
+
+  testCase r'''
+    comment on use line needs no separating space
+    ---
+    ::use% packages
+      foo
+      bar
+    ---
+    % packages
+      \usepackage{foo}
+      \usepackage{bar}
+  '''
+
+  testCase r'''
+    same-line package does not permit nested packages
+    ---
+    ::use foo % package
+      bar
+    ::use foo
+      bar
+    ---
+    \usepackage{foo} % package
+      bar
+    \usepackage{foo}
+      bar
+  '''
+
+  testCase r'''
     multiple nested packages with bullets
     ---
     ::use
@@ -289,4 +331,38 @@ describe '::use', ->
           pdftitle = Hello World % working title
         , pdfauthor = Me% = myself
       ]{hyperref}
+  '''
+
+  testCase r'''
+    use preserves comments before, between, and after packages
+    ---
+    ::use
+      % first
+      foo
+        % deeper
+      % between
+      bar
+      % last
+    Body
+    ---
+
+      % first
+      \usepackage{foo}
+        % deeper
+      % between
+      \usepackage{bar}
+      % last
+    Body
+  '''
+
+  testCase r'''
+    comment-only use block
+    ---
+    ::use
+      % use
+    Body
+    ---
+
+      % use
+    Body
   '''

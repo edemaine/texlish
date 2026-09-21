@@ -982,6 +982,10 @@ NestedConfigAssignments ::ConfigEntry[]
     return items.flat()
 
 NestedConfigAssignment ::ConfigEntry[]
+  # Note: Discarding comments within ::config.
+  # These comments are Texlish specific,
+  # so might not be relevant to LaTeX output anyway.
+  NestedComment -> []
   Nested Indent ConfigAssignment:assignment -> assignment
 
 ConfigAssignment ::ConfigEntry[]
@@ -1048,16 +1052,16 @@ UseItem ::Use
     }
 
 NestedUseList ::Uses
-  PushStrictIndent NestedUseItem*:items PopIndent ->
+  ( Space Comment )?:comment PushStrictIndent NestedUseItem*:items PopIndent ->
     return $skip unless items#
     return {
       type: "Uses"
-      children: items
+      children: [ comment, items ]
     }
 
 NestedUseItem ::AST[]
-  Nested Indent UseItem ->
-    return $0
+  NestedComment
+  Nested Indent UseItem
 
 UseColonArgument ::AST[]
   SaveIndent:indent Colon UseArgument:arg ->

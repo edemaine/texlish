@@ -1,3 +1,4 @@
+{ r, testCase } from ./helper.civet
 assert from assert
 fs from node:fs/promises
 os from node:os
@@ -286,3 +287,145 @@ describe '--config assignment', ->
     assert.throws (
       => parseCompilerOption('markdownBackticks', '1.5')
     ), /nonnegative integer/
+
+describe 'in-file config and styles', ->
+  testCase r'''
+    in-file ::config styles section
+    ---
+    *foo*
+    ::config
+      styles:
+        * = \textit
+    *foo*
+    ---
+    \emph{foo}
+    \textit{foo}
+  '''
+
+  testCase r'''
+    inline ::config dotted style
+    ---
+    *foo*
+    ::config styles.*=\textit
+    *foo*
+    ---
+    \emph{foo}
+    \textit{foo}
+  '''
+
+  testCase r'''
+    in-file ::config style values are raw
+    ---
+    ::config styles.*=[raw](https://example.com) @ref *text*
+    *foo*
+    ---
+    [raw](https://example.com) @ref *text*{foo}
+  '''
+
+  testCase r'''
+    in-file ::styles values are raw
+    ---
+    ::styles
+      * = [raw](https://example.com) @ref *text*
+    *foo*
+    ---
+    [raw](https://example.com) @ref *text*{foo}
+  '''
+
+  testCase r'''
+    in-file ::config empty styles section
+    ---
+    *foo*
+    ::config
+      styles:
+    *foo*
+    ---
+    \emph{foo}
+    \emph{foo}
+  '''
+
+  testCase r'''
+    inline ::config empty styles section
+    ---
+    *foo*
+    ::config styles:
+    *foo*
+    ---
+    \emph{foo}
+    \emph{foo}
+  '''
+
+  testCase r'''
+    inline ::config nonempty styles section
+    ---
+    *foo*
+    ::config styles:
+      * = \textit
+    *foo*
+    ---
+    \emph{foo}
+    \textit{foo}
+  '''
+
+  testCase r'''
+    config ignores comments before, between, and after assignments
+    ---
+    ::config
+      % first
+      -smartQuotes
+        % deeper
+      % between
+      -markdownEmphasis
+      % last
+    "*hello*"
+    ---
+    "*hello*"
+  '''
+
+  testCase r'''
+    styles ignores comments before, between, and after assignments
+    ---
+    ::styles
+      % first
+      * = \textit
+        % deeper
+      % between
+      ** = \texttt
+      % last
+    *foo* **bar**
+    ---
+    \textit{foo} \texttt{bar}
+  '''
+
+  testCase r'''
+    nested config comments respect section indentation
+    ---
+    ::config
+      % first
+      styles:
+        % first style
+        * = \textit
+        % between styles
+        ** = \texttt
+        % last style
+      % between sections
+      -smartQuotes
+      % last
+    % outside
+    "*foo* **bar**"
+    ---
+    % outside
+    "\textit{foo} \texttt{bar}"
+  '''
+
+  testCase r'''
+    comment-only config and styles blocks
+    ---
+    ::config
+      % config
+    ::styles
+      % styles
+    Body
+    ---
+    Body
+  '''
