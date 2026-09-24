@@ -350,6 +350,7 @@ function definedNames(root: AST[]): {commands: Set<string>, environments: Set<st
   for node of iterate root
     continue unless node is like { type: "Call" }
     for each arg of node.args
+      continue unless arg.specIndex?
       continue unless kind := node.argsSpec[arg.specIndex].defines
       name := argumentText arg
       if kind is "command"
@@ -379,7 +380,7 @@ function usedPackages(root: AST[]): Set<string>
       { type: "Call", command: { token }, argsSpec }
         continue unless token is like "\\usepackage", "\\RequirePackage"
         continue unless arg := node.args.find (arg) =>
-          argsSpec[arg.specIndex].name is "packages"
+          arg.specIndex? and argsSpec[arg.specIndex].name is "packages"
         addPackageNames argumentText arg
   packages
 

@@ -372,10 +372,42 @@ describe ': environments', ->
   '''
 
   testCase r'''
-    exhausted argument patterns leave braces and brackets in the body
+    exhausted argument patterns leave inline groups in the body
     ---
     : tabular[t]{*{2}{c}} {*body*} [*text*]
     ---
     \begin{tabular}[t]{*{2}{c}}{\emph{body}} [\emph{text}]
     \end{tabular}
+  '''
+
+  for mode of ['text', 'math', 'raw', 'verbatim']
+    testCase ```
+      trims same-line body spaces in ${mode} mode
+      ---
+      : test${mode}env   x_12
+      ---
+      \\begin{test${mode}env}${if mode is 'math' then 'x_{12}' else 'x_12'}
+      \\end{test${mode}env}
+    ```
+
+  testCase r'''
+    unmatched same-line colon is body text while extra argument bullets inherit surrounding mode
+    ---
+    : equation: *text*
+      x_12
+    \[
+      : tabular{c}:
+        - x_12
+        *body*
+    \]
+    ---
+    \begin{equation}: *text*
+      x_{12}
+    \end{equation}
+    \[
+      \begin{tabular}{c}
+         {x_{12}}%
+        \emph{body}
+      \end{tabular}
+    \]
   '''

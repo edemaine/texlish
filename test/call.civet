@@ -22,6 +22,16 @@ function assertAliases(ast: AST): void
       assert [...iterate(node.children)].includes node.body
 
 describe 'declared command call AST', ->
+  it 'preserves declared argument aliases with a generic argument tail', ->
+    call := compileCall '\\label:\n  - *raw*\n  - *text*', '\\label'
+    assert.equal call.args#, 2
+    assert.equal call.args[0].specIndex, 0
+    assert.equal call.args[1].specIndex, undefined
+    assert.equal call.args[1].form, 'bullet'
+    assert.equal call.complete, true
+    assertAliases call
+    assert.equal generate(call), '\\label\n   {*raw*}%\n   {\\emph{text}}%'
+
   it 'preserves backslash-delimited verbatim arguments', ->
     for each token of ['\\url', '\\path', '\\verb']
       source := `${token}\\foo*bar*\\`

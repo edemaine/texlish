@@ -64,6 +64,38 @@ describe '\\command:', ->
   '''
 
   testCase r'''
+    extra argument bullets use text after declared raw arguments
+    ---
+    \label:
+      - *raw*
+      - *text*
+      ~ *option*
+    ---
+    \label
+       {*raw*}%
+       {\emph{text}}%
+       [\emph{option}]%
+  '''
+
+  testCase r'''
+    extra argument bullets use surrounding math after declared text arguments
+    ---
+    \[
+      \textbf:
+        - *text*
+        - x_12
+        ~ y_34
+    \]
+    ---
+    \[
+      \textbf
+         {\emph{text}}%
+         {x_{12}}%
+         [y_{34}]%
+    \]
+  '''
+
+  testCase r'''
     failed signature dispatch restores the argument pattern
     ---
     \verb:raw

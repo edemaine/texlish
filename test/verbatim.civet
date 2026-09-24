@@ -150,7 +150,7 @@ describe 'verbatim LaTeX', ->
     href := (ast[0] as AST[])[1]
     assert href is like { type: "Call", command: { token: "\\href" } }
     url := href.args.find (arg) =>
-      href.argsSpec[arg.specIndex].name is "url"
+      arg.specIndex? and href.argsSpec[arg.specIndex].name is "url"
     assert.deepEqual url?.body,
       type: 'Verbatim'
       token: 'https://example.com/a_*raw*'

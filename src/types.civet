@@ -120,8 +120,8 @@ export type ArgumentForm =
 /** One parsed argument of a declared command call */
 export interface Argument extends ASTParent
   type: "Argument"
-  /** Index of this argument in the call's declared pattern */
-  specIndex: number
+  /** Index in the declared pattern; undefined for extra arguments */
+  specIndex?: number?
   /** How this occurrence was physically expressed */
   form: ArgumentForm
   /** Argument content, aliased within `children` */

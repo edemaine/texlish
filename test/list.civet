@@ -1001,20 +1001,22 @@ describe 'list directives', ->
     '''
 
     testCase r'''
-      exhausting arguments leaves aligned bullets as list items
+      extra argument bullets use text mode after the declared arguments
       ---
       ::use testlists
       ::list:
         - *label*
         - *one*
         - *two*
+      - body
       ---
       \usepackage{testlists}
-        \begin{itemize}
+      \begin{itemize}
          {\emph{label}}%
-        \item \emph{one}
-        \item \emph{two}
-        \end{itemize}
+         {\emph{one}}%
+         {\emph{two}}%
+      \item body
+      \end{itemize}
     '''
 
   testCase r'''
@@ -1037,4 +1039,82 @@ describe 'list directives', ->
     \begin{list}{\emph{label}}{\def\label{*raw*}}
     \item \emph{one}
     \end{list}
+  '''
+
+  testCase r'''
+    inferred list preserves an undeclared same-line colon as text
+    ---
+    ::list: *foo*
+    - bar
+    ::list: *foo*
+    1. bar
+    ::list: *foo*
+    ---
+    \begin{itemize}: \emph{foo}
+    \item bar
+    \end{itemize}
+    \begin{enumerate}: \emph{foo}
+    \item bar
+    \end{enumerate}
+    \begin{itemize}: \emph{foo}
+    \end{itemize}
+  '''
+
+  testCase r'''
+    inferred list stays in fallback after skipping an optional declaration
+    ---
+    ::list:
+      - *label*
+      ~ *raw*
+    - body
+    ---
+    \begin{itemize}
+       {\emph{label}}%
+       [\emph{raw}]%
+    \item body
+    \end{itemize}
+  '''
+
+  testCase r'''
+    list header preserves setup commands and a trailing comment
+    ---
+    ::list enumerate[label=(\alph*)] \setcounter{enumi}{3} % start at four
+    - fourth
+    ---
+    \begin{enumerate}[label=(\alph*)]\setcounter{enumi}{3} % start at four
+    \item fourth
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    list header parses trailing groups as text after declared arguments
+    ---
+    ::list list{*label*}{*settings*} {*extra*} [*option*]: *tail*
+    - body
+    ---
+    \begin{list}{\emph{label}}{*settings*}{\emph{extra}} [\emph{option}]: \emph{tail}
+    \item body
+    \end{list}
+  '''
+
+  testCase r'''
+    list header still accepts a declared same-line colon argument
+    ---
+    ::list list{*label*}: *settings*
+    - body
+    ---
+    \begin{list}{\emph{label}}{*settings*}%
+    \item body
+    \end{list}
+  '''
+
+  testCase r'''
+    inferred ordered list permits setup after optional arguments
+    ---
+    ::list[resume] \setlength{\itemsep}{2pt}
+    1. body
+    ---
+    \begin{enumerate}[resume]\setlength{\itemsep}{2pt}
+    \item body
+    \end{enumerate}
   '''

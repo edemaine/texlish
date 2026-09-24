@@ -93,6 +93,7 @@ type ActiveArgumentPattern = ActiveCommandPattern | ResolvedArgumentMode
 type ActiveCommandPattern
   args: ArgumentsPattern
   index: number
+  parentMode: ResolvedArgumentMode
 
 initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
@@ -122,11 +123,11 @@ export function getDeclarations(): Declarations
 export function getStateKey(): string
   state.currentIndent.level +
   for join each pattern of state.argumentPatterns
-    "/" + argumentPatternKey
-      if pattern <? "string"
-        pattern
-      else
-        pattern.args[>=pattern.index]
+    if pattern <? "string"
+      "/" + argumentPatternKey pattern
+    else
+      "/" + argumentPatternKey(pattern.args[>=pattern.index]) +
+      ":" + pattern.parentMode
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
@@ -1254,11 +1255,10 @@ PushEnumerateArgumentPattern
   "" -> pushEnvironmentPattern "enumerate", "text"
 
 ListDirectiveArguments ::AST[]
-  CommandArgument*:args Space ListColonArguments?:colonArgs ( Space Comment )?:comment NestedComment*:comments &EOL ->
+  CommandArgument*:args ( ListColonArguments / TrimmedText ):tail NestedComment*:comments &EOL ->
     [
       ...args
-      ...colonArgs if colonArgs
-      ...comment if comment
+      ...tail
       ...comments
     ]
 
@@ -1266,8 +1266,8 @@ ListDirectiveArguments ::AST[]
 # strictly indented, and unbulleted indented content is never an argument.
 # Also allow an empty trailing colon and preserve a comment after it.
 ListColonArguments ::AST[]
-  Colon Space !( Comment / EOL ) InlineCommandArgumentAfterColon:arg -> [arg]
-  Colon ( Space Comment )?:comment PushStrictIndent ArgumentList?:args PopIndent ->
+  Space Colon Space !( Comment / EOL ) InlineCommandArgumentAfterColon:arg -> [arg]
+  Space Colon ( Space Comment )?:comment &EOL PushStrictIndent ArgumentList?:args PopIndent ->
     [
       ...comment if comment
       ...args if args
@@ -1334,7 +1334,7 @@ function buildCall(
 ): Call
   for each arg of args
     unless arg is like { type: "Argument" }
-      throw new Error "Expected declared command argument"
+      throw new Error "Expected command argument"
   {
     type: "Call"
     head.{command,argsSpec,package}
@@ -1386,7 +1386,7 @@ function pushArgumentPattern(args: ArgumentsPattern, parentMode: ResolvedArgumen
         { ...arg, mode: parentMode }
       else
         arg
-  state.argumentPatterns.push { args, index: 0 }
+  state.argumentPatterns.push { args, index: 0, parentMode }
 ```
 
 PopCommandPattern
@@ -1414,42 +1414,41 @@ CommandArgument ::AST
 ```
 type SelectedArgument
   arg: ArgumentSpec
-  /** Index in the declared pattern, or -1 for a repeating generic argument mode */
-  index: number
+  /** Index in the declared pattern; omitted for generic or extra arguments */
+  index?: number
 
-function consumeCommandArgument(delimiter: ArgumentDelimiter): SelectedArgument
+function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false): SelectedArgument
   unless state.argumentPatterns#
     throw new Error "No current command pattern"
-  unless selected := selectCommandArgument delimiter
+  unless selected := selectCommandArgument delimiter, allowFallback
     throw new Error "No current command argument"
-  // A mode string is generic and therefore remains active for later arguments.
+  // Entering fallback skips any remaining optional declarations permanently.
   pattern := state.argumentPatterns.-1
   unless pattern <? "string"
-    pattern.index = selected.index + 1
+    pattern.index = if selected.index? then selected.index + 1 else pattern.args#
   selected
 
-function selectCommandArgument(delimiter: ArgumentDelimiter): SelectedArgument?
+function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false): SelectedArgument?
   return unless pattern := state.argumentPatterns.-1
   if pattern <? "string"
     // Generic colon arguments use only paired optional/required syntax.
     return unless delimiter is like "optional", "required"
-    return {
-      arg: { name: "argument", delimiter, mode: pattern }
-      index: -1
-    }
+    return arg: { name: "argument", delimiter, mode: pattern }
   if delimiter is "optional"
     arg := pattern.args[pattern.index]
     return { arg, index: pattern.index } if arg?.delimiter is delimiter
-    return
-  for index .= pattern.index; index < pattern.args#; index++
-    arg := pattern.args[index]
-    if arg.delimiter is delimiter or
-       arg.delimiter is "required-or-delimited" and
-       delimiter is like "required", "delimited"
-      return { arg, index }
-    // Only allow skipping over optional arguments
-    return unless arg.delimiter is "optional"
-  return
+  else
+    for index .= pattern.index; index < pattern.args#; index++
+      arg := pattern.args[index]
+      if arg.delimiter is delimiter or
+         arg.delimiter is "required-or-delimited" and
+         delimiter is like "required", "delimited"
+        return { arg, index }
+      // Only allow skipping over optional arguments
+      break unless arg.delimiter is "optional"
+  if allowFallback and delimiter is like "optional", "required" and
+     pattern.args[>=pattern.index].every .delimiter is "optional"
+    return arg: { name: "argument", delimiter, mode: pattern.parentMode }
 
 function commandArgument(
   delimiter: ArgumentDelimiter
@@ -1458,8 +1457,8 @@ function commandArgument(
   children: AST[]
   fallback: AST = children
 ): AST
-  selected := consumeCommandArgument delimiter
-  return fallback if selected.index < 0
+  selected := consumeCommandArgument delimiter, form is "bullet"
+  return fallback if state.argumentPatterns.-1 <? "string"
   {
     type: "Argument"
     specIndex: selected.index
@@ -1477,7 +1476,7 @@ RequiredArgumentPossible
 DeclaredRequiredArgumentPossible
   "" ->
     arg := selectCommandArgument "required"
-    $skip unless arg? and arg.index >= 0
+    $skip unless arg?.index?
 DelimitedVerbatimArgument
   "" -> $skip unless commandArgumentIs "delimited", "verbatim"
 DelimitedVerbatim ::string
@@ -1543,8 +1542,8 @@ RequiredMathArgument
   "" -> $skip unless commandArgumentIs "required", "math"
 
 ```
-function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode): boolean
-  return false unless selected := selectCommandArgument delimiter
+function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode, allowFallback = false): boolean
+  return false unless selected := selectCommandArgument delimiter, allowFallback
   selected.arg.mode is mode
 ```
 
@@ -1779,13 +1778,13 @@ ArgumentListContinuation ::AST
     return [ comments, eol, bullet ]
 
 ArgumentBullet ::AST
-  RawArgumentBulletEnabled Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
+  RawArgumentBullet Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
-  VerbatimArgumentBulletEnabled Indent:indent Bullet:bullet VerbatimArgumentListItemLine:text VerbatimNestedBody:body ->
+  VerbatimArgumentBullet Indent:indent Bullet:bullet VerbatimArgumentListItemLine:text VerbatimNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body, true
-  TextArgumentBulletEnabled Indent:indent Bullet:bullet ListItemLine:text NestedBody:body ->
+  TextArgumentBullet Indent:indent Bullet:bullet ListItemLine:text NestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
-  MathArgumentBulletEnabled Indent:indent Bullet:bullet MathArgumentListItemLine:text MathArgumentNestedBody:body ->
+  MathArgumentBullet Indent:indent Bullet:bullet MathArgumentListItemLine:text MathArgumentNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
 
 ```
@@ -1808,21 +1807,21 @@ function commandArgumentBullet(
     [ indent, space, open, argumentBody, close, comment ]
 ```
 
-RawArgumentBulletEnabled
-  &(Space OptionalBullet) OptionalRawArgument
-  &(Space RequiredBullet) RequiredRawArgument
+RawArgumentBullet
+  &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "raw", true
+  &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "raw", true
 
-VerbatimArgumentBulletEnabled
-  &(Space OptionalBullet) OptionalVerbatimArgument
-  &(Space RequiredBullet) RequiredVerbatimArgument
+VerbatimArgumentBullet
+  &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "verbatim", true
+  &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "verbatim", true
 
-TextArgumentBulletEnabled
-  &(Space OptionalBullet) OptionalTextArgument
-  &(Space RequiredBullet) RequiredTextArgument
+TextArgumentBullet
+  &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "text", true
+  &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "text", true
 
-MathArgumentBulletEnabled
-  &(Space OptionalBullet) OptionalMathArgument
-  &(Space RequiredBullet) RequiredMathArgument
+MathArgumentBullet
+  &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "math", true
+  &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "math", true
 
 RawArgumentListItemLine ::AST[]
   PushListItemIndent RawText:text PopListItemIndent -> unparsedTextChildren text, "Raw"
@@ -2000,7 +1999,7 @@ EnvironmentHeaderAndArguments ::{env: string, args: AST[]}
 
 # Consume `: name` to select and push the environment's argument pattern before
 # parsing its arguments. Resolve inherited argument modes from the surrounding
-# mode; undeclared environments repeat that mode for any number of arguments.
+# mode, also used for arguments without a matching declaration.
 # Return the name for the environment AST.
 # EnvironmentHeaderAndArguments pops the pattern.
 PushEnvironmentPattern ::string
