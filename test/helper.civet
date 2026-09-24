@@ -6,7 +6,7 @@ assert from assert
 
 export r := String.raw
 
-export function compare(src: string, result: string, compilerOpts: CompilerOptions)
+export function compare(src: string, result: string, compilerOpts: CompilerOptions): Promise<void>
   { filename } := compilerOpts
   compileResult := await compile(src, {
     ...compilerOpts

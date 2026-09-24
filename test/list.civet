@@ -1,5 +1,6 @@
 { r, testCase } from ./helper.civet
 { compile } from ../src/main.civet
+{ builtinPackages } from ../src/declarations.civet
 assert from node:assert/strict
 
 describe 'unordered lists', ->
@@ -618,49 +619,49 @@ describe 'list directives', ->
   '''
 
   testCase r'''
-    same-line colon argument with inferred environment
+    same-line colon argument with custom environment
     ---
-    ::list: arg
+    ::list custom: arg
     - bullet
     ---
-    \begin{itemize}{arg}%
+    \begin{custom}{arg}%
     \item bullet
-    \end{itemize}
+    \end{custom}
   '''
 
   testCase r'''
     same-line colon argument leaves indented numbered items separate from arguments
     ---
-    ::list[option]: *raw* \alpha % argument
+    ::list custom[option]: *text* \alpha % argument
       1. one
       2. two
     ---
-      \begin{enumerate}[option]{*raw* \alpha}% argument
+      \begin{custom}[option]{\emph{text} \alpha}% argument
       \item one
       \item two
-      \end{enumerate}
+      \end{custom}
   '''
 
   testCase r'''
     empty list with same-line colon argument
     ---
-    ::list: arg
+    ::list custom: arg
     ---
-    \begin{itemize}{arg}%
-    \end{itemize}
+    \begin{custom}{arg}%
+    \end{custom}
   '''
 
   testCase r'''
-    inferred list with strictly indented argument and item bullets
+    custom list with strictly indented argument and item bullets
     ---
-    ::list:
+    ::list custom:
         - arg
       - bullet
     ---
-      \begin{itemize}
+      \begin{custom}
          {arg}%
       \item bullet
-      \end{itemize}
+      \end{custom}
   '''
 
   testCase r'''
@@ -818,19 +819,6 @@ describe 'list directives', ->
   '''
 
   testCase r'''
-    empty inferred list with bulleted arguments
-    ---
-    ::list:
-      - argument
-      ~ option
-    ---
-    \begin{itemize}
-       {argument}%
-       [option]%
-    \end{itemize}
-  '''
-
-  testCase r'''
     preserves comments and combines inline and bulleted arguments
     ---
     :: list custom[inline]: % header
@@ -871,5 +859,182 @@ describe 'list directives', ->
     \begin{list}
     \item label
     \item setup
+    \end{list}
+  '''
+
+  for [marker, env] of [['-', 'itemize'], ['1.', 'enumerate']]
+    testCase ```
+      preserves blank lines before ${marker} items
+      ---
+      ::list [option]
+      % before items
+
+
+      ${marker} one
+      ---
+      \\begin{${env}}[option]
+      % before items
+
+
+      \\item one
+      \\end{${env}}
+    ```
+
+  it 'preserves CRLF before the first item', ->
+    assert.equal compile('::list\r\n\r\n- one', fragment: true),
+      '\\begin{itemize}\r\n\r\n\\item one\n\\end{itemize}'
+
+  describe 'package declarations', ->
+    before ->
+      builtinPackages.set 'testlists',
+        name: 'testlists'
+        environments: new Map Object.entries
+          itemize:
+            args: [
+              { name: 'label', delimiter: 'required', mode: 'text' }
+              { name: 'options', delimiter: 'optional', mode: 'raw' }
+            ]
+            body: 'text'
+          enumerate:
+            args: [
+              { name: 'options', delimiter: 'optional', mode: 'raw' }
+              { name: 'value', delimiter: 'required', mode: 'math' }
+            ]
+            body: 'text'
+          delimitedlist:
+            args: [
+              { name: 'label', delimiter: 'delimited', mode: 'verbatim' }
+              { name: 'value', delimiter: 'required-or-delimited', mode: 'verbatim' }
+              { name: 'settings', delimiter: 'required', mode: 'raw' }
+            ]
+            body: 'text'
+    after ->
+      builtinPackages.delete 'testlists'
+
+    testCase r'''
+      declared delimited arguments can precede a colon argument
+      ---
+      ::use testlists
+      ::list delimitedlist |% *label*| !% *value*!: *settings*
+      - *one*
+      ---
+      \usepackage{testlists}
+      \begin{delimitedlist} |% *label*| !% *value*!{*settings*}%
+      \item \emph{one}
+      \end{delimitedlist}
+    '''
+
+    testCase r'''
+      inferred lists accept unbraced command arguments
+      ---
+      ::use testlists
+      ::list[option]\value
+      1. one
+      ---
+      \usepackage{testlists}
+      \begin{enumerate}[option]\value
+      \item one
+      \end{enumerate}
+    '''
+
+    testCase r'''
+      inferred ordered list uses its own argument declaration
+      ---
+      ::use testlists
+      ::list[*raw*]:
+        - x_12
+        1. *one*
+      ---
+      \usepackage{testlists}
+        \begin{enumerate}[*raw*]
+         {x_{12}}%
+        \item \emph{one}
+        \end{enumerate}
+    '''
+
+    testCase r'''
+      inferred unordered list separates strictly indented arguments and items
+      ---
+      ::use testlists
+      ::list:
+          - *label*
+        - bullet
+      ---
+      \usepackage{testlists}
+        \begin{itemize}
+           {\emph{label}}%
+        \item bullet
+        \end{itemize}
+    '''
+
+    testCase r'''
+      empty inferred list uses the itemize declaration
+      ---
+      ::use testlists
+      ::list:
+        - *label*
+        ~ *raw*
+      ---
+      \usepackage{testlists}
+      \begin{itemize}
+         {\emph{label}}%
+         [*raw*]%
+      \end{itemize}
+    '''
+
+    testCase r'''
+      same-line inferred argument uses the selected environment declaration
+      ---
+      ::use testlists
+      ::list: x_12
+      1. *one*
+      ::list: *label*
+      - *two*
+      ---
+      \usepackage{testlists}
+      \begin{enumerate}{x_{12}}%
+      \item \emph{one}
+      \end{enumerate}
+      \begin{itemize}{\emph{label}}%
+      \item \emph{two}
+      \end{itemize}
+    '''
+
+    testCase r'''
+      exhausting arguments leaves aligned bullets as list items
+      ---
+      ::use testlists
+      ::list:
+        - *label*
+        - *one*
+        - *two*
+      ---
+      \usepackage{testlists}
+        \begin{itemize}
+         {\emph{label}}%
+        \item \emph{one}
+        \item \emph{two}
+        \end{itemize}
+    '''
+
+  testCase r'''
+    list arguments can be unbraced commands
+    ---
+    ::list list \label \settings
+    - one
+    ---
+    \begin{list} \label \settings
+    \item one
+    \end{list}
+  '''
+
+  testCase r'''
+    list label is text and list settings are raw
+    ---
+    ::list list{*label*}{\def\label{*raw*}}
+    - *one*
+    ---
+    \begin{list}{\emph{label}}{\def\label{*raw*}}
+    \item \emph{one}
     \end{list}
   '''

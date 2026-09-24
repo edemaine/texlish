@@ -1,6 +1,6 @@
 { r, testCase } from ./helper.civet
 { compile } from ../src/main.civet
-{ builtinEnvironmentModes } from ../src/declarations.civet
+{ builtinEnvironments } from ../src/declarations.civet
 { iterate } from ../src/util.civet
 type { AST } from ../src/types.civet
 assert from assert
@@ -8,7 +8,7 @@ assert from assert
 describe 'verbatim LaTeX', ->
   it 'records complete environments while preserving their body modes', ->
     for each mode of ['raw', 'verbatim', 'text', 'math'] as const
-      builtinEnvironmentModes.set 'custombody', mode
+      builtinEnvironments.set 'custombody', { args: [], body: mode }
       try
         source := '\\begin{custombody}x_12 *body*\\end{custombody}'
         ast := compile source, ast: true, fragment: true
@@ -18,7 +18,7 @@ describe 'verbatim LaTeX', ->
         if mode is like 'raw', 'verbatim'
           assert.equal compile(source, fragment: true), source
       finally
-        builtinEnvironmentModes.delete 'custombody'
+        builtinEnvironments.delete 'custombody'
 
   it 'distinguishes raw and verbatim bodies across argument forms', ->
     for [command, type] of [['includegraphics', 'Raw'], ['url', 'Verbatim']]
@@ -37,11 +37,11 @@ describe 'verbatim LaTeX', ->
           assert.equal node.type, type
 
   it 'environment declarations select body modes', ->
-    builtinEnvironmentModes.set "rawbody", "raw"
-    builtinEnvironmentModes.set "verbatimbody", "verbatim"
-    builtinEnvironmentModes.set "textbody", "text"
-    builtinEnvironmentModes.set "mathbody", "math"
-    builtinEnvironmentModes.set "inheritbody", "inherit"
+    builtinEnvironments.set "rawbody", { args: [], body: "raw" }
+    builtinEnvironments.set "verbatimbody", { args: [], body: "verbatim" }
+    builtinEnvironments.set "textbody", { args: [], body: "text" }
+    builtinEnvironments.set "mathbody", { args: [], body: "math" }
+    builtinEnvironments.set "inheritbody", { args: [], body: "inherit" }
     try
       let result = await compile r'''
         \begin{rawbody}
@@ -117,7 +117,7 @@ describe 'verbatim LaTeX', ->
         "mathbody"
         "inheritbody"
       ]
-        builtinEnvironmentModes.delete name
+        builtinEnvironments.delete name
 
   it 'uses opaque AST nodes', ->
     let ast = await compile '\\verb|\\usepackage{ulem} *raw*|',

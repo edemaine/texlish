@@ -44,6 +44,7 @@ type {
   type ArgumentSpec
   type ArgumentsPattern
   type ResolvedArgumentMode
+  assertResolvedArgumentMode
   Declarations
   argumentPatternKey
 } from ./declarations.civet
@@ -1133,7 +1134,7 @@ TexNestedBody ::AST[]
 ## LISTS
 
 ```
-function list(indent: Indent, env: string, items: AST[], args: AST[] = []): List
+function buildList(indent: Indent, env: string, items: AST[], args: AST[] = [], eols: AST[] = ["\n"]): List
   {
     type: "List"
     env
@@ -1142,7 +1143,7 @@ function list(indent: Indent, env: string, items: AST[], args: AST[] = []): List
       indent
       `\\begin{${env}}`
       args
-      ...["\n", indent, items] if items#
+      ...[eols, indent, items] if items#
       "\n"
       indent
       `\\end{${env}}`
@@ -1153,7 +1154,7 @@ function list(indent: Indent, env: string, items: AST[], args: AST[] = []): List
 UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
     return $skip unless items
-    list indent, "itemize", items
+    buildList indent, "itemize", items
 
 UnorderedBullet ::AST[]
   MarkdownChecklistsEnabled Bullet ChecklistMarker:checklist $( ActualSpace / &EOL ):space ListItemLine:text NestedBody:body ->
@@ -1192,7 +1193,7 @@ RequiredBullet ::string
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
-    list indent, "enumerate", items
+    buildList indent, "enumerate", items
 
 OrderedBullet ::AST[]
   NumberBullet:space ListItemLine:text NestedBody:body ->
@@ -1228,26 +1229,42 @@ ListItemStatement ::AST
   ListDirective
 
 ListDirective ::List
-  &/[ \t]*::[ \t]*list(?=[ \t:[{%\r\n]|$)/ Indent:indent /::[ \t]*list[ \t]*/ /[^\s:[{%]+/?:env PushIndent PushGenericRawArgumentPattern ListDirectiveContent?:content PopCommandPattern PopIndent ->
-    return $skip unless content
-    { args, body } := content
-    if body
-      list getLeadingIndent(body), env?[0] ?? body.env, body.items, args
+  &/[ \t]*::[ \t]*list(?=[ \t:[{%\r\n]|$)/ Indent:indent /::[ \t]*list[ \t]*/ PushIndent PushListEnvironmentPattern:env ListDirectiveArguments?:args PopCommandPattern ( Nested ( UnorderedList / OrderedList ) )?:body PopIndent ->
+    return $skip unless args?
+    if body?
+      [eols, list] := body
+      buildList getLeadingIndent(list), env, list.items, args, eols
     else
-      list indent, env?[0] ?? "itemize", [], args
+      buildList indent, env, [], args
 
-ListDirectiveContent ::{args: AST[], body: List?}
-  EnvironmentInlineArgument*:args Space ListColonArguments?:colonArgs ( Space Comment )?:comment NestedComment*:comments &EOL ( Nested ( UnorderedList / OrderedList ) )?:body ->
-    {
-      args: [
-        ...args
-        ...colonArgs if colonArgs
-        ...comment if comment
-        ...comments
-      ]
-      body: body?[1]
-    }
+PushListEnvironmentPattern ::string
+  # `::list env` parses arguments like `: env`
+  EnvironmentName:env ->
+    pushEnvironmentPattern env, "text"
+    env
+  # `::list` without environment name needs to figure out itemize or enumerate.
+  # Probe with enumerate's declaration, then restore state and select the
+  # actual pattern. Empty lists default to itemize.
+  PushLineIndent PushEnumerateArgumentPattern (&( ListDirectiveArguments Nested /[ \t]*\d+\.([ \t]+|(?=[\r\n]))/ ))?:ordered PopCommandPattern PopLineIndent ->
+    env := if ordered then "enumerate" else "itemize"
+    pushEnvironmentPattern env, "text"
+    env
 
+PushEnumerateArgumentPattern
+  "" -> pushEnvironmentPattern "enumerate", "text"
+
+ListDirectiveArguments ::AST[]
+  CommandArgument*:args Space ListColonArguments?:colonArgs ( Space Comment )?:comment NestedComment*:comments &EOL ->
+    [
+      ...args
+      ...colonArgs if colonArgs
+      ...comment if comment
+      ...comments
+    ]
+
+# Like command/environment colon arguments, but list argument bullets must be
+# strictly indented, and unbulleted indented content is never an argument.
+# Also allow an empty trailing colon and preserve a comment after it.
 ListColonArguments ::AST[]
   Colon Space !( Comment / EOL ) InlineCommandArgumentAfterColon:arg -> [arg]
   Colon ( Space Comment )?:comment PushStrictIndent ArgumentList?:args PopIndent ->
@@ -1355,7 +1372,14 @@ function pushCommandPattern(
   parentMode: ResolvedArgumentMode
 ): PendingCall?
   return unless resolution := state.declarations.getCommand command.token
-  { args } .= resolution
+  pushArgumentPattern resolution.args, parentMode
+  {
+    command
+    argsSpec: resolution.args
+    package: resolution.package.name
+  }
+
+function pushArgumentPattern(args: ArgumentsPattern, parentMode: ResolvedArgumentMode): void
   if (arg.mode is "inherit" for some each arg of args)
     args = for each arg of args
       if arg.mode is "inherit"
@@ -1363,12 +1387,6 @@ function pushCommandPattern(
       else
         arg
   state.argumentPatterns.push { args, index: 0 }
-  {
-    command
-    argsSpec: resolution.args
-    package: resolution.package.name
-  }
-
 ```
 
 PopCommandPattern
@@ -1390,7 +1408,7 @@ CommandArgument ::AST
       [ space, delimiter, body, delimiter ]
   # Try delimiters first so a backslash-delimited verbatim argument stays literal.
   # TeX undelimited required arguments can be single control-sequence tokens.
-  RequiredArgumentPossible CommandSpace:space CommandWithoutNewline:body ->
+  DeclaredRequiredArgumentPossible CommandSpace:space CommandWithoutNewline:body ->
     commandArgument "required", "unbraced", body, [ space, body ]
 
 ```
@@ -1455,6 +1473,11 @@ OptionalArgumentPossible
   "" -> $skip unless selectCommandArgument "optional"
 RequiredArgumentPossible
   "" -> $skip unless selectCommandArgument "required"
+# Only a declaration can distinguish an unbraced argument from a body command.
+DeclaredRequiredArgumentPossible
+  "" ->
+    arg := selectCommandArgument "required"
+    $skip unless arg? and arg.index >= 0
 DelimitedVerbatimArgument
   "" -> $skip unless commandArgumentIs "delimited", "verbatim"
 DelimitedVerbatim ::string
@@ -1914,13 +1937,12 @@ RawEnvironment ::Environment
     }
 
 TextEnvironment ::Environment
-  # Push the body indentation before parsing mode-specific colon arguments.
-  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent TextEnvironmentContent?:content PopIndent ->
+  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericTextArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
     return $skip unless content
     environment indent, content
 
 MathEnvironment ::Environment
-  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent MathEnvironmentContent?:content PopIndent ->
+  &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericMathArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
     return $skip unless content
     environment indent, content
 
@@ -1941,29 +1963,21 @@ function environment(indent: Indent, content: {env: string, children: AST[]}): E
   }
 ```
 
-TextEnvironmentContent ::{env: string, children: AST[]}
-  RawEnvironmentHeader:env RawEnvironmentArguments:args TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  VerbatimEnvironmentHeader:env VerbatimEnvironmentArguments:args TrimmedVerbatimText:first NestedVerbatimEnvironmentStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  MathEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  TextEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  InheritedEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
+# Generic patterns for undeclared environments inherit the surrounding mode.
+PushGenericTextArgumentPattern
+  "" -> state.argumentPatterns.push "text"
+PushGenericMathArgumentPattern
+  "" -> state.argumentPatterns.push "math"
 
-MathEnvironmentContent ::{env: string, children: AST[]}
-  RawEnvironmentHeader:env RawEnvironmentArguments:args TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  VerbatimEnvironmentHeader:env VerbatimEnvironmentArguments:args TrimmedVerbatimText:first NestedVerbatimEnvironmentStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  TextEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  MathEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
-  InheritedEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
-    { env, children: [ args, first, ...rest ] }
+EnvironmentContent ::{env: string, children: AST[]}
+  &RawEnvironmentHeader EnvironmentHeaderAndArguments:head TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
+    { env: head.env, children: [ head.args, first, ...rest ] }
+  &VerbatimEnvironmentHeader EnvironmentHeaderAndArguments:head TrimmedVerbatimText:first NestedVerbatimEnvironmentStatement*:rest ->
+    { env: head.env, children: [ head.args, first, ...rest ] }
+  &MathEnvironmentHeader EnvironmentHeaderAndArguments:head TrimmedMathText:first NestedMathStatement*:rest ->
+    { env: head.env, children: [ head.args, first, ...rest ] }
+  &TextEnvironmentHeader EnvironmentHeaderAndArguments:head TrimmedText:first NestedStatement*:rest ->
+    { env: head.env, children: [ head.args, first, ...rest ] }
 
 NestedRawEnvironmentStatement ::AST[]
   Nested:eols Indent:indent RawText:text ->
@@ -1973,34 +1987,87 @@ NestedVerbatimEnvironmentStatement ::AST[]
   Nested:eols Indent:indent VerbatimText:text ->
     [ eols, indent, text.children ]
 
+EnvironmentHeaderAndArguments ::{env: string, args: AST[]}
+  PushEnvironmentPattern:env CommandArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs PopCommandPattern ->
+    colon := colonArgs?[2] ?? []
+    {
+      env
+      args: [
+        ...args
+        ...if Array.isArray colon then colon else [colon]
+      ]
+    }
+
+# Consume `: name` to select and push the environment's argument pattern before
+# parsing its arguments. Resolve inherited argument modes from the surrounding
+# mode; undeclared environments repeat that mode for any number of arguments.
+# Return the name for the environment AST.
+# EnvironmentHeaderAndArguments pops the pattern.
+PushEnvironmentPattern ::string
+  EnvironmentHeader:env ->
+    parentMode := state.argumentPatterns.-1
+    assertResolvedArgumentMode parentMode
+    pushEnvironmentPattern env, parentMode
+    env
+
+```
+// The caller supplies the surrounding mode; declarations independently choose
+// argument modes and the grammar branch used for the body.
+function pushEnvironmentPattern(env: string, parentMode: ResolvedArgumentMode): void
+  if declaration := state.declarations.getEnvironment env
+    pushArgumentPattern declaration.args, parentMode
+  else
+    state.argumentPatterns.push parentMode
+```
+
+NestedArgumentList ::AST[]
+  PushIndent ArgumentList?:content PopIndent ->
+    return $skip unless content
+    return content
+
 EnvironmentHeader ::string
-  ":" ActualSpace /[^:\s\[{%]+/:env -> env[0]
+  ":" ActualSpace EnvironmentName:env -> env
+
+EnvironmentName ::string
+  /[^\s:[{%]+/
 
 RawEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.declarations.getEnvironment(env) is "raw"
+    return $skip unless environmentBodyMode(env) is "raw"
     env
 
 VerbatimEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.declarations.getEnvironment(env) is "verbatim"
+    return $skip unless environmentBodyMode(env) is "verbatim"
     env
 
 TextEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.declarations.getEnvironment(env) is "text"
+    return $skip unless environmentBodyMode(env) is "text"
     env
 
 MathEnvironmentHeader ::string
   EnvironmentHeader:env ->
-    return $skip unless state.declarations.getEnvironment(env) is "math"
+    return $skip unless environmentBodyMode(env) is "math"
     env
 
-InheritedEnvironmentHeader ::string
-  EnvironmentHeader:env ->
-    mode := state.declarations.getEnvironment env
-    return $skip if mode? and mode is not "inherit"
-    env
+```
+/**
+ * Resolve an environment's body mode, using the surrounding mode for
+ * undeclared environments and declarations with an inherited body mode.
+ * Only for colon environments: TextEnvironment/MathEnvironment has pushed
+ * the surrounding mode onto argumentPatterns. Native \begin environments
+ * may instead have an empty stack or a command pattern on top.
+ */
+function environmentBodyMode(env: string): ResolvedArgumentMode
+  mode := state.declarations.getEnvironment(env)?.body
+  if not mode? or mode is "inherit"
+    parentMode := state.argumentPatterns.-1
+    assertResolvedArgumentMode parentMode
+    parentMode
+  else
+    mode
+```
 
 BeginEnvironment ::{env: string, children: AST[]}
   $/\\begin[ \t]*\{/ /[^{}\r\n]+/:env "}" ->
@@ -2012,32 +2079,32 @@ EndEnvironment ::{env: string, children: AST[]}
 
 BeginRawEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "raw"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "raw"
     environment
 
 BeginVerbatimEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "verbatim"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "verbatim"
     environment
 
 BeginTextEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "text"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "text"
     environment
 
 EndTextEnvironment ::{env: string, children: AST[]}
   EndEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "text"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "text"
     environment
 
 BeginMathEnvironment ::{env: string, children: AST[]}
   BeginEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "math"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "math"
     environment
 
 EndMathEnvironment ::{env: string, children: AST[]}
   EndEnvironment:environment ->
-    return $skip unless state.declarations.getEnvironment(environment.env) is "math"
+    return $skip unless state.declarations.getEnvironment(environment.env)?.body is "math"
     environment
 
 BeginEndMathEnvironment ::Environment
@@ -2049,44 +2116,6 @@ BeginEndTextEnvironment ::Environment
   BeginTextEnvironment:open TextAndContent EndTextEnvironment:close ->
     return $skip unless open.env is close.env
     { type: "Environment", open.env, children: $0 }
-
-RawEnvironmentArguments ::AST[]
-  PushGenericRawArgumentPattern EnvironmentArguments:args -> args
-VerbatimEnvironmentArguments ::AST[]
-  PushGenericVerbatimArgumentPattern EnvironmentArguments:args -> args
-TextEnvironmentArguments ::AST[]
-  PushGenericTextArgumentPattern EnvironmentArguments:args -> args
-MathEnvironmentArguments ::AST[]
-  PushGenericMathArgumentPattern EnvironmentArguments:args -> args
-
-# Inline and colon arguments share the environment body's mode. Pop the generic
-# argument pattern before parsing the body or resuming an enclosing command.
-EnvironmentArguments ::AST[]
-  EnvironmentInlineArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs PopCommandPattern ->
-    colon := colonArgs?[2] ?? []
-    [
-      ...args
-      ...if Array.isArray colon then colon else [colon]
-    ]
-
-EnvironmentInlineArgument ::AST
-  &( Space [[{] ) CommandArgument -> $2
-
-# Environment colon arguments repeat their body's mode without disturbing an
-# enclosing command pattern.
-PushGenericRawArgumentPattern
-  "" -> state.argumentPatterns.push "raw"
-PushGenericVerbatimArgumentPattern
-  "" -> state.argumentPatterns.push "verbatim"
-PushGenericTextArgumentPattern
-  "" -> state.argumentPatterns.push "text"
-PushGenericMathArgumentPattern
-  "" -> state.argumentPatterns.push "math"
-
-NestedArgumentList ::AST[]
-  PushIndent ArgumentList?:content PopIndent ->
-    return $skip unless content
-    return content
 
 ## CONFIGURATION
 

@@ -1,14 +1,76 @@
 { r, testCase } from ./helper.civet
-{ builtinEnvironmentModes } from ../src/declarations.civet
+{ builtinEnvironments } from ../src/declarations.civet
 
 describe ': environments', ->
   before ->
-    builtinEnvironmentModes.set 'testtextenv', 'text'
-    builtinEnvironmentModes.set 'testrawenv', 'raw'
+    builtinEnvironments.set 'testtextenv',
+      args: [
+        { name: 'label', delimiter: 'optional', mode: 'text' }
+        { name: 'value', delimiter: 'required', mode: 'text' }
+      ]
+      body: 'text'
+    for mode of ['raw', 'math', 'verbatim'] as const
+      builtinEnvironments.set `test${mode}env`,
+        args: [
+          { name: 'option', delimiter: 'optional', mode }
+          { name: 'first', delimiter: 'required', mode }
+          { name: 'second', delimiter: 'required', mode }
+        ]
+        body: mode
+    builtinEnvironments.set 'testmixedenv',
+      args: [
+        { name: 'label', delimiter: 'optional', mode: 'text' }
+        { name: 'settings', delimiter: 'required', mode: 'raw' }
+        { name: 'value', delimiter: 'required', mode: 'inherit' }
+      ]
+      body: 'math'
+    builtinEnvironments.set 'testdelimitedenv',
+      args: [
+        { name: 'label', delimiter: 'delimited', mode: 'verbatim' }
+        { name: 'value', delimiter: 'required-or-delimited', mode: 'verbatim' }
+        { name: 'settings', delimiter: 'required', mode: 'raw' }
+      ]
+      body: 'text'
 
   after ->
-    builtinEnvironmentModes.delete 'testtextenv'
-    builtinEnvironmentModes.delete 'testrawenv'
+    builtinEnvironments.delete 'testtextenv'
+    for mode of ['raw', 'math', 'verbatim', 'mixed', 'delimited']
+      builtinEnvironments.delete `test${mode}env`
+
+  testCase r'''
+    declared environments accept unbraced command arguments
+    ---
+    : list \label \settings
+      *body*
+    ---
+    \begin{list} \label \settings
+      \emph{body}
+    \end{list}
+  '''
+
+  testCase r'''
+    declared environments accept delimited arguments before colon arguments
+    ---
+    : testdelimitedenv |% *label*| {% *value*}: *settings*
+      *body*
+    ---
+    \begin{testdelimitedenv} |% *label*| {% *value*}{*settings*}%
+      \emph{body}
+    \end{testdelimitedenv}
+  '''
+
+  testCase r'''
+    undeclared environment body commands retain their own argument modes
+    ---
+    \[
+      : custom[option] \textbf{*body*}
+    \]
+    ---
+    \[
+      \begin{custom}[option]\textbf{\emph{body}}
+      \end{custom}
+    \]
+  '''
 
   testCase r'''
     disabled by compiler option
@@ -198,12 +260,12 @@ describe ': environments', ->
   testCase r'''
     declared math environment processes inline and colon arguments as math
     ---
-    : align[x_12]{y_34}: z_56
+    : testmathenv[x_12]{y_34}: z_56
       w_78
     ---
-    \begin{align}[x_{12}]{y_{34}}{z_{56}}%
+    \begin{testmathenv}[x_{12}]{y_{34}}{z_{56}}%
       w_{78}
-    \end{align}
+    \end{testmathenv}
   '''
 
   testCase r'''
@@ -244,12 +306,12 @@ describe ': environments', ->
   testCase r'''
     verbatim environment inline arguments keep percent signs literal
     ---
-    : verbatim[% literal]{*raw*}
+    : testverbatimenv[% literal]{*raw*}
       @body
     ---
-    \begin{verbatim}[% literal]{*raw*}
+    \begin{testverbatimenv}[% literal]{*raw*}
       @body
-    \end{verbatim}
+    \end{testverbatimenv}
   '''
 
   testCase r'''
@@ -283,4 +345,37 @@ describe ': environments', ->
     \begin{theorem}% Big Theorem
       Cool!
     \end{theorem}
+  '''
+
+  testCase r'''
+    argument modes are independent of body mode
+    ---
+    : testmixedenv[*label*]{*raw*}: *text*
+      x_12
+    \[
+      : testmixedenv[*label*]:
+        - *raw*
+        - x_12
+        y_34
+    \]
+    ---
+    \begin{testmixedenv}[\emph{label}]{*raw*}{\emph{text}}%
+      x_{12}
+    \end{testmixedenv}
+    \[
+      \begin{testmixedenv}[\emph{label}]
+         {*raw*}%
+         {x_{12}}%
+        y_{34}
+      \end{testmixedenv}
+    \]
+  '''
+
+  testCase r'''
+    exhausted argument patterns leave braces and brackets in the body
+    ---
+    : tabular[t]{*{2}{c}} {*body*} [*text*]
+    ---
+    \begin{tabular}[t]{*{2}{c}}{\emph{body}} [\emph{text}]
+    \end{tabular}
   '''

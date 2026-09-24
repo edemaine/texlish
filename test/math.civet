@@ -330,16 +330,16 @@ describe 'math mode', ->
   '''
 
   testCase r'''
-    colon math environment arguments inherit math mode
+    math environment has raw arguments and a math body
     ---
-    : align:
-      - x_12
+    : alignat:
+      - 2
       y_34
     ---
-    \begin{align}
-       {x_{12}}%
+    \begin{alignat}
+       {2}%
       y_{34}
-    \end{align}
+    \end{alignat}
   '''
 
   testCase r'''

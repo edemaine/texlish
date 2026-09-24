@@ -27,8 +27,8 @@ export {
 } from ./config.civet
 export { version } from ./version.civet
 
-// Need to no-cache any rule that directly modifies parser state
-// indentation stack, jsx stack, etc.
+// Cache hits reuse values without replaying state changes. Exclude rules with
+// observable state changes or dependencies missing from getStateKey().
 
 uncacheable := new Set [
   // Indentation
@@ -39,39 +39,45 @@ uncacheable := new Set [
   "PushStrictIndent"
   "PushStrictCurrentIndent"
   "PopIndent"
-  "SaveIndent"
   "PushLineIndent"
   "PopLineIndent"
   "PushListItemIndent"
   "PushListItemPendingIndent"
   "PopListItemIndent"
+  // Reads thisLineIndent, which is not part of getStateKey().
+  "SaveIndent"
   // List item markers set state.listItemIndent for PushListItemIndent.
   "Bullet"
   "NumberBullet"
   // ListItemLine chooses between statement/text list-item setup, both stateful.
   "ListItemLine"
-  // These rules change the active argument-pattern stack/suffix. This includes
-  // wrappers whose children consume arguments without restoring the suffix:
-  // a cache hit skips the entire subtree and would not replay that transition.
-  // Rules that only read the stack and wrappers with no net change stay cached.
+  // These rules change the argument-pattern stack or its current argument index.
+  // Reads of keyed state and wrappers with balanced push/pop stay cached,
+  // including EnvironmentHeaderAndArguments and complete command/environment rules.
   // Push or pop the active pattern.
   "PushTextCommandPattern"
   "PushMathCommandPattern"
   "PushGenericTextColonCommandPattern"
   "PushGenericMathColonCommandPattern"
-  "PushGenericRawArgumentPattern"
-  "PushGenericVerbatimArgumentPattern"
   "PushGenericTextArgumentPattern"
   "PushGenericMathArgumentPattern"
   "PopCommandPattern"
-  // Directly consume a finite pattern suffix.
+  "PushListEnvironmentPattern"
+  "PushEnumerateArgumentPattern"
+  "PushEnvironmentPattern"
+  // Parse an argument and advance the active pattern's argument index.
   "CommandArgument"
-  "EnvironmentInlineArgument"
   "CommandArgumentAfterColon"
   "InlineCommandArgumentAfterColon"
   "ArgumentBullet"
   "CommandFinalArgument"
-  // Return with a suffix consumed by a child.
+  // Child rules advance the caller's argument index, and these rules leave it
+  // advanced. A cache hit would return the AST without advancing that index.
+  // Their indentation push/pop does not restore the argument index; unlike
+  // EnvironmentHeaderAndArguments, they do not push/pop their own argument pattern.
+  "ListDirectiveArguments"
+  "ListColonArguments"
+  "NestedArgumentList"
   "NestedCommandArgumentList"
   "ArgumentList"
   "ArgumentListContinuation"
@@ -79,7 +85,6 @@ uncacheable := new Set [
   "InlineCommandColonArguments"
   // Parse arguments and pop the active pattern before returning.
   "CommandArguments"
-  "EnvironmentArguments"
   // Parser config mutation
   "MetaStyles"
   "MetaConfig"

@@ -186,12 +186,12 @@ describe 'declarations', ->
       custom:
         name: "custom"
         environments: new Map Object.entries
-          customenv: "verbatim"
+          customenv: { args: [], body: "verbatim" }
     declarations := new Declarations packages,
       environments: new Map Object.entries
         customenv: "custom"
 
-    assert.equal declarations.getEnvironment("customenv"), "verbatim"
+    assert.deepEqual declarations.getEnvironment("customenv"), { args: [], body: "verbatim" }
     assert declarations.loadedPackageNames.has "custom"
 
   it 'postprocess autoimports packages for used environments', ->

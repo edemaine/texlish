@@ -43,7 +43,7 @@ export function Playground({
     (src().match(/\n/g)?# ?? 0) + 2
 
   let textarea: HTMLTextAreaElement
-  function changeSrc(code: string)
+  function changeSrc(code: string): void
     setSrc code
     textarea.value = code
   onMount =>  // ensure successful hydration before we change the example
@@ -55,11 +55,11 @@ export function Playground({
       return changeSrc queryCode if queryCode?
     if code := window.localStorage.getItem 'code'
       changeSrc code
-  function onInput
+  function onInput: void
     setSrc textarea.value
     window.localStorage.setItem 'code', src()
     window.history.replaceState {}, '', `${location.pathname}?code=${btoa src()}`
-  function clear
+  function clear: void
     changeSrc ''
 
   <.example>

@@ -1,5 +1,5 @@
 /**
- * How Texlish parses the contents of a command argument:
+ * How Texlish parses argument contents and environment bodies:
  * - `text` processes the argument as Texlish text
  * - `math` processes the argument as Texlish math
  * - `inherit` resolves to the surrounding text or math mode
@@ -10,6 +10,10 @@ export type ArgumentMode = "text" | "math" | "raw" | "verbatim" | "inherit"
 
 /** An argument mode after resolving `inherit` against its surrounding mode. */
 export type ResolvedArgumentMode = Exclude<ArgumentMode, "inherit">
+
+export function assertResolvedArgumentMode(mode: unknown): asserts mode is ResolvedArgumentMode
+  unless mode is like "text", "math", "raw", "verbatim"
+    throw new Error "Expected a resolved argument mode"
 
 /** Namespace in which an argument introduces a definition */
 export type DefinitionKind = "command" | "environment"
@@ -48,8 +52,13 @@ interface DelimitedArgumentSpec extends ArgumentSpecBase
 /** The parsing specification for one named command argument. */
 export type ArgumentSpec = PairedArgumentSpec | DelimitedArgumentSpec
 
-/** Ordered argument specifications for a LaTeX command. */
+/** Ordered argument specifications for a LaTeX command or environment. */
 export type ArgumentsPattern = ArgumentSpec[]
+
+/** Arguments and body are parsed independently for a LaTeX environment. */
+export interface EnvironmentDeclaration
+  args: ArgumentsPattern
+  body: ArgumentMode
 
 /** Declarations and autoimport behavior for a package. */
 export interface PackageDeclarations
@@ -58,7 +67,7 @@ export interface PackageDeclarations
   /** Command declarations activated by loading this package. */
   commands?: Map<string, ArgumentsPattern>
   /** Environment declarations activated by loading this package. */
-  environments?: Map<string, ArgumentMode>
+  environments?: Map<string, EnvironmentDeclaration>
   /** Default \usepackage options used when Texlish automatically loads this package. */
   autoimportOptions?: string
   /** Preamble text inserted instead of `\usepackage` when Texlish automatically loads this package. */
@@ -112,8 +121,18 @@ textRequired := { delimiter: "required", mode: "text" } as const
 mathRequired := { delimiter: "required", mode: "math" } as const
 inheritRequired := { delimiter: "required", mode: "inherit" } as const
 
-// Shared patterns group commands with the same syntax and argument meanings.
+// Shared patterns group commands/environments with the same argument meanings.
 noArguments: ArgumentsPattern := []
+optionsPattern: ArgumentsPattern :=
+  . { name: "options", ...rawOptional }
+optionsNamePattern: ArgumentsPattern :=
+  . { name: "options", ...rawOptional }
+  . { name: "name", ...rawRequired }
+pairsPattern: ArgumentsPattern :=
+  . { name: "pairs", ...rawRequired }
+positionColumnsPattern: ArgumentsPattern :=
+  . { name: "position", ...rawOptional }
+  . { name: "columns", ...rawRequired }
 environmentPattern: ArgumentsPattern :=
   . { name: "environment", ...rawRequired }
 filenamePattern: ArgumentsPattern :=
@@ -416,50 +435,70 @@ export builtinCommandPatterns := new Map<string, ArgumentsPattern> Object.entrie
   "\\mint*": optionsLanguageCodePattern
 
 /**
- * Built-in environments and the modes of their body.
- * An absent or `inherit` value preserves the surrounding text or math mode.
+ * Built-in argument patterns and body modes.
+ * Undeclared environments inherit the surrounding mode for both.
  */
-export builtinEnvironmentModes := new Map<string, ArgumentMode> Object.entries
-  "math": "math"
-  "displaymath": "math"
-  "equation": "math"
-  "equation*": "math"
-  "alignat": "math"
-  "alignat*": "math"
-  "align": "math"
-  "align*": "math"
-  "gather": "math"
-  "gather*": "math"
-  "multline": "math"
-  "multline*": "math"
-  "flalign": "math"
-  "flalign*": "math"
-  "eqnarray": "math"
-  "eqnarray*": "math"
-  "verbatim": "verbatim"
-  "verbatim*": "verbatim"
-  "comment": "verbatim"
-  "python": "verbatim"
-  "Verbatim": "verbatim"
-  "Verbatim*": "verbatim"
-  "BVerbatim": "verbatim"
-  "BVerbatim*": "verbatim"
-  "LVerbatim": "verbatim"
-  "LVerbatim*": "verbatim"
-  "SaveVerbatim": "verbatim"
-  "SaveVerbatim*": "verbatim"
-  "VerbatimOut": "verbatim"
-  "VerbatimOut*": "verbatim"
-  "lstlisting": "verbatim"
-  "minted": "verbatim"
-  "filecontents": "verbatim"
-  "filecontents*": "verbatim"
+export builtinEnvironments := new Map<string, EnvironmentDeclaration> Object.entries
+  "math": { args: noArguments, body: "math" }
+  "displaymath": { args: noArguments, body: "math" }
+  "equation": { args: noArguments, body: "math" }
+  "equation*": { args: noArguments, body: "math" }
+  "alignat": { args: pairsPattern, body: "math" }
+  "alignat*": { args: pairsPattern, body: "math" }
+  "align": { args: noArguments, body: "math" }
+  "align*": { args: noArguments, body: "math" }
+  "gather": { args: noArguments, body: "math" }
+  "gather*": { args: noArguments, body: "math" }
+  "multline": { args: noArguments, body: "math" }
+  "multline*": { args: noArguments, body: "math" }
+  "flalign": { args: noArguments, body: "math" }
+  "flalign*": { args: noArguments, body: "math" }
+  "eqnarray": { args: noArguments, body: "math" }
+  "eqnarray*": { args: noArguments, body: "math" }
+  "verbatim": { args: noArguments, body: "verbatim" }
+  "verbatim*": { args: noArguments, body: "verbatim" }
+  "comment": { args: noArguments, body: "verbatim" }
+  "python": { args: noArguments, body: "verbatim" }
+  "Verbatim": { args: optionsPattern, body: "verbatim" }
+  "Verbatim*": { args: optionsPattern, body: "verbatim" }
+  "BVerbatim": { args: optionsPattern, body: "verbatim" }
+  "BVerbatim*": { args: optionsPattern, body: "verbatim" }
+  "LVerbatim": { args: optionsPattern, body: "verbatim" }
+  "LVerbatim*": { args: optionsPattern, body: "verbatim" }
+  "SaveVerbatim": { args: optionsNamePattern, body: "verbatim" }
+  "SaveVerbatim*": { args: optionsNamePattern, body: "verbatim" }
+  "VerbatimOut": { args: optionsFilenamePattern, body: "verbatim" }
+  "VerbatimOut*": { args: optionsFilenamePattern, body: "verbatim" }
+  "lstlisting": { args: optionsPattern, body: "verbatim" }
+  "minted":
+    args: [{ name: "options", ...rawOptional }, { name: "language", ...rawRequired }]
+    body: "verbatim"
+  "filecontents": { args: optionsFilenamePattern, body: "verbatim" }
+  "filecontents*": { args: optionsFilenamePattern, body: "verbatim" }
+
+  "itemize": { args: optionsPattern, body: "text" }
+  // Accommodate enumitem options and Beamer's overlay/label options.
+  "enumerate":
+    args: [{ name: "options", ...rawOptional }, { name: "label", ...rawOptional }]
+    body: "text"
+  "description": { args: optionsPattern, body: "text" }
+  "list":
+    args: [{ name: "label", ...textRequired }, { name: "settings", ...rawRequired }]
+    body: "text"
+  "tabular": { args: positionColumnsPattern, body: "text" }
+  "tabular*":
+    args: [
+      { name: "width", ...rawRequired }
+      ...positionColumnsPattern
+    ]
+    body: "text"
+  "array": { args: positionColumnsPattern, body: "math" }
 
 /** Core (`""`) and package-specific built-in declarations. */
 builtinPackageDeclarations: PackageDeclarations[] :=
   . name: "" // built-in core LaTeX
     commands: builtinCommandPatterns
-    environments: builtinEnvironmentModes
+    environments: builtinEnvironments
     preamble: ""
   . name: "texlish:defn" // \defn as needed by default *** style
     preamble: "\\providecommand\\defn[1]{\\textbf{\\textit{\\boldmath #1}}}"
@@ -492,7 +531,7 @@ export class Declarations
   loadedPackages: PackageDeclarations[]
   loadedPackageNames: Set<string>
   commandCache: Map<string, CommandResolution?> = new Map
-  environmentCache: Map<string, ArgumentMode?> = new Map
+  environmentCache: Map<string, EnvironmentDeclaration?> = new Map
 
   constructor(
     @packages: Map<string, PackageDeclarations> = builtinPackages
@@ -525,15 +564,15 @@ export class Declarations
     @commandCache.set name, return = resolution
 
   /** Find an environment among the currently loaded declarations. */
-  getEnvironment(name: string): ArgumentMode?
+  getEnvironment(name: string): EnvironmentDeclaration?
     // `has` distinguishes a cached miss (`undefined`) from no cache entry.
     return @environmentCache.get name if @environmentCache.has name
-    mode .= @findEnvironment name
-    unless mode?
+    declaration .= @findEnvironment name
+    unless declaration?
       if packageName? := @autoimports.environments?.get name
         if declarations := @loadPackage packageName
-          mode = declarations.environments?.get name
-    @environmentCache.set name, return = mode
+          declaration = declarations.environments?.get name
+    @environmentCache.set name, return = declaration
 
   hasCommand(name: string): boolean
     @getCommand(name)?
@@ -547,7 +586,7 @@ export class Declarations
       continue unless args := declarations.commands?.get name
       { args, package: declarations }
 
-  findEnvironment(name: string): ArgumentMode?
+  findEnvironment(name: string): EnvironmentDeclaration?
     for first i of [@loadedPackages#>..0]
-      continue unless mode := @loadedPackages[i].environments?.get name
-      mode
+      continue unless declaration := @loadedPackages[i].environments?.get name
+      declaration
