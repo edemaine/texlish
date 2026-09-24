@@ -14,6 +14,12 @@
   The command can be customized with `::styles ~~ = ...`, and strikethrough
   can be disabled with `-markdownStrikethrough`, `-markdownCompat`, or
   `latexCompat`.
+* `::list` configures the next Markdown-style list with an optional custom
+  environment and LaTeX arguments. Examples: `::list description` chooses
+  `description` environment; `::list [label=(\\alph*)]` provides options to
+  the default environment (`enumerate` for numbered lists).
+  A trailing `:` allows for a same-line required argument, or
+  strictly indented argument bullets.
 * Environment shorthand supports inline arguments such as `: tabular{cc}`,
   optionally followed by colon arguments.
 * New internal declaration system for command arguments and environment bodies

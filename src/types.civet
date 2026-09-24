@@ -243,7 +243,10 @@ export interface Indent extends ASTToken
 
 export interface List extends ASTParent
   type: "List"
-  env: "itemize" | "enumerate"
+  /** List environment, e.g. "itemize" or "enumerate" */
+  env: string
+  /** List items, aliased within children. */
+  items: AST[]
 
 export interface Preamble extends ASTParent
   type: "Preamble"

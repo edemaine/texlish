@@ -17,6 +17,7 @@ import Example from '../../components/example.astro'
 * [Math mode](#math-mode): [`x^123` script grouping](#script-grouping)
 * Indentation-based LaTeX: [`\command: arg`](#latex-commands),
   [`: environment`](#latex-environments),
+  [`::list`](#custom-lists),
   and [`::tex raw`](#raw-tex).
 * Document/config:
   [`::use package`](#use-packages),
@@ -222,6 +223,61 @@ but with less strict requirements on indentation.
 
 Markdown-style lists can be disabled with `::config -markdownLists`
 or `::config -markdownCompat`.
+
+### Custom Lists
+
+`::list` configures the following Markdown-style list.
+You can specify optional or required LaTeX arguments after `::list`:
+
+<Example src={`
+  ::use enumitem
+  ::list [label=(\\alph*), nosep]
+  1. one
+  2. two
+`}/>
+
+<Example src={`
+  \\documentclass: beamer
+  ::list [<+->][(i)]
+  1. one
+  2. two
+`}/>
+
+By default, numbered bullets select the `enumerate` environment and
+unordered bullets select `itemize`.  Supply an environment name
+(possibly followed by arguments) to override that choice:
+
+<Example src={`
+  ::list description
+  * [One] First
+  * [Two] Second
+`}/>
+
+Like [LaTeX environments](#latex-environments), you can use a colon followed by
+either one final required argument on the same line,
+or multiple indented arguments in a more strictly indented bulleted list
+(`-` for required and `~` for optional arguments):
+
+<Example src={`
+  ::use enumitem
+  ::list:
+    ~ resume*
+  1. one
+  2. two
+`}/>
+
+<Example src={`
+  ::list list:
+    - $\\diamond$
+    - \\setlength{\\leftmargin}{2em}
+  * one
+  * two
+`}/>
+
+`::list` blocks can be empty (have no items),
+though this can trigger a "missing `\item`" LaTeX warning.
+
+`::list` directives work even when automatic Markdown lists are disabled.
 
 ## Checklists
 

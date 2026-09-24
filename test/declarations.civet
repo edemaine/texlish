@@ -30,6 +30,7 @@ describe 'declarations', ->
       ['```\ncode\n```', { '```*': 'customenv' }, 'customenv']
       ['- item', {}, 'itemize']
       ['1. item', {}, 'enumerate']
+      ['::list customenv\n- item', {}, 'customenv']
       ['*styled*', { '*': '\\begin{customenv}' }, 'customenv']
       ['- [x] item', { '[x]': '\\begin{customenv}' }, 'customenv']
       ['---', { '---': '\\begin{customenv}' }, 'customenv']

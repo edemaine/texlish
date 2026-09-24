@@ -208,6 +208,7 @@ TextStatement ::AST
   MarkdownFootnotesEnabled FootnoteDefinition -> $2
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
+  ListDirective
 
 # Statement forms valid in both text and math mode.
 TextOrMathStatement ::AST
@@ -1131,23 +1132,28 @@ TexNestedBody ::AST[]
 
 ## LISTS
 
+```
+function list(indent: Indent, env: string, items: AST[], args: AST[] = []): List
+  {
+    type: "List"
+    env
+    items
+    children: [
+      indent
+      `\\begin{${env}}`
+      args
+      ...["\n", indent, items] if items#
+      "\n"
+      indent
+      `\\end{${env}}`
+    ]
+  }
+```
+
 UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
     return $skip unless items
-    return {
-      type: "List"
-      env: "itemize"
-      children: [
-        indent
-        "\\begin{itemize}"
-        "\n"
-        indent
-        items
-        "\n"
-        indent
-        "\\end{itemize}"
-      ]
-    }
+    list indent, "itemize", items
 
 UnorderedBullet ::AST[]
   MarkdownChecklistsEnabled Bullet ChecklistMarker:checklist $( ActualSpace / &EOL ):space ListItemLine:text NestedBody:body ->
@@ -1186,20 +1192,7 @@ RequiredBullet ::string
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
-    return {
-      type: "List"
-      env: "enumerate"
-      children: [
-        indent
-        "\\begin{enumerate}"
-        "\n"
-        indent
-        items
-        "\n"
-        indent
-        "\\end{enumerate}"
-      ]
-    }
+    list indent, "enumerate", items
 
 OrderedBullet ::AST[]
   NumberBullet:space ListItemLine:text NestedBody:body ->
@@ -1232,6 +1225,36 @@ ListItemStatement ::AST
   MetaBlock
   MarkdownListsEnabled UnorderedList -> $2
   MarkdownListsEnabled OrderedList -> $2
+  ListDirective
+
+ListDirective ::List
+  &/[ \t]*::[ \t]*list(?=[ \t:[{%\r\n]|$)/ Indent:indent /::[ \t]*list[ \t]*/ /[^\s:[{%]+/?:env PushIndent PushGenericRawArgumentPattern ListDirectiveContent?:content PopCommandPattern PopIndent ->
+    return $skip unless content
+    { args, body } := content
+    if body
+      list getLeadingIndent(body), env?[0] ?? body.env, body.items, args
+    else
+      list indent, env?[0] ?? "itemize", [], args
+
+ListDirectiveContent ::{args: AST[], body: List?}
+  EnvironmentInlineArgument*:args Space ListColonArguments?:colonArgs ( Space Comment )?:comment NestedComment*:comments &EOL ( Nested ( UnorderedList / OrderedList ) )?:body ->
+    {
+      args: [
+        ...args
+        ...colonArgs if colonArgs
+        ...comment if comment
+        ...comments
+      ]
+      body: body?[1]
+    }
+
+ListColonArguments ::AST[]
+  Colon Space !( Comment / EOL ) InlineCommandArgumentAfterColon:arg -> [arg]
+  Colon ( Space Comment )?:comment PushStrictIndent ArgumentList?:args PopIndent ->
+    [
+      ...comment if comment
+      ...args if args
+    ]
 
 ## COMMANDS
 

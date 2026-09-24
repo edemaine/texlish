@@ -1,4 +1,6 @@
 { r, testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+assert from node:assert/strict
 
 describe 'unordered lists', ->
   testCase r'''
@@ -543,4 +545,331 @@ describe 'ordered lists', ->
         \end{itemize}
       \end{enumerate}
     \end{enumerate}
+  '''
+
+describe 'list directives', ->
+  for [marker, env] of [['*', 'itemize'], ['1.', 'enumerate']]
+    for indentation of ['', '  ']
+      testCase ```
+        inferred ${env} with ${indentation#}-space body indent
+        ---
+        ::list
+        ${indentation}${marker} one
+        ${indentation}${marker} two
+        ---
+        ${indentation}\\begin{${env}}
+        ${indentation}\\item one
+        ${indentation}\\item two
+        ${indentation}\\end{${env}}
+      ```
+
+  testCase r'''
+    explicit environment overrides unordered markers
+    ---
+    ::list enumerate[<+->][(i)]
+    * <2-> one
+    * two
+    ---
+    \begin{enumerate}[<+->][(i)]
+    \item <2-> one
+    \item two
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    inferred environment with raw optional arguments
+    ---
+    ::list [label=(\alph*), resume]
+      1. one
+      2. two
+    ---
+      \begin{enumerate}[label=(\alph*), resume]
+      \item one
+      \item two
+      \end{enumerate}
+  '''
+
+  testCase r'''
+    custom environment with required and optional inline arguments
+    ---
+    ::list custom*{\textbf{Label}}[option]
+    1. one
+    ---
+    \begin{custom*}{\textbf{Label}}[option]
+    \item one
+    \end{custom*}
+  '''
+
+  testCase r'''
+    required argument bullets above an indented list
+    ---
+    ::list list:
+        - $\diamond$
+        - \setlength{\leftmargin}{2em}
+      * one
+      * two
+    ---
+      \begin{list}
+         {$\diamond$}%
+         {\setlength{\leftmargin}{2em}}%
+      \item one
+      \item two
+      \end{list}
+  '''
+
+  testCase r'''
+    same-line colon argument with inferred environment
+    ---
+    ::list: arg
+    - bullet
+    ---
+    \begin{itemize}{arg}%
+    \item bullet
+    \end{itemize}
+  '''
+
+  testCase r'''
+    same-line colon argument leaves indented numbered items separate from arguments
+    ---
+    ::list[option]: *raw* \alpha % argument
+      1. one
+      2. two
+    ---
+      \begin{enumerate}[option]{*raw* \alpha}% argument
+      \item one
+      \item two
+      \end{enumerate}
+  '''
+
+  testCase r'''
+    empty list with same-line colon argument
+    ---
+    ::list: arg
+    ---
+    \begin{itemize}{arg}%
+    \end{itemize}
+  '''
+
+  testCase r'''
+    inferred list with strictly indented argument and item bullets
+    ---
+    ::list:
+        - arg
+      - bullet
+    ---
+      \begin{itemize}
+         {arg}%
+      \item bullet
+      \end{itemize}
+  '''
+
+  testCase r'''
+    numbered bullets can align with argument bullets
+    ---
+    ::list enumerate:
+      ~ option
+      1. one
+      2. two
+    ---
+      \begin{enumerate}
+       [option]%
+      \item one
+      \item two
+      \end{enumerate}
+  '''
+  testCase r'''
+    optional argument bullets above same-level numbered items
+    ---
+    ::list:
+      ~ label=(\alph*)
+      ~ another argument
+    1. one
+    2. two
+    ---
+    \begin{enumerate}
+       [label=(\alph*)]%
+       [another argument]%
+    \item one
+    \item two
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    nested lists keep their own environments and may use directives
+    ---
+    ::list steps
+    * one
+      - nested
+      ::list enumerate:
+          ~ label=(\roman*)
+        * custom nested
+    * two
+
+    Paragraph.
+
+    - separate
+    ---
+    \begin{steps}
+    \item one
+      \begin{itemize}
+      \item nested
+      \end{itemize}
+        \begin{enumerate}
+           [label=(\roman*)]%
+        \item custom nested
+        \end{enumerate}
+    \item two
+    \end{steps}
+
+    Paragraph.
+
+    \begin{itemize}
+    \item separate
+    \end{itemize}
+  '''
+
+  testCase r'''
+    explicit list works with automatic Markdown lists disabled
+    ---
+    ::list enumerate
+    - one
+    ---
+    \begin{enumerate}
+    \item one
+    \end{enumerate}
+  ''', markdownLists: false
+
+  testCase r'''
+    does not consume a list outside the directive indentation
+    ---
+      ::list enumerate
+    - one
+    ---
+      \begin{enumerate}
+      \end{enumerate}
+    \begin{itemize}
+    \item one
+    \end{itemize}
+  '''
+
+  testCase r'''
+    empty inferred list leaves less-indented numbered bullets separate
+    ---
+      ::list
+    1. outside
+    ---
+      \begin{itemize}
+      \end{itemize}
+    \begin{enumerate}
+    \item outside
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    empty named list at end of input
+    ---
+    ::list inparaenum
+    ---
+    \begin{inparaenum}
+    \end{inparaenum}
+  '''
+
+  testCase r'''
+    empty named list with inline arguments before prose
+    ---
+    ::list custom[option]{argument}
+    Paragraph.
+    ---
+    \begin{custom}[option]{argument}
+    \end{custom}
+    Paragraph.
+  '''
+
+  testCase r'''
+    empty named list with bulleted arguments
+    ---
+    ::list custom:
+      - argument
+      ~ option
+    ---
+    \begin{custom}
+       {argument}%
+       [option]%
+    \end{custom}
+  '''
+
+  for source of ['::list', '::list:']
+    testCase ```
+      empty ${source} defaults to itemize
+      ---
+      ${source}
+      ---
+      \\begin{itemize}
+      \\end{itemize}
+    ```
+
+  testCase r'''
+    empty inferred list with inline arguments
+    ---
+    ::list [option]
+    ---
+    \begin{itemize}[option]
+    \end{itemize}
+  '''
+
+  testCase r'''
+    empty inferred list with bulleted arguments
+    ---
+    ::list:
+      - argument
+      ~ option
+    ---
+    \begin{itemize}
+       {argument}%
+       [option]%
+    \end{itemize}
+  '''
+
+  testCase r'''
+    preserves comments and combines inline and bulleted arguments
+    ---
+    :: list custom[inline]: % header
+      - {nested} \alpha % argument
+      % between
+      ~ optional
+    % before items
+    * item
+    ---
+    \begin{custom}[inline] % header
+       {{nested} \alpha}% argument
+      % between
+       [optional]%
+    % before items
+    \item item
+    \end{custom}
+  '''
+
+  it 'handles tabs and CRLF with the same indentation rules', ->
+    result := compile '::list enumerate:\r\n\t\t~ option\r\n\t- one', fragment: true
+    assert.match result, /\\begin\{enumerate\}/
+    assert.match result, /\[option\]/
+    assert.match result, /\\item one/
+
+  it 'records the selected environment in the list AST', ->
+    ast := compile '::list custom\n- item', fragment: true, ast: true
+    node := ast[0]
+    assert node is like { type: 'List' }
+    assert.equal node.env, 'custom'
+
+  testCase r'''
+    does not interpret same-level bullets as colon arguments
+    ---
+    ::list list:
+    - label
+    - setup
+    ---
+    \begin{list}
+    \item label
+    \item setup
+    \end{list}
   '''
