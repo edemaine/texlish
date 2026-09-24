@@ -1919,28 +1919,28 @@ function environment(indent: Indent, content: {env: string, children: AST[]}): E
 ```
 
 TextEnvironmentContent ::{env: string, children: AST[]}
-  RawEnvironmentHeader:env ( RawEnvironmentColonArguments / TrimmedRawText ):first NestedRawEnvironmentStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  VerbatimEnvironmentHeader:env ( VerbatimEnvironmentColonArguments / TrimmedVerbatimText ):first NestedVerbatimEnvironmentStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  MathEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  TextEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  InheritedEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
-    { env, children: [ first, ...rest ] }
+  RawEnvironmentHeader:env RawEnvironmentArguments:args TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  VerbatimEnvironmentHeader:env VerbatimEnvironmentArguments:args TrimmedVerbatimText:first NestedVerbatimEnvironmentStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  MathEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  TextEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  InheritedEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
 
 MathEnvironmentContent ::{env: string, children: AST[]}
-  RawEnvironmentHeader:env ( RawEnvironmentColonArguments / TrimmedRawText ):first NestedRawEnvironmentStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  VerbatimEnvironmentHeader:env ( VerbatimEnvironmentColonArguments / TrimmedVerbatimText ):first NestedVerbatimEnvironmentStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  TextEnvironmentHeader:env ( TextEnvironmentColonArguments / TrimmedText ):first NestedStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  MathEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
-    { env, children: [ first, ...rest ] }
-  InheritedEnvironmentHeader:env ( MathEnvironmentColonArguments / TrimmedMathText ):first NestedMathStatement*:rest ->
-    { env, children: [ first, ...rest ] }
+  RawEnvironmentHeader:env RawEnvironmentArguments:args TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  VerbatimEnvironmentHeader:env VerbatimEnvironmentArguments:args TrimmedVerbatimText:first NestedVerbatimEnvironmentStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  TextEnvironmentHeader:env TextEnvironmentArguments:args TrimmedText:first NestedStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  MathEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
+  InheritedEnvironmentHeader:env MathEnvironmentArguments:args TrimmedMathText:first NestedMathStatement*:rest ->
+    { env, children: [ args, first, ...rest ] }
 
 NestedRawEnvironmentStatement ::AST[]
   Nested:eols Indent:indent RawText:text ->
@@ -1951,7 +1951,7 @@ NestedVerbatimEnvironmentStatement ::AST[]
     [ eols, indent, text.children ]
 
 EnvironmentHeader ::string
-  ":" ActualSpace /[^:\s\[%]+/:env -> env[0]
+  ":" ActualSpace /[^:\s\[{%]+/:env -> env[0]
 
 RawEnvironmentHeader ::string
   EnvironmentHeader:env ->
@@ -2027,21 +2027,27 @@ BeginEndTextEnvironment ::Environment
     return $skip unless open.env is close.env
     { type: "Environment", open.env, children: $0 }
 
-RawEnvironmentColonArguments ::AST
-  Colon PushGenericRawArgumentPattern EnvironmentArgumentsAfterColon:args -> args
-VerbatimEnvironmentColonArguments ::AST
-  Colon PushGenericVerbatimArgumentPattern EnvironmentArgumentsAfterColon:args -> args
-TextEnvironmentColonArguments ::AST
-  Colon PushGenericTextArgumentPattern EnvironmentArgumentsAfterColon:args -> args
-MathEnvironmentColonArguments ::AST
-  Colon PushGenericMathArgumentPattern EnvironmentArgumentsAfterColon:args -> args
+RawEnvironmentArguments ::AST[]
+  PushGenericRawArgumentPattern EnvironmentArguments:args -> args
+VerbatimEnvironmentArguments ::AST[]
+  PushGenericVerbatimArgumentPattern EnvironmentArguments:args -> args
+TextEnvironmentArguments ::AST[]
+  PushGenericTextArgumentPattern EnvironmentArguments:args -> args
+MathEnvironmentArguments ::AST[]
+  PushGenericMathArgumentPattern EnvironmentArguments:args -> args
 
-# Parse colon arguments in the environment body's mode and pop the generic
-# argument pattern.
-EnvironmentArgumentsAfterColon ::AST
-  ( NestedArgumentList / InlineCommandArgumentAfterColon )?:args PopCommandPattern ->
-    return $skip unless args?
-    args
+# Inline and colon arguments share the environment body's mode. Pop the generic
+# argument pattern before parsing the body or resuming an enclosing command.
+EnvironmentArguments ::AST[]
+  EnvironmentInlineArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs PopCommandPattern ->
+    colon := colonArgs?[2] ?? []
+    [
+      ...args
+      ...if Array.isArray colon then colon else [colon]
+    ]
+
+EnvironmentInlineArgument ::AST
+  &( Space [[{] ) CommandArgument -> $2
 
 # Environment colon arguments repeat their body's mode without disturbing an
 # enclosing command pattern.

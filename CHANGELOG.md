@@ -14,6 +14,8 @@
   The command can be customized with `::styles ~~ = ...`, and strikethrough
   can be disabled with `-markdownStrikethrough`, `-markdownCompat`, or
   `latexCompat`.
+* Environment shorthand supports inline arguments such as `: tabular{cc}`,
+  optionally followed by colon arguments.
 * New internal declaration system for command arguments and environment bodies
   specifies text, math, raw-TeX, or verbatim processing,
   including package-specific declarations activated through `::use`,

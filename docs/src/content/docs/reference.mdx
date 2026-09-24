@@ -747,15 +747,31 @@ Indent the contents.
     $p$ is prime.
 `}/>
 
-Required arguments can be specified with a colon:
+Optional `[arguments]` and/or required `{arguments}`
+can follow the environment name:
+
+<Example src={`
+  : tabular[t]{cc}
+    a & b
+`}/>
+
+Similar to [LaTeX commands](#latex-commands), a final required argument
+can be specified with a colon and text on the same line:
 
 <Example src={`
   : tabular: ccc
     1 & 2 & 3
 `}/>
 
-If indented, they must use a bullet (to separate the environment
-from the content):
+Inline arguments can precede colon arguments:
+
+<Example src={`
+  : tabular[t]: cc
+    a & b
+`}/>
+
+Indented colon arguments must use bullet(s)
+(to separate the environment from the content):
 
 <Example src={`
   : tabular:

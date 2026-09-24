@@ -66,6 +66,7 @@ uncacheable := new Set [
   "PopCommandPattern"
   // Directly consume a finite pattern suffix.
   "CommandArgument"
+  "EnvironmentInlineArgument"
   "CommandArgumentAfterColon"
   "InlineCommandArgumentAfterColon"
   "ArgumentBullet"
@@ -78,7 +79,7 @@ uncacheable := new Set [
   "InlineCommandColonArguments"
   // Parse arguments and pop the active pattern before returning.
   "CommandArguments"
-  "EnvironmentArgumentsAfterColon"
+  "EnvironmentArguments"
   // Parser config mutation
   "MetaStyles"
   "MetaConfig"

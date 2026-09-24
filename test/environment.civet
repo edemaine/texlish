@@ -1,6 +1,15 @@
 { r, testCase } from ./helper.civet
+{ builtinEnvironmentModes } from ../src/declarations.civet
 
 describe ': environments', ->
+  before ->
+    builtinEnvironmentModes.set 'testtextenv', 'text'
+    builtinEnvironmentModes.set 'testrawenv', 'raw'
+
+  after ->
+    builtinEnvironmentModes.delete 'testtextenv'
+    builtinEnvironmentModes.delete 'testrawenv'
+
   testCase r'''
     disabled by compiler option
     ---
@@ -127,6 +136,137 @@ describe ': environments', ->
          {Subfigure 2}%
          {\includegraphics{example2}}%
     \end{figure}
+  '''
+
+  testCase r'''
+    adjacent required argument is not part of the environment name
+    ---
+    : tabular{cc}
+      a & b
+    ---
+    \begin{tabular}{cc}
+      a & b
+    \end{tabular}
+  '''
+
+  testCase r'''
+    multiple mixed inline arguments use text processing
+    ---
+    : custom*[first]{*required*}[{]}]{\textbf{nested}}
+      *body*
+    ---
+    \begin{custom*}[first]{\emph{required}}[{]}]{\textbf{nested}}
+      \emph{body}
+    \end{custom*}
+  '''
+
+  testCase r'''
+    inline arguments followed by a same-line colon argument
+    ---
+    : custom[option]{first}: *second*
+      Body
+    ---
+    \begin{custom}[option]{first}{\emph{second}}%
+      Body
+    \end{custom}
+  '''
+
+  testCase r'''
+    inline arguments followed by bulleted colon arguments
+    ---
+    : custom[first]{second}:
+      ~ *third*
+      - fourth
+      Body
+    ---
+    \begin{custom}[first]{second}
+       [\emph{third}]%
+       {fourth}%
+      Body
+    \end{custom}
+  '''
+
+  testCase r'''
+    inline arguments leave same-line body commands outside the arguments
+    ---
+    : custom[option] \textbf{Body}
+    ---
+    \begin{custom}[option]\textbf{Body}
+    \end{custom}
+  '''
+
+  testCase r'''
+    declared math environment processes inline and colon arguments as math
+    ---
+    : align[x_12]{y_34}: z_56
+      w_78
+    ---
+    \begin{align}[x_{12}]{y_{34}}{z_{56}}%
+      w_{78}
+    \end{align}
+  '''
+
+  testCase r'''
+    inline environment arguments respect declared and inherited modes inside math
+    ---
+    \[
+      : testtextenv[*label*]{x_12}
+        *text* y_34
+      : custom[x_12]{*literal*}:
+        - y_34
+        z_56
+    \]
+    ---
+    \[
+      \begin{testtextenv}[\emph{label}]{x_12}
+        \emph{text} y_34
+      \end{testtextenv}
+      \begin{custom}[x_{12}]{*literal*}
+         {y_{34}}%
+        z_{56}
+      \end{custom}
+    \]
+  '''
+
+  testCase r'''
+    raw environment inline arguments stay raw
+    ---
+    : testrawenv[*raw*]{x_12}:
+      - @raw
+      *body*
+    ---
+    \begin{testrawenv}[*raw*]{x_12}
+       {@raw}%
+      *body*
+    \end{testrawenv}
+  '''
+
+  testCase r'''
+    verbatim environment inline arguments keep percent signs literal
+    ---
+    : verbatim[% literal]{*raw*}
+      @body
+    ---
+    \begin{verbatim}[% literal]{*raw*}
+      @body
+    \end{verbatim}
+  '''
+
+  testCase r'''
+    environment inline arguments preserve an enclosing command argument pattern
+    ---
+    \href:
+    - https://example.com
+    - : custom[option]{*label*}:
+        - argument
+        Body
+    ---
+    \href
+     {https://example.com}%
+     {\begin{custom}[option]{\emph{label}}
+         {argument}%
+        Body
+      \end{custom}}%
   '''
 
   testCase r'''

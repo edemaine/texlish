@@ -13,7 +13,7 @@ patterns:
       4:
         name: punctuation.separator.key-value.texlish
   - name: meta.function.environment.general.texlish
-    match: '^\s*((:\s+)([^:\s\[%]+))'
+    match: '^\s*((:\s+)([^:\s\[{%]+))'
     captures:
       1:
         name: support.function.texlish
