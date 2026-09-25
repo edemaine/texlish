@@ -131,7 +131,7 @@ optionsNamePattern: ArgumentsPattern :=
 pairsPattern: ArgumentsPattern :=
   . { name: "pairs", ...rawRequired }
 positionColumnsPattern: ArgumentsPattern :=
-  . { name: "position", ...rawOptional }
+  . { name: "position", ...textOptional }
   . { name: "columns", ...rawRequired }
 environmentPattern: ArgumentsPattern :=
   . { name: "environment", ...rawRequired }
@@ -483,7 +483,7 @@ export builtinEnvironments := new Map<string, EnvironmentDeclaration> Object.ent
     body: "text"
   "description": { args: optionsPattern, body: "text" }
   "list":
-    args: [{ name: "label", ...textRequired }, { name: "settings", ...rawRequired }]
+    args: [{ name: "label", ...textRequired }, { name: "settings", ...textRequired }]
     body: "text"
   "tabular": { args: positionColumnsPattern, body: "text" }
   "tabular*":

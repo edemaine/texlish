@@ -1031,12 +1031,12 @@ describe 'list directives', ->
   '''
 
   testCase r'''
-    list label is text and list settings are raw
+    list settings support command shorthand
     ---
-    ::list list{*label*}{\def\label{*raw*}}
+    ::list list{*label*}{\setlength\foo: 6pt}
     - *one*
     ---
-    \begin{list}{\emph{label}}{\def\label{*raw*}}
+    \begin{list}{\emph{label}}{\setlength\foo{6pt}}
     \item \emph{one}
     \end{list}
   '''
@@ -1092,7 +1092,7 @@ describe 'list directives', ->
     ::list list{*label*}{*settings*} {*extra*} [*option*]: *tail*
     - body
     ---
-    \begin{list}{\emph{label}}{*settings*}{\emph{extra}} [\emph{option}]: \emph{tail}
+    \begin{list}{\emph{label}}{\emph{settings}}{\emph{extra}} [\emph{option}]: \emph{tail}
     \item body
     \end{list}
   '''
@@ -1103,7 +1103,7 @@ describe 'list directives', ->
     ::list list{*label*}: *settings*
     - body
     ---
-    \begin{list}{\emph{label}}{*settings*}%
+    \begin{list}{\emph{label}}{\emph{settings}}%
     \item body
     \end{list}
   '''

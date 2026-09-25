@@ -411,3 +411,29 @@ describe ': environments', ->
       \end{tabular}
     \]
   '''
+
+  testCase r'''
+    list settings support command shorthand in bulleted arguments
+    ---
+    : list:
+      - *label*
+      - \setlength\foo: 6pt
+      Body
+    ---
+    \begin{list}
+       {\emph{label}}%
+       {\setlength\foo{6pt}}%
+      Body
+    \end{list}
+  '''
+
+  testCase r'''
+    table width preserves arithmetic and columns stay raw
+    ---
+    : tabular*{\dimexpr 1pt*2*3\relax}[t]{*{2}{c}}
+      a & b
+    ---
+    \begin{tabular*}{\dimexpr 1pt*2*3\relax}[t]{*{2}{c}}
+      a & b
+    \end{tabular*}
+  '''

@@ -868,9 +868,17 @@ in standard LaTeX form and, where applicable, Texlish shorthand for
   `\mint`, `\mintinline`, plus `\csname ... \endcsname` and `` \char`. ``
 * URL arguments to `\url`, `\nolinkurl`, `\path`, and `\href`
 * Filename arguments to `\includegraphics`, `\include`, `\input`, `\subimport`,
-  `\inputminted`, and `\bibliography`
+  `\inputminted`, `\bibliography`,
+  and environments `VerbatimOut`, `filecontents`, and `filecontents*`
+* Language names passed to `\mint`, `\mintinline`, `\inputminted`, and `minted`
 * Identifiers passed to common cross-reference and citation commands such as
-  `\label`, `\ref`, and `\cite`
+  `\label`, `\ref`, and `\cite`, and names passed to `SaveVerbatim`
+* Options for commands such as `\includegraphics` and `\usepackage`, list
+  environments `itemize`, `enumerate`, and `description`, and verbatim
+  environments such as `Verbatim`, `lstlisting`, and `minted`
+* Column specifications for `tabular`, `tabular*`, and `array`
+* Count arguments for `alignat` and `alignat*`
+* Width arguments for `tabular*`
 
 ## Use Packages
 

@@ -330,14 +330,14 @@ describe 'math mode', ->
   '''
 
   testCase r'''
-    math environment has raw arguments and a math body
+    math environment preserves arithmetic in raw count arguments
     ---
     : alignat:
-      - 2
+      - \numexpr1*2*3\relax
       y_34
     ---
     \begin{alignat}
-       {2}%
+       {\numexpr1*2*3\relax}%
       y_{34}
     \end{alignat}
   '''
