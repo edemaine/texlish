@@ -221,6 +221,25 @@ but with less strict requirements on indentation.
     * Continue
 `}/>
 
+In an ordered list, the first bullet sets the starting value of the list.
+(Later bullet numbers are ignored.)
+
+<Example src={`
+  6. This item is numbered 6.
+  8. This item is numbered 7.
+`}/>
+
+With `enumitem` loaded, Texlish uses its `start` option:
+
+<Example src={`
+  ::use enumitem
+  6. This item is numbered 6.
+  8. This item is numbered 7.
+`}/>
+
+(If you're continuing a previous list, consider `enumitem`'s `resume*` option,
+which you can set via `::list[resume*]` as described [below](#custom-lists).)
+
 Markdown-style lists can be disabled with `::config -markdownLists`
 or `::config -markdownCompat`.
 
@@ -244,8 +263,10 @@ You can specify optional or required LaTeX arguments after `::list`:
 `}/>
 
 By default, numbered bullets select the `enumerate` environment and
-unordered bullets select `itemize`.  Supply an environment name
-(possibly followed by arguments) to override that choice:
+unordered bullets select `itemize`.  (Unlike basic Markdown lists,
+numbered bullets have no impact on output numbering.)
+Supply an environment name (possibly followed by arguments)
+to override that choice:
 
 <Example src={`
   ::list description

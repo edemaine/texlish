@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Markdown-style numbered lists honor the first bullet's number.
+  [[#17](https://github.com/edemaine/texlish/issues/17)]
 * Markdown-style checklist items such as `- [ ]` and `- [x]` compile to
   configurable `\item` labels, using `\square` and `\boxtimes` by default with
   automatic `amssymb` package inclusion. Any styled nonempty bracketed marker

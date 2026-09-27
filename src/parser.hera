@@ -25,6 +25,7 @@ type {
   Image,
   Indent,
   List,
+  ListItem,
   Preamble,
   QuoteChar,
   Ref,
@@ -1139,6 +1140,7 @@ function buildList(indent: Indent, env: string, items: AST[], args: AST[] = [], 
   {
     type: "List"
     env
+    args
     items
     children: [
       indent
@@ -1157,12 +1159,12 @@ UnorderedList ::List
     return $skip unless items
     buildList indent, "itemize", items
 
-UnorderedBullet ::AST[]
+UnorderedBullet ::ListItem
   MarkdownChecklistsEnabled Bullet ChecklistMarker:checklist $( ActualSpace / &EOL ):space ListItemLine:text NestedBody:body ->
-    [ checklist, space, text, body ]
+    { type: "ListItem", children: [ checklist, space, text, body ] }
   Bullet:bullet ListItemLine:text NestedBody:body ->
     space := bullet[1]
-    [ '\\item', space, text, body ]
+    { type: "ListItem", children: [ '\\item', space, text, body ] }
 
 ChecklistMarker ::Checklist
   # Hera compiles grammar regexes with the Unicode `u` flag, so this character
@@ -1194,16 +1196,18 @@ RequiredBullet ::string
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
-    buildList indent, "enumerate", items
+    list := buildList indent, "enumerate", items
+    list.start = items[0].number
+    list
 
-OrderedBullet ::AST[]
-  NumberBullet:space ListItemLine:text NestedBody:body ->
-    return [ '\\item', space, text, body ]
+OrderedBullet ::ListItem & {number: number}
+  NumberBullet:bullet ListItemLine:text NestedBody:body ->
+    { type: "ListItem", bullet.number, children: [ '\\item', bullet.space, text, body ] }
 
-NumberBullet ::string
-  /\d+\.([ \t]+|(?=[\r\n]))/ ->
+NumberBullet ::{number: number, space: string}
+  /(\d+)\.([ \t]+|(?=[\r\n]))/ ->
     setListItemIndent $0
-    $1
+    { number: Number($1), space: $2 }
 
 OrderedListContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent OrderedBullet:bullet ->

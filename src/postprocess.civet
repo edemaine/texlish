@@ -9,6 +9,7 @@ type {
 } from ./types.civet
 {
   getEndString,
+  getLeadingIndent,
   isNumeric,
   iterate,
   iteratePrePost,
@@ -24,6 +25,7 @@ export function process(root: AST[], options: CompilerOptions): AST
   processSmartQuotes root
   processMarkdown root
   processFootnotes root
+  processListStarts root
   processDocument root unless options.fragment
   root
 
@@ -383,6 +385,19 @@ function usedPackages(root: AST[]): Set<string>
           arg.specIndex? and argsSpec[arg.specIndex].name is "packages"
         addPackageNames argumentText arg
   packages
+
+/** Honor the first source number of bare ordered lists. */
+function processListStarts(root: AST[]): void
+  enumitem := usedPackages(root).has "enumitem"
+  for node of iterate root
+    continue unless node is like { type: "List" }
+    continue unless node.start? and node.start is not 1
+    if enumitem
+      node.args.push `[start=${node.start}]`
+    else
+      // LaTeX selects the active counter, including inside native environments.
+      node.items.unshift `\\setcounter{\\csname @listctr\\endcsname}{${node.start - 1}}`,
+        "\n", getLeadingIndent(node)
 
 /** Add preamble support for used declarations not defined in this document. */
 function autoimportDeclarations(

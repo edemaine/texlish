@@ -535,16 +535,111 @@ describe 'ordered lists', ->
     \begin{enumerate}
     \item hello
       \begin{enumerate}
+      \setcounter{\csname @listctr\endcsname}{1}
       \item world
       \item you
       \end{enumerate}
     \item goodbye
       \begin{enumerate}
+      \setcounter{\csname @listctr\endcsname}{4}
       \item cruel
         \begin{itemize}
         \item world
         \end{itemize}
       \end{enumerate}
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    first number sets the start and later numbers are ignored
+    ---
+    2. two
+    9. three
+    ---
+    \begin{enumerate}
+    \setcounter{\csname @listctr\endcsname}{1}
+    \item two
+    \item three
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    zero is a valid starting number
+    ---
+    0. zero
+    1. one
+    ---
+    \begin{enumerate}
+    \setcounter{\csname @listctr\endcsname}{-1}
+    \item zero
+    \item one
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    enumitem sets starts for nested bare lists
+    ---
+    ::use enumitem
+    2. two
+      4. four
+    ---
+    \usepackage{enumitem}
+    \begin{enumerate}[start=2]
+    \item two
+      \begin{enumerate}[start=4]
+      \item four
+      \end{enumerate}
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    later use directives are detected and hoisted
+    ---
+    3. three
+    ::use enumitem
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{enumitem}
+
+    \begin{document}
+    \begin{enumerate}[start=3]
+    \item three
+    \end{enumerate}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    native package declarations are detected in the preamble
+    ---
+    \usepackage{enumitem}
+    3. three
+    ---
+    \documentclass[11pt]{article}
+    \usepackage{enumitem}
+
+    \begin{document}
+    \begin{enumerate}[start=3]
+    \item three
+    \end{enumerate}
+    \end{document}
+
+  ''', fragment: false
+
+  testCase r'''
+    fallback works inside native enumeration
+    ---
+    \begin{enumerate}
+    \item outer
+    3. inner
+    \end{enumerate}
+    ---
+    \begin{enumerate}
+    \item outer
+    \begin{enumerate}
+    \setcounter{\csname @listctr\endcsname}{2}
+    \item inner
+    \end{enumerate}
     \end{enumerate}
   '''
 
@@ -1116,5 +1211,34 @@ describe 'list directives', ->
     ---
     \begin{enumerate}[resume]\setlength{\itemsep}{2pt}
     \item body
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    inferred directive ignores first number but nested bare lists honor it
+    ---
+    ::list
+    2. outer
+      3. inner
+    ---
+    \begin{enumerate}
+    \item outer
+      \begin{enumerate}
+      \setcounter{\csname @listctr\endcsname}{2}
+      \item inner
+      \end{enumerate}
+    \end{enumerate}
+  '''
+
+  testCase r'''
+    explicit start takes precedence over source numbering
+    ---
+    ::use enumitem
+    ::list enumerate[start=7]
+    2. seven
+    ---
+    \usepackage{enumitem}
+    \begin{enumerate}[start=7]
+    \item seven
     \end{enumerate}
   '''

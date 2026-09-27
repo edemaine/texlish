@@ -89,6 +89,7 @@ export type ASTNode
   | Image
   | Indent
   | List
+  | ListItem
   | Preamble
   | Raw
   | Ref
@@ -245,8 +246,17 @@ export interface List extends ASTParent
   type: "List"
   /** List environment, e.g. "itemize" or "enumerate" */
   env: string
+  /** First source number for bare ordered lists; absent for explicit directives. */
+  start?: number
+  /** Environment arguments, aliased within children. */
+  args: AST[]
   /** List items, aliased within children. */
   items: AST[]
+
+export interface ListItem extends ASTParent
+  type: "ListItem"
+  /** Source number for ordered items; absent for unordered items. */
+  number?: number
 
 export interface Preamble extends ASTParent
   type: "Preamble"
