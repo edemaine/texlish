@@ -1,5 +1,5 @@
 { compile, generate } from ../src/main.civet
-type { ASTNode } from ../src/types.civet
+type { Argument, ASTNode } from ../src/types.civet
 { find, iterate } from ../src/util.civet
 assert from assert
 
@@ -11,6 +11,23 @@ function findNode(source: string, type: ASTNode["type"]): ASTNode
   node
 
 describe 'semantic shorthand AST', ->
+  it 'records generic command and environment arguments with body aliases', ->
+    for [source, forms, delimiters] of [
+      ['\\custom: *body*', ['colon'], ['required']]
+      ['\\custom:\n  ~ short\n  - *body*\n  final', ['bullet', 'bullet', 'final'], ['optional', 'required', 'required']]
+      [': custom[short]{*body*}\n  text', ['bracketed', 'braced'], ['optional', 'required']]
+      [': custom: *body*\n  text', ['colon'], ['required']]
+      [': custom:\n  ~ short\n  - *body*\n  text', ['bullet', 'bullet'], ['optional', 'required']]
+    ] as const
+      ast := compile source, ast: true, fragment: true
+      args := [...iterate(ast)].filter (node): node is Argument => node is like { type: 'Argument' }
+      assert.deepEqual args.map(.form), forms
+      assert.deepEqual args.map(.delimiter), delimiters
+      for arg of args
+        assert.equal arg.specIndex, undefined
+        assert [...iterate(arg.children)].includes arg.body
+      assert generate(ast).includes '\\emph{body}'
+
   it 'records reference targets and variants', ->
     node := findNode '@^note', 'Ref'
     assert node is like { type: "Ref" }

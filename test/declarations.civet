@@ -1,5 +1,6 @@
 { compile, generate, process } from ../src/main.civet
 {
+  argumentPatternKey,
   builtinPackages,
   builtinAutoimports,
   Declarations,
@@ -114,6 +115,12 @@ describe 'declarations', ->
     result := generate ast
     assert.doesNotMatch result, /\\usepackage\{custom-package\}/
     assert.doesNotMatch result, /\\usepackage\[normalem\]\{ulem\}/
+
+  it 'keeps parenthesized argument cache keys distinct', ->
+    delimiters := ['optional', 'optional-parenthesized', 'required', 'required-parenthesized'] as const
+    keys := delimiters.map (delimiter) =>
+      argumentPatternKey [{ name: 'argument', delimiter, mode: 'raw' }]
+    assert.equal new Set(keys).size, delimiters.length
 
   it 'caches missing command and environment lookups', ->
     declarations := new Declarations

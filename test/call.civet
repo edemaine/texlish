@@ -1,5 +1,6 @@
 { compile, generate } from ../src/main.civet
-type { AST, Call } from ../src/types.civet
+{ builtinPackages } from ../src/declarations.civet
+type { AST, Call, Enclosed } from ../src/types.civet
 { find, iterate, withNodeReplaced, modifyEnd, removeLeadingIndent } from ../src/util.civet
 assert from assert
 
@@ -18,10 +19,169 @@ function assertAliases(ast: AST): void
     if node is like { type: "Call" }
       assert.strictEqual node.command, node.children[0]
       assert.strictEqual node.args, node.children[1]
-    else if node is like { type: "Argument" }
+    else if node is like { type: "Argument" }, { type: "Enclosed" }
       assert [...iterate(node.children)].includes node.body
 
 describe 'declared command call AST', ->
+  it 'retains enclosed content without adding comments to literal arguments', ->
+    for [source, token] of [
+      ['\\includegraphics[width=.5]{figure}', '\\includegraphics']
+      ['\\cite[Short% comment\n]{key}', '\\cite']
+      ['::use booktabs\n\\cmidrule(lr){1-2}', '\\cmidrule']
+      ['\\verb|a%b|', '\\verb']
+    ]
+      call := compileCall source, token
+      assert.equal generate(call), source.slice source.indexOf token
+      for arg of call.args
+        enclosed := find arg.children, (node) => node is like { type: 'Enclosed' }
+        assert enclosed is like { type: 'Enclosed' }
+        assert.strictEqual arg.body, enclosed.body
+      assertAliases call
+
+  it 'preserves leading line breaks in literal enclosures', ->
+    for [source, token] of [
+      ['\\textbf{\n  hi}', '\\textbf']
+      ['\\textbf{  \r\nhi}', '\\textbf']
+      ['\\cite[\n  Short]{key}', '\\cite']
+      ['\\textbf{% existing\n  hi}', '\\textbf']
+      ['\\includegraphics{\nfigure}', '\\includegraphics']
+      ['\\url{\naddress}', '\\url']
+    ]
+      call := compileCall source, token
+      assert.equal generate(call), source
+      assertAliases call
+
+  it 'honors parenthesized content modes in literal and shorthand arguments', ->
+    for mode of ['text', 'math', 'raw', 'verbatim', 'inherit'] as const
+      for delimiter of ['required-parenthesized', 'optional-parenthesized'] as const
+        builtinPackages.set 'paren-modes', {
+          name: 'paren-modes'
+          commands: new Map [['\\content', [{ name: 'body', delimiter, mode }]]]
+        }
+        try
+          input := if mode is 'math' then 'x_12' else '*hello*'
+          output := if mode is 'math' then 'x_{12}' else if mode is like 'text', 'inherit' then '\\emph{hello}' else input
+          bullet := if delimiter.startsWith 'optional' then '~' else '-'
+          multiline := compileCall `::use paren-modes\n\\content(\n${input})`, '\\content'
+          assert.equal generate(multiline), `\\content(\n${output})`
+          assertAliases multiline
+          for source of [`\\content(${input})`, `\\content:\n${bullet} ${input}`, ...if bullet is '-' then [`\\content: ${input}`] else []]
+            call := compileCall `::use paren-modes\n${source}`, '\\content'
+            assert call.complete
+            assert.equal generate(call.args[0].body), output
+            assert.equal call.args[0].delimiter, delimiter
+            assert generate(call).includes `(${output})`
+            assert [...iterate(call.args[0])].some (node) => node is like { type: 'Enclosed' }
+            assertAliases call
+          if bullet is '-'
+            call := compileCall `::use paren-modes\n\\content:\n  ${input}`, '\\content'
+            assert call.complete
+            assert.equal call.args[0].delimiter, delimiter
+            assert generate(call.args[0].body).includes output
+            assertAliases call
+          if mode is 'inherit'
+            call := compileCall '::use paren-modes\n$\\content(x_12)$', '\\content'
+            assert.equal generate(call), '\\content(x_{12})'
+        finally
+          builtinPackages.delete 'paren-modes'
+
+  it 'distinguishes comments from literal percent signs in parentheses', ->
+    builtinPackages.set 'paren-comments', {
+      name: 'paren-comments'
+      commands: new Map [
+        ['\\rawparen', [{ name: 'body', delimiter: 'required-parenthesized', mode: 'raw' }]]
+        ['\\verbatimparen', [{ name: 'body', delimiter: 'required-parenthesized', mode: 'verbatim' }]]
+      ]
+    }
+    try
+      for source of ['\\rawparen(a% ignored )\nb)', '\\verbatimparen(a%b)', '\\rawparen({)})', '\\verbatimparen({)})']
+        token := source.slice 0, source.indexOf '('
+        call := compileCall `::use paren-comments\n${source}`, token
+        assert call.complete
+        assert.equal generate(call), source
+        assertAliases call
+    finally
+      builtinPackages.delete 'paren-comments'
+
+  it 'preserves literal opening parentheses in raw and verbatim arguments', ->
+    for mode of ['raw', 'verbatim'] as const
+      for delimiter of ['required-parenthesized', 'optional-parenthesized'] as const
+        builtinPackages.set 'paren-open', {
+          name: 'paren-open'
+          commands: new Map [['\\content', [{ name: 'body', delimiter, mode }]]]
+        }
+        try
+          source := '\\content(a(*text*)'
+          call := compileCall `::use paren-open\n${source}`, '\\content'
+          assert call.complete
+          assert.equal call.args#, 1
+          assert.equal call.args[0].form, 'parenthesized'
+          assert.equal generate(call.args[0].body), 'a(*text*'
+          assert.equal generate(call), source
+          assertAliases call
+        finally
+          builtinPackages.delete 'paren-open'
+
+  it 'distinguishes required and optional parenthesized arguments', ->
+    builtinPackages.set 'paren-test', {
+      name: 'paren-test'
+      commands: new Map [['\\position', [
+        { name: 'width', delimiter: 'optional', mode: 'raw' }
+        { name: 'position', delimiter: 'required-parenthesized', mode: 'raw' }
+        { name: 'offset', delimiter: 'optional-parenthesized', mode: 'raw' }
+        { name: 'note', delimiter: 'optional', mode: 'raw' }
+      ]]]
+    }
+    try
+      for source of ['\\position(1,2)', '\\position[w](1,2)(3,4)', '\\position(1,2)[note]']
+        call := compileCall `::use paren-test\n${source}`, '\\position'
+        assert call.complete
+        assert.equal generate(call), source
+        parens := call.args.filter .form is 'parenthesized'
+        assert.equal parens[0].delimiter, 'required-parenthesized'
+        assert.equal parens[0].specIndex, 1
+        assert.equal parens[1].delimiter, 'optional-parenthesized' if parens[1]?
+        assertAliases call
+      for source of ['\\position', '\\position[w]', '\\position{body}']
+        call := compileCall `::use paren-test\n${source}`, '\\position'
+        assert.equal call.complete, false
+    finally
+      builtinPackages.delete 'paren-test'
+
+  it 'skips optional parentheses when parsing later required arguments', ->
+    for source of ['\\cmidrule{1-2}', '\\cmidrule(lr){1-2}', '\\cmidrule[1pt](lr){1-2}']
+      call := compileCall `::use booktabs\n${source}`, '\\cmidrule'
+      assert call.complete
+      assert.equal generate(call), source
+      assert.equal call.args.-1.specIndex, 2
+      paren := call.args.find .form is 'parenthesized'
+      assert.equal paren.delimiter, 'optional-parenthesized' if paren?
+
+  it 'uses parentheses for cmidrule trimming bullets', ->
+    call := compileCall '::use booktabs\n\\cmidrule:\n~ .4pt\n~ lr\n- 1-2', '\\cmidrule'
+    assert call.complete
+    assert.equal generate(call), '\\cmidrule\n [.4pt]%\n (lr)%\n {1-2}%'
+    assert.equal call.args[1].form, 'bullet'
+    assert.equal call.args[1].delimiter, 'optional-parenthesized'
+    assertAliases call
+
+  it 'uses parentheses for required colon arguments', ->
+    builtinPackages.set 'paren-colon-test', {
+      name: 'paren-colon-test'
+      commands: new Map [['\\coords', [
+        { name: 'position', delimiter: 'required-parenthesized', mode: 'raw' }
+      ]]]
+    }
+    try
+      call := compileCall '::use paren-colon-test\n\\coords: 1,2 % coordinates', '\\coords'
+      assert call.complete
+      assert.equal call.args[0].form, 'colon'
+      assert.equal call.args[0].delimiter, 'required-parenthesized'
+      assert.equal generate(call), '\\coords(1,2)% coordinates'
+      assertAliases call
+    finally
+      builtinPackages.delete 'paren-colon-test'
+
   it 'preserves declared argument aliases with a generic argument tail', ->
     call := compileCall '\\label:\n  - *raw*\n  - *text*', '\\label'
     assert.equal call.args#, 2
@@ -64,8 +224,9 @@ describe 'declared command call AST', ->
       [ "bracketed", "braced" ]
     assert.deepEqual call.args.map(.specIndex), [ 0, 1 ]
     for arg of call.args
-      physical := arg.children[1] as AST[]
-      assert.strictEqual arg.body, physical[1]
+      physical := arg.children[1] as Enclosed
+      assert.equal physical.type, 'Enclosed'
+      assert.strictEqual arg.body, physical.body
 
   it 'records skipped optional arguments and incomplete calls', ->
     complete := compileCall '\\includegraphics{figure}', '\\includegraphics'
@@ -123,7 +284,9 @@ describe 'declared command call AST', ->
       call := findCall ast, '\\textbf'
       assert call
       before := generate ast
-      call.args[0].children[0] = '['
+      content := find call.args[0], (node) => node is like { type: 'Enclosed' }
+      assert content is like { type: 'Enclosed' }
+      content.children[0] = '['
       assert.equal generate(ast), before.replace('\\textbf{', '\\textbf[')
 
   it 'records colon, bullet, and final forms with skipped optional arguments', ->

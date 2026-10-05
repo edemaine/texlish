@@ -22,6 +22,8 @@ export type DefinitionKind = "command" | "environment"
  * The LaTeX delimiter(s) surrounding a command argument:
  * - `optional` uses square brackets: `[argument]`
  * - `required` uses paired braces: `{argument}`
+ * - `optional-parenthesized` uses optional parentheses, as in `\cmidrule(lr)`
+ * - `required-parenthesized` uses required parentheses
  * - `delimited` uses the same non-whitespace character on both sides
  *   (like `\verb`)
  * - `required-or-delimited` accepts either paired braces or matching
@@ -30,6 +32,8 @@ export type DefinitionKind = "command" | "environment"
 export type ArgumentDelimiter =
   | "optional"
   | "required"
+  | "optional-parenthesized"
+  | "required-parenthesized"
   | "delimited"
   | "required-or-delimited"
 
@@ -41,7 +45,7 @@ interface ArgumentSpecBase
 
 /** A paired command argument, whose contents can use any parsing mode */
 interface PairedArgumentSpec extends ArgumentSpecBase
-  delimiter: "optional" | "required"
+  delimiter: "optional" | "required" | "optional-parenthesized" | "required-parenthesized"
   mode: ArgumentMode
 
 /** An arbitrary-delimiter argument, whose contents must stay verbatim. */
@@ -91,8 +95,9 @@ export interface CommandResolution
  * A generic repeated mode starts with `*`, followed by its mode code.
  * A finite pattern concatenates one delimiter code and one mode code per
  * argument:
- * - delimiter: `o` optional, `r` required, `d` delimited,
- *   `b` both required or delimited
+ * - delimiter: `o` optional, `r` required,
+ *   `p` optional-parenthesized, `P` required-parenthesized,
+ *   `d` delimited, `b` both required or delimited
  * - mode: `t` text, `m` math, `i` inherit, `r` raw, `v` verbatim
  *
  * Codes must remain unique within each position; the same character can be
@@ -105,6 +110,10 @@ export function argumentPatternKey(
   for join each {delimiter, mode} of pattern
     if delimiter is "required-or-delimited"
       "b"
+    else if delimiter is "optional-parenthesized"
+      "p"
+    else if delimiter is "required-parenthesized"
+      "P"
     else
       delimiter[0]
     + mode[0]
@@ -439,6 +448,12 @@ export builtinCommandPatterns := new Map<string, ArgumentsPattern> Object.entrie
  * Undeclared environments inherit the surrounding mode for both.
  */
 export builtinEnvironments := new Map<string, EnvironmentDeclaration> Object.entries
+  "picture":
+    args: [
+      { name: "size", delimiter: "required-parenthesized", mode: "raw" }
+      { name: "origin", delimiter: "optional-parenthesized", mode: "raw" }
+    ]
+    body: "text"
   "math": { args: noArguments, body: "math" }
   "displaymath": { args: noArguments, body: "math" }
   "equation": { args: noArguments, body: "math" }
@@ -511,6 +526,14 @@ builtinPackageDeclarations: PackageDeclarations[] :=
     commands: new Map Object.entries
       "\\square": noArguments
       "\\boxtimes": noArguments
+
+  . name: "booktabs"
+    commands: new Map<string, ArgumentsPattern> Object.entries
+      "\\cmidrule": [
+        { name: "width", ...rawOptional }
+        { name: "trim", delimiter: "optional-parenthesized", mode: "raw" }
+        { name: "columns", ...rawRequired }
+      ]
 
 /** Built-in package declarations indexed by name */
 export builtinPackages := new Map<string, PackageDeclarations>

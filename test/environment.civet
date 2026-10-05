@@ -180,6 +180,32 @@ describe ': environments', ->
   '''
 
   testCase r'''
+    picture size uses parentheses for a colon argument
+    ---
+    : picture: 100,50
+      \put(0,0){hello}
+    ---
+    \begin{picture}(100,50)%
+      \put(0,0){hello}
+    \end{picture}
+  '''
+
+  testCase r'''
+    picture bullets use required and optional parentheses
+    ---
+    : picture:
+      - 100,50
+      ~ 10,20
+      \put(0,0){hello}
+    ---
+    \begin{picture}
+       (100,50)%
+       (10,20)%
+      \put(0,0){hello}
+    \end{picture}
+  '''
+
+  testCase r'''
     with nested commands
     ---
     : figure

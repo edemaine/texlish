@@ -793,13 +793,26 @@ The final required argument can omit the bullet, reducing indentation:
   - example
 `}/>
 
-LaTeX-style arguments (`[optional]` and `{required}`) can precede colon
-shorthand for remaining arguments of [known commands](https://github.com/edemaine/texlish/blob/main/src/declarations.civet):
+For [declared commands](https://github.com/edemaine/texlish/blob/main/src/declarations.civet),
+LaTeX-style arguments (`[optional]`, `{required}`, `(parenthesized)`) can
+precede colon shorthand for the remaining arguments:
 
 <Example src={`
   \\href{https://texlish.org}: *Texlish*
   \\includegraphics[width=0.5\\textwidth]:
     figures/example.pdf
+`}/>
+
+Colon and bullet shorthand generate parenthesized arguments for declared
+commands that take them. For example, `booktabs`'s `\cmidrule` takes an optional width,
+optional parenthesized trimming instructions, and required columns:
+
+<Example src={`
+  ::use booktabs
+  \\cmidrule:
+    ~ .4pt
+    ~ lr
+    - 1-2
 `}/>
 
 Colon command shorthand is automatically disabled on commands declared
@@ -860,6 +873,20 @@ Indented colon arguments must use bullet(s)
   : theorem:
     ~ Main Result
     $p$ is prime.
+`}/>
+
+Colon and bullet shorthand also work with declared parenthesized arguments.
+For example, `picture` takes a required parenthesized size followed by
+an optional parenthesized origin:
+
+<Example src={`
+  : picture: 100,50
+    \\put(0,0){Hello}
+
+  : picture:
+    - 100,50
+    ~ 10,20
+    \\put(0,0){Hello}
 `}/>
 
 Colon environment shorthand can be disabled with `::config -colonEnvironments`.

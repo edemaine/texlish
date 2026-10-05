@@ -7,7 +7,7 @@ type {
   ASTParent,
   Argument,
   BlockQuote,
-  Braced,
+  Enclosed,
   Call,
   Checklist,
   Citation,
@@ -446,7 +446,7 @@ CommandPatternComplete ::boolean
   "" ->
     pattern := state.argumentPatterns.-1
     return false if pattern <? "string"
-    pattern.args[>=pattern.index].every .delimiter is "optional"
+    pattern.args[>=pattern.index].every .delimiter.startsWith "optional"
 
 MathParenthesizedText ::AST[]
   "(" MathParenContent ")"
@@ -502,22 +502,29 @@ TrimmedTexText ::AST[]
       comment
     ]
 
-TextBracedContent ::Braced
+TextBracedContent ::Enclosed
   "{":open TextAndContent:body "}":close ->
-    buildBracedContent open, body, close, true
+    enclosedContent open, body, close
 
-MathBracedContent ::Braced
+MathBracedContent ::Enclosed
   "{":open MathAndContent:body "}":close ->
-    buildBracedContent open, body, close, true
+    enclosedContent open, body, close
 
 ```
-function buildBracedContent(open: string, body: AST[], close: string, dropImplicitComment: boolean = false): Braced
-  let comment
-  [body, comment] = commentForBody body
-  comment = undefined if dropImplicitComment and comment.implicit
+function enclosedContent(
+  open: string
+  body: ASTObject
+  close: string
+  comment?: Comment
+): Enclosed
+  if not comment and Array.isArray body
+    [body, comment] = commentForBody body
+    comment = undefined if comment.implicit
   {
-    type: "Braced"
+    type: "Enclosed"
+    open
     body
+    close
     children: [
       open
       body
@@ -529,14 +536,14 @@ function buildBracedContent(open: string, body: AST[], close: string, dropImplic
 
 # TeX optional arguments stop at the first unbraced ], rather than balancing
 # brackets. TextBracedContent/MathBracedContent protects any ] inside braces.
-TextBracketedContent ::AST[]
-  "[" TextBracketedPart* "]"
+TextBracketedContent ::Enclosed
+  "[":open TextBracketedPart*:body "]":close -> enclosedContent open, body, close
 
 TextBracketedPart ::AST
   !"]" ( TextPart / EOL ) -> $2
 
-MathBracketedContent ::AST[]
-  "[" MathBracketedPart* "]"
+MathBracketedContent ::Enclosed
+  "[":open MathBracketedPart*:body "]":close -> enclosedContent open, body, close
 
 MathBracketedPart ::AST
   !"]" ( MathPart / EOL ) -> $2
@@ -560,6 +567,26 @@ RawBracketedPart ::AST
   Comment
   RawBracedContent
   /[^\\\]{}%]+/
+
+# TeX parenthesized arguments stop at the first unbraced ), rather than balancing
+# parentheses. Braced content protects any ) inside braces.
+TextParenthesizedContent ::Enclosed
+  "(":open TextParenthesizedPart*:body ")":close -> enclosedContent open, body, close
+
+TextParenthesizedPart ::AST
+  !")" ( TextPart / EOL ) -> $2
+
+MathParenthesizedContent ::Enclosed
+  "(":open MathParenthesizedPart*:body ")":close -> enclosedContent open, body, close
+
+MathParenthesizedPart ::AST
+  !")" ( MathPart / EOL ) -> $2
+
+RawParenthesizedContent ::AST[]
+  "(" ( Command / Comment / RawBracedContent / /[^\\){}%]+/ )* ")"
+
+VerbatimParenthesizedContent ::AST[]
+  "(" ( Command / VerbatimBracedContent / /[^\\){}]+/ )* ")"
 
 # Verbatim-mode arguments treat % literally, so comments never hide delimiters.
 VerbatimBracedContent ::AST[]
@@ -809,7 +836,7 @@ function environmentStyle(style: string, description: string, option: string = "
       open: style + option
       close: `\\end{${match[1]}}`
     }
-  if match := /^([^\s\[\{]+)(.*)$/.exec style
+  if match := /^([^\s(\[\{]+)(.*)$/.exec style
     return {
       env: match[1]
       open: `\\begin{${match[1]}}${match[2]}${option}`
@@ -1329,20 +1356,17 @@ type PendingCall =
   package: string
 
 type ParsedCallArguments =
-  args: AST[]
+  args: Argument[]
   complete: boolean
 
 function buildCall(
   head: PendingCall
   { args, complete }: ParsedCallArguments
 ): Call
-  for each arg of args
-    unless arg is like { type: "Argument" }
-      throw new Error "Expected command argument"
   {
     type: "Call"
     head.{command,argsSpec,package}
-    args as Argument[]
+    args
     complete
     children: [ head.command, args ]
   }
@@ -1358,7 +1382,7 @@ CommandArguments ::ParsedCallArguments
 # Colon arguments for a command in the middle of a line in text or math.
 # Accept either indented argument bullets, or one argument that is same-line
 # or indented, but not both (unlike statement-level `\command`).
-InlineCommandColonArguments ::AST[]
+InlineCommandColonArguments ::Argument[]
   ColonCommandsEnabled Colon NestedCommandArgumentList:args -> args
   ColonCommandsEnabled Colon InlineCommandArgumentAfterColon:arg -> [ arg ]
 
@@ -1396,20 +1420,20 @@ function pushArgumentPattern(args: ArgumentsPattern, parentMode: ResolvedArgumen
 PopCommandPattern
   "" -> state.argumentPatterns.pop()
 
-CommandArgument ::AST
+CommandArgument ::Argument
   OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:content ->
     commandArgument "optional", "bracketed", content.body,
-      [ space, content.children ]
+      [ space, content ]
   RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:content ->
     commandArgument "required", "braced", content.body,
-      [ space, content.children ]
+      [ space, content ]
+  ParenthesizedArgumentPossible:delimiter CommandSpace:space ParenthesizedArgumentContent:content ->
+    commandArgument delimiter, "parenthesized", content.body, [space, content]
   # Prefer colon shorthand over `:` as a verbatim delimiter when a required
   # argument remains, e.g. `\url: ...`, but preserve `\verb:...:`.
   !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space $DelimitedVerbatim:arg ->
-    delimiter := arg[0]
-    body: Verbatim := { type: "Verbatim", token: arg[<..<] }
-    commandArgument "delimited", "delimited", body,
-      [ space, delimiter, body, delimiter ]
+    content := unparsedArgument arg, "Verbatim"
+    commandArgument "delimited", "delimited", content.body, [space, content]
   # Try delimiters first so a backslash-delimited verbatim argument stays literal.
   # TeX undelimited required arguments can be single control-sequence tokens.
   DeclaredRequiredArgumentPossible CommandSpace:space CommandWithoutNewline:body ->
@@ -1421,10 +1445,10 @@ type SelectedArgument
   /** Index in the declared pattern; omitted for generic or extra arguments */
   index?: number
 
-function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false): SelectedArgument
+function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false, colon = false): SelectedArgument
   unless state.argumentPatterns#
     throw new Error "No current command pattern"
-  unless selected := selectCommandArgument delimiter, allowFallback
+  unless selected := selectCommandArgument delimiter, allowFallback, colon
     throw new Error "No current command argument"
   // Entering fallback skips any remaining optional declarations permanently.
   pattern := state.argumentPatterns.-1
@@ -1432,26 +1456,24 @@ function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fa
     pattern.index = if selected.index? then selected.index + 1 else pattern.args#
   selected
 
-function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false): SelectedArgument?
+function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false, colon = false): SelectedArgument?
   return unless pattern := state.argumentPatterns.-1
   if pattern <? "string"
     // Generic colon arguments use only paired optional/required syntax.
     return unless delimiter is like "optional", "required"
     return arg: { name: "argument", delimiter, mode: pattern }
-  if delimiter is "optional"
-    arg := pattern.args[pattern.index]
-    return { arg, index: pattern.index } if arg?.delimiter is delimiter
-  else
-    for index .= pattern.index; index < pattern.args#; index++
-      arg := pattern.args[index]
-      if arg.delimiter is delimiter or
-         arg.delimiter is "required-or-delimited" and
-         delimiter is like "required", "delimited"
-        return { arg, index }
-      // Only allow skipping over optional arguments
-      break unless arg.delimiter is "optional"
+  for index .= pattern.index; index < pattern.args#; index++
+    arg := pattern.args[index]
+    if arg.delimiter is delimiter or
+       // Colon syntax selects required/optional roles as needed
+       colon and arg.delimiter is `${delimiter}-parenthesized` or
+       arg.delimiter is "required-or-delimited" and
+       delimiter is like "required", "delimited"
+      return { arg, index }
+    // Only allow skipping over optional arguments
+    break unless arg.delimiter.startsWith "optional"
   if allowFallback and delimiter is like "optional", "required" and
-     pattern.args[>=pattern.index].every .delimiter is "optional"
+     pattern.args[>=pattern.index].every .delimiter.startsWith "optional"
     return arg: { name: "argument", delimiter, mode: pattern.parentMode }
 
 function commandArgument(
@@ -1459,13 +1481,14 @@ function commandArgument(
   form: Argument["form"]
   body: ASTObject
   children: AST[]
-  fallback: AST = children
-): AST
-  selected := consumeCommandArgument delimiter, form is "bullet"
-  return fallback if state.argumentPatterns.-1 <? "string"
+): Argument
+  colon := form is like "colon", "bullet", "final"
+  selected := consumeCommandArgument delimiter, form is "bullet", colon
+  delimiter = selected.arg.delimiter if colon and selected.arg.delimiter.endsWith "-parenthesized"
   {
     type: "Argument"
     specIndex: selected.index
+    delimiter
     form
     body
     children
@@ -1476,6 +1499,18 @@ OptionalArgumentPossible
   "" -> $skip unless selectCommandArgument "optional"
 RequiredArgumentPossible
   "" -> $skip unless selectCommandArgument "required"
+ParenthesizedArgumentPossible ::ArgumentDelimiter
+  "" ->
+    selected := selectCommandArgument("optional-parenthesized") ?? selectCommandArgument("required-parenthesized")
+    selected?.arg.delimiter ?? $skip
+ParenthesizedRawArgument
+  "" -> $skip unless parenthesizedArgumentIs "raw"
+ParenthesizedVerbatimArgument
+  "" -> $skip unless parenthesizedArgumentIs "verbatim"
+ParenthesizedTextArgument
+  "" -> $skip unless parenthesizedArgumentIs "text"
+ParenthesizedMathArgument
+  "" -> $skip unless parenthesizedArgumentIs "math"
 # Only a declaration can distinguish an unbraced argument from a body command.
 DeclaredRequiredArgumentPossible
   "" ->
@@ -1491,63 +1526,61 @@ CommandSpace ::AST[]
 CommandCommentContinuation ::AST[]
   Comment:comment EOL:eol &IndentedAtLeast Indent:indent -> [ comment, eol, indent ]
 
-OptionalArgumentContent ::ParsedArgumentContent
+OptionalArgumentContent ::Enclosed
   OptionalRawArgument $RawBracketedContent:arg -> unparsedArgument arg, "Raw"
   OptionalVerbatimArgument $VerbatimBracketedContent:arg -> unparsedArgument arg, "Verbatim"
-  OptionalTextArgument TextBracketedContent:arg -> parsedArgument arg
-  OptionalMathArgument MathBracketedContent:arg -> parsedArgument arg
+  OptionalTextArgument TextBracketedContent:arg -> arg
+  OptionalMathArgument MathBracketedContent:arg -> arg
 
-RequiredArgumentContent ::ParsedArgumentContent
+RequiredArgumentContent ::Enclosed
   RequiredRawArgument $RawBracedContent:arg -> unparsedArgument arg, "Raw"
   RequiredVerbatimArgument $VerbatimBracedContent:arg -> unparsedArgument arg, "Verbatim"
-  RequiredTextArgument TextBracedContent:arg ->
-    arg.{body,children}
-  RequiredMathArgument MathBracedContent:arg ->
-    arg.{body,children}
+  RequiredTextArgument TextBracedContent:arg -> arg
+  RequiredMathArgument MathBracedContent:arg -> arg
+
+ParenthesizedArgumentContent ::Enclosed
+  ParenthesizedRawArgument $RawParenthesizedContent:arg -> unparsedArgument arg, "Raw"
+  ParenthesizedVerbatimArgument $VerbatimParenthesizedContent:arg -> unparsedArgument arg, "Verbatim"
+  ParenthesizedTextArgument TextParenthesizedContent:arg -> arg
+  ParenthesizedMathArgument MathParenthesizedContent:arg -> arg
 
 ```
-type ParsedArgumentContent = { body: ASTObject, children: AST[] }
-
 /**
- * Exclude the opening and closing brace or bracket characters from the body.
+ * Exclude the opening and closing delimiter characters from the body.
  * Preserve those delimiters in children alongside the raw or verbatim body.
  */
 function unparsedArgument(
   source: string
   type: "Raw" | "Verbatim"
-): ParsedArgumentContent
+): Enclosed
   body := { type, token: source[<..<] }
-  { body, children: [ source[0], body, source.-1 ] }
-
-/**
- * Exclude the opening and closing bracket items from the parsed argument body.
- * Preserve those delimiters in children alongside the body.
- */
-function parsedArgument(arg: AST[]): ParsedArgumentContent
-  body := arg[<..<]
-  { body, children: [ arg[0], body, arg.-1 ] }
+  enclosedContent source[0], body, source.-1
 ```
 
 OptionalRawArgument
   "" -> $skip unless commandArgumentIs "optional", "raw"
 RequiredRawArgument
-  "" -> $skip unless commandArgumentIs "required", "raw"
+  "" -> $skip unless commandArgumentIs "required", "raw", false, true
 OptionalVerbatimArgument
   "" -> $skip unless commandArgumentIs "optional", "verbatim"
 RequiredVerbatimArgument
-  "" -> $skip unless commandArgumentIs "required", "verbatim"
+  "" -> $skip unless commandArgumentIs "required", "verbatim", false, true
 OptionalTextArgument
   "" -> $skip unless commandArgumentIs "optional", "text"
 RequiredTextArgument
-  "" -> $skip unless commandArgumentIs "required", "text"
+  "" -> $skip unless commandArgumentIs "required", "text", false, true
 OptionalMathArgument
   "" -> $skip unless commandArgumentIs "optional", "math"
 RequiredMathArgument
-  "" -> $skip unless commandArgumentIs "required", "math"
+  "" -> $skip unless commandArgumentIs "required", "math", false, true
 
 ```
-function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode, allowFallback = false): boolean
-  return false unless selected := selectCommandArgument delimiter, allowFallback
+function parenthesizedArgumentIs(mode: ArgumentMode): boolean
+  selected := selectCommandArgument("optional-parenthesized") ?? selectCommandArgument("required-parenthesized")
+  selected?.arg.mode is mode
+
+function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode, allowFallback = false, colon = allowFallback): boolean
+  return false unless selected := selectCommandArgument delimiter, allowFallback, colon
   selected.arg.mode is mode
 ```
 
@@ -1593,13 +1626,13 @@ Colon
 # Colon arguments for a command starting a statement.
 # Accepts either indented argument bullets, or
 # one argument that can continue same-line and/or indented following lines.
-CommandColonArguments ::AST[]
+CommandColonArguments ::Argument[]
   Colon NestedCommandArgumentList:args -> args
   Colon CommandArgumentAfterColon:arg -> [ arg ]
 
 # Parse and consume one required colon argument according to the next remaining
 # declared mode.
-CommandArgumentAfterColon ::AST
+CommandArgumentAfterColon ::Argument
   RequiredRawArgument RawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
   RequiredVerbatimArgument VerbatimArgumentAfterColon:arg ->
@@ -1610,14 +1643,14 @@ CommandArgumentAfterColon ::AST
     consumeRequiredCommandArgument arg
 
 ```
-function consumeRequiredCommandArgument(arg: Braced): AST
-  commandArgument "required", "colon", arg.body, arg.children, arg
+function consumeRequiredCommandArgument(arg: Enclosed): Argument
+  commandArgument "required", "colon", arg.body, [arg]
 ```
 
-TextArgumentAfterColon ::Braced
+TextArgumentAfterColon ::Enclosed
   TrimmedText:text NestedBody:body ->
     argumentAfterColon text, body
-MathArgumentAfterColon ::Braced
+MathArgumentAfterColon ::Enclosed
   TrimmedMathText:text MathArgumentNestedBody:body ->
     argumentAfterColon text, body
 
@@ -1625,29 +1658,32 @@ MathArgumentAfterColon ::Braced
 function argumentAfterColon(
   text: AST[]
   body: AST[]
-  commentOutLeadingNewline = true
-): Braced
+  verbatimMode = false
+  delimiter: ArgumentDelimiter = "required"
+): Enclosed
   if not text# and body#
-    if commentOutLeadingNewline
-      text = ["%"]
-    else
+    if verbatimMode
       body = trimVerbatimNestedBody body
+    else
+      text = ["%"]
   let comment
   [text, body, comment] = commentForTextBody text, body
-  textBody := [ text, body ]
-  {
-    type: "Braced"
-    body: textBody
-    children: [ "{", textBody, "}", comment ]
-  }
+  [open, close] := colonDelimiters delimiter
+  enclosedContent open, [text, body], close, comment
+
+/** Choose declared delimiters without advancing the argument pattern. */
+function colonDelimiters(delimiter: ArgumentDelimiter = "required"): [string, string]
+  declared := selectCommandArgument(delimiter, true, true)?.arg.delimiter
+  return ["(", ")"] if declared?.endsWith "-parenthesized"
+  if delimiter is "optional" then ["[", "]"] else ["{", "}"]
 ```
 
-RawArgumentAfterColon ::Braced
+RawArgumentAfterColon ::Enclosed
   TrimmedRawText:text RawNestedBody:body ->
     argumentAfterColon text, body
-VerbatimArgumentAfterColon ::Braced
+VerbatimArgumentAfterColon ::Enclosed
   TrimmedVerbatimText:text VerbatimNestedBody:body ->
-    argumentAfterColon text, body, false
+    argumentAfterColon text, body, true
 
 MathArgumentNestedBody ::AST[]
   PushStrictIndent NestedMathStatement* PopIndent -> $2
@@ -1701,7 +1737,7 @@ VerbatimTextPart ::string
 
 # Parse and consume one required inline colon argument according to the next
 # remaining declared mode, without combining same-line and indented content.
-InlineCommandArgumentAfterColon ::AST
+InlineCommandArgumentAfterColon ::Argument
   RequiredRawArgument InlineRawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
   RequiredVerbatimArgument InlineVerbatimArgumentAfterColon:arg ->
@@ -1711,31 +1747,35 @@ InlineCommandArgumentAfterColon ::AST
   RequiredMathArgument InlineMathArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
 
-InlineTextArgumentAfterColon ::Braced
-  NonEmptyNestedBody:body ->
-    buildBracedContent "{%", body, "}"
-  TrimmedText:body ->
-    buildBracedContent "{", body, "}"
+InlineTextArgumentAfterColon ::Enclosed
+  NonEmptyNestedBody:body -> buildColonArgument ["%", body]
+  TrimmedText:body -> buildColonArgument body
 
-InlineMathArgumentAfterColon ::Braced
+InlineMathArgumentAfterColon ::Enclosed
   MathArgumentNestedBody:body ->
     return $skip unless body#
-    buildBracedContent "{%", body, "}"
-  TrimmedMathText:body -> buildBracedContent "{", body, "}"
+    buildColonArgument ["%", body]
+  TrimmedMathText:body -> buildColonArgument body
 
-InlineRawArgumentAfterColon ::Braced
+InlineRawArgumentAfterColon ::Enclosed
   RawNestedBody:body ->
     return $skip unless body#
-    buildBracedContent "{%", body, "}"
-  TrimmedRawText:body -> buildBracedContent "{", body, "}"
+    buildColonArgument ["%", body]
+  TrimmedRawText:body -> buildColonArgument body
 
-InlineVerbatimArgumentAfterColon ::Braced
+InlineVerbatimArgumentAfterColon ::Enclosed
   VerbatimNestedBody:body ->
     return $skip unless body#
-    buildBracedContent "{", trimVerbatimNestedBody(body), "}"
-  TrimmedVerbatimText:body -> buildBracedContent "{", body, "}"
+    buildColonArgument trimVerbatimNestedBody(body)
+  TrimmedVerbatimText:body -> buildColonArgument body
 
 ```
+function buildColonArgument(body: AST[]): Enclosed
+  [open, close] := colonDelimiters()
+  let comment
+  [body, comment] = commentForBody body
+  enclosedContent open, body, close, comment
+
 function trimVerbatimNestedBody(body: AST[]): AST[]
   first := body[0]
   return body unless Array.isArray first
@@ -1752,36 +1792,26 @@ TrimmedVerbatimText ::AST[]
 
 # Argument bullets plus an optional final nested body block,
 # which becomes another braced command argument.
-NestedCommandArgumentList ::AST[]
+NestedCommandArgumentList ::Argument[]
   PushIndent ( ArgumentList CommandFinalArgument? )?:content PopIndent ->
     return $skip unless content
     [listArguments, final] := content
-    if listArguments?[0] is like { type: "Argument" }
-      if final?
-        [ ...listArguments, final ]
-      else
-        listArguments
-    else
-      content
+    [ ...listArguments, ...[final] if final? ]
 
 StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
   PushStrictCurrentIndent NestedStatement*:body PopIndent -> body
 
-ArgumentList ::AST[]
+ArgumentList ::Argument[]
   NestedComment*:comments Nested:eol &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ArgumentListContinuation* )?:content PopIndent ->
     return $skip unless content
     [first, continuations] := content
-    if { type: "Argument", children } := first
-      return [ { ...first, children: [ comments, eol, children ] }, ...continuations ]
-    return [ comments, eol, content ]
+    [ { ...first, children: [ comments, eol, first.children ] }, ...continuations ]
 
-ArgumentListContinuation ::AST
+ArgumentListContinuation ::Argument
   NestedComment*:comments SameLevel:eol ArgumentBullet:bullet ->
-    if { type: "Argument", children } := bullet
-      return { ...bullet, children: [ comments, eol, children ] }
-    return [ comments, eol, bullet ]
+    { ...bullet, children: [ comments, eol, bullet.children ] }
 
-ArgumentBullet ::AST
+ArgumentBullet ::Argument
   RawArgumentBullet Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
   VerbatimArgumentBullet Indent:indent Bullet:bullet VerbatimArgumentListItemLine:text VerbatimNestedBody:body ->
@@ -1798,17 +1828,11 @@ function commandArgumentBullet(
   text: AST[]
   body: AST[]
   verbatimMode = false
-): AST
+): Argument
   [ symbol, space ] := bullet
-  body = trimVerbatimNestedBody body if verbatimMode and not text# and body#
-  let comment
-  [text, body, comment] = commentForTextBody text, body
   delimiter: ArgumentDelimiter := if symbol is '~' then "optional" else "required"
-  open := if symbol is '~' then '[' else '{'
-  close := if symbol is '~' then ']' else '}'
-  argumentBody := [ text, body ]
-  commandArgument delimiter, "bullet", argumentBody,
-    [ indent, space, open, argumentBody, close, comment ]
+  content := argumentAfterColon text, body, verbatimMode, delimiter
+  commandArgument delimiter, "bullet", content.body, [indent, space, content]
 ```
 
 RawArgumentBullet
@@ -1836,7 +1860,7 @@ VerbatimArgumentListItemLine ::AST[]
 MathArgumentListItemLine ::AST[]
   PushListItemIndent MathText:text PopListItemIndent -> text
 
-CommandFinalArgument ::AST
+CommandFinalArgument ::Argument
   RequiredRawArgument NonEmptyStrictRawArgumentStatements:body ->
     finalCommandArgument body
   RequiredVerbatimArgument NonEmptyStrictVerbatimArgumentStatements:body ->
@@ -1853,7 +1877,7 @@ type ArgumentBodyStatement =
 function finalCommandArgument(
   body: ArgumentBodyStatement[]
   verbatimMode = false
-): AST
+): Argument
   { eols: [ eol ], statement: firstStatement } := body[0]
   indent := getLeadingIndent firstStatement
   let finalBody, comment
@@ -1869,9 +1893,11 @@ function finalCommandArgument(
       }
       ...finalBody[>=1]
     ]
-  open := if verbatimMode then "{" else "{%"
-  commandArgument "required", "final", finalBody,
-    [ eol, indent, " ", open, finalBody, "}", comment ]
+  else
+    finalBody = ["%", ...finalBody]
+  [open, close] := colonDelimiters()
+  content := enclosedContent open, finalBody, close, comment
+  commandArgument "required", "final", content.body, [eol, indent, " ", content]
 ```
 
 NonEmptyStrictNestedStatements ::ArgumentBodyStatement[]
@@ -1990,7 +2016,7 @@ NestedVerbatimEnvironmentStatement ::AST[]
   Nested:eols Indent:indent VerbatimText:text ->
     [ eols, indent, text.children ]
 
-EnvironmentHeaderAndArguments ::{env: string, args: AST[]}
+EnvironmentHeaderAndArguments ::{env: string, args: Argument[]}
   PushEnvironmentPattern:env CommandArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs PopCommandPattern ->
     colon := colonArgs?[2] ?? []
     {
@@ -2023,7 +2049,7 @@ function pushEnvironmentPattern(env: string, parentMode: ResolvedArgumentMode): 
     state.argumentPatterns.push parentMode
 ```
 
-NestedArgumentList ::AST[]
+NestedArgumentList ::Argument[]
   PushIndent ArgumentList?:content PopIndent ->
     return $skip unless content
     return content
@@ -2032,7 +2058,7 @@ EnvironmentHeader ::string
   ":" ActualSpace EnvironmentName:env -> env
 
 EnvironmentName ::string
-  /[^\s:[{%]+/
+  /[^\s:([{%]+/
 
 RawEnvironmentHeader ::string
   EnvironmentHeader:env ->

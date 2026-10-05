@@ -436,6 +436,20 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
+    fenced code style accepts parenthesized environment arguments
+    ---
+    ::styles
+      ```* = picture(100,50)
+    ```
+    \\put(0,0){hello}
+    ```
+    ---
+    \\begin{picture}(100,50)
+    \\put(0,0){hello}
+    \\end{picture}
+  '''
+
+  testCase '''
     fenced code style accepts begin environment
     ---
     ::styles

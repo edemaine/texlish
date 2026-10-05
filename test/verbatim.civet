@@ -136,7 +136,9 @@ describe 'verbatim LaTeX', ->
       type: "Verbatim"
       token: "\\usepackage{ulem} *raw*"
     assert.strictEqual verb.args, verb.children[1]
-    assert.strictEqual arg.body, arg.children[2]
+    enclosed := arg.children[1]
+    assert enclosed is like { type: 'Enclosed' }
+    assert.strictEqual arg.body, enclosed.body
 
     let result = await compile '\\verb|\\usepackage{ulem}| ~~used~~'
     assert.match result, /\n\\usepackage\[normalem\]\{ulem\}\n/

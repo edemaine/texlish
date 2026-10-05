@@ -5,7 +5,7 @@ export type QuoteStyle = Record QuoteRole, string
 export type QuoteConfig = Record QuoteChar, QuoteStyle
 export type PartialQuoteConfig = Partial Record QuoteChar, Partial QuoteStyle
 
-type { ArgumentsPattern } from ./declarations.civet
+type { ArgumentDelimiter, ArgumentsPattern } from ./declarations.civet
 
 export type CompilerOptions
   filename?: string
@@ -71,7 +71,7 @@ type Loc = ???
 export type ASTNode
   | Argument
   | BlockQuote
-  | Braced
+  | Enclosed
   | Call
   | Checklist
   | Citation
@@ -102,6 +102,7 @@ export type ASTNode
 /**
  * Physical syntax used for a parsed command argument:
  * - `bracketed`: a LaTeX optional argument, `[argument]`
+ * - `parenthesized`: a parenthesized argument, `(argument)`
  * - `braced`: a LaTeX required argument, `{argument}`
  * - `unbraced`: a single control sequence `\command` as a required argument
  * - `delimited`: matching arbitrary delimiters, as in `\verb|argument|`
@@ -111,6 +112,7 @@ export type ASTNode
  */
 export type ArgumentForm =
   | "bracketed"
+  | "parenthesized"
   | "braced"
   | "unbraced"
   | "delimited"
@@ -118,13 +120,15 @@ export type ArgumentForm =
   | "bullet"
   | "final"
 
-/** One parsed argument of a declared command call */
+/** One parsed command or environment argument */
 export interface Argument extends ASTParent
   type: "Argument"
-  /** Index in the declared pattern; undefined for extra arguments */
+  /** Index in the declared pattern; undefined for generic or extra arguments */
   specIndex?: number?
   /** How this occurrence was physically expressed */
   form: ArgumentForm
+  /** The argument delimiter, independent of shorthand syntax */
+  delimiter: ArgumentDelimiter
   /** Argument content, aliased within `children` */
   body: ASTObject
 
@@ -133,9 +137,12 @@ export interface BlockQuote extends ASTParent
   /** Environment selected by the blockquote style */
   env: string
 
-export interface Braced extends ASTParent
-  type: "Braced"
+/** Content enclosed in braces, brackets, parentheses, or matching delimiters. */
+export interface Enclosed extends ASTParent
+  type: "Enclosed"
+  open: string
   body: ASTObject
+  close: string
 
 /** A recognized call to a declared command */
 export interface Call extends ASTParent

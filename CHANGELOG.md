@@ -24,10 +24,11 @@
   strictly indented argument bullets.
 * Environment shorthand supports inline arguments such as `: tabular{cc}`,
   optionally followed by colon arguments.
-* New internal declaration system for command/environment arguments and
-  environment bodies specifies text, math, raw-TeX, or verbatim processing,
-  including package-specific declarations activated through `::use`,
-  and auto-import of packages when using certain commands or environments.
+* New internal declaration system supports required and optional
+  command/environment arguments with braces, brackets, or parentheses, and
+  environment bodies, specifying text, math, raw-TeX, or verbatim processing.
+  Package-specific declarations activated through `::use`.
+  Auto-import of packages when using certain commands or environments.
   [[#26](https://github.com/edemaine/texlish/issues/26)]
 * Declared commands can switch from LaTeX-style (`[optional]{required}`)
   to colon shorthand (`: required` or bullets) for the remaining arguments.
