@@ -55,6 +55,7 @@
 * AST refactor in particular represents declared command calls, making it
   easier to detect used and defined commands and environments.
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
+* CLI rebuilds given natbib's citation rerun warning.
 
 ## 0.2.0
 

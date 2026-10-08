@@ -293,10 +293,11 @@ export function buildLatex(command: string, flags: string[], texFile: string): P
       continue
 
     logAfter := await readTextIfExists artifact 'log'
-    if logAfter?.includes 'LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.'
-      // Ignore second label-warning if aux file didn't actually change.
-      break if runReason is 'label-warning' and auxBefore is auxAfter
-      runReason = 'label-warning'
+    if logAfter?.includes('LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.') or
+       logAfter?.includes('Rerun to get citations correct.')
+      // Ignore repeated label/citation warnings if aux file didn't actually change.
+      break if runReason is 'aux-warning' and auxBefore is auxAfter
+      runReason = 'aux-warning'
       continue
 
     break // stop loop if no runReason to continue
