@@ -239,9 +239,7 @@ Text ::AST[]
 # TextPart treats parens/brackets as literal; BracketTextPart balances nested
 # brackets for Markdown link text.
 TextPart ::AST
-  EnterMathMode
   TextOrMathPart
-  !EndTextEnvironment TextCommandWithArguments -> $2
   TextOnlyPart
   [()\[\]]
 
@@ -253,6 +251,9 @@ EnterMathMode ::AST[]
 
 # Rules for TextPart that apply only in text mode.
 TextOnlyPart ::AST
+  # Recognize math delimiters before command and literal-text fallbacks.
+  EnterMathMode
+  !EndTextEnvironment TextCommandWithArguments -> $2
   TextBracedContent
   MarkdownFootnotesEnabled FootnoteRef -> $2
   MarkdownBackticksEnabled CodeSpan -> $2
@@ -631,7 +632,6 @@ BracketText ::AST[]
   BracketTextPart*
 
 BracketTextPart ::AST
-  EnterMathMode
   TextOrMathPart
   TextOnlyPart
   [()]

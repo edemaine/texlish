@@ -270,6 +270,38 @@ describe 'Markdown links', ->
   '''
 
   testCase r'''
+    LaTeX command with argument in link text
+    ---
+    [\texttt{Abstract.lean}](https://example.com)
+    ---
+    \protect\href{https://example.com}{\texttt{Abstract.lean}}
+  '''
+
+  testCase r'''
+    nested LaTeX commands and brackets in link text
+    ---
+    [\textbf{\texttt{array[i]}}](https://example.com)
+    ---
+    \protect\href{https://example.com}{\textbf{\texttt{array[i]}}}
+  '''
+
+  testCase r'''
+    LaTeX command with argument in image alternative text
+    ---
+    ![\texttt{Abstract.lean}](image.pdf)
+    ---
+    \includegraphics[alt={\texttt{Abstract.lean}}]{image.pdf}
+  '''
+
+  testCase r'''
+    font command around link
+    ---
+    \texttt{[Abstract.lean](https://example.com)}
+    ---
+    \texttt{\protect\href{https://example.com}{Abstract.lean}}
+  '''
+
+  testCase r'''
     balanced brackets in link text
     ---
     See [Texlish [docs]](https://texlish.org/docs).
