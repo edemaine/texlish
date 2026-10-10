@@ -48,13 +48,58 @@ describe 'semantic shorthand AST', ->
     assert [...iterate(node.children)].includes node.alt
     assert.equal generate(node.alt), '\\emph{caption}'
 
-  it 'keeps inline code literal and aliases its normalized body', ->
+  it 'keeps literal inline code content when escaping its output', ->
     node := findNode '` a%b `', 'CodeSpan'
     assert node is like { type: "CodeSpan" }
+    assert.equal node.style, '\\texttt'
+    assert.equal node.delimiter, undefined
+    assert.equal node.code, 'a%b'
+    assert.deepEqual node.body, { type: "Raw", token: 'a\\%b' }
+    assert.strictEqual node.children[2], node.body
+    assert.equal generate(node.body), 'a\\%b'
+    assert.equal generate(node), '\\texttt{a\\%b}'
+
+  it 'aliases literal inline code for a configured verbatim style', ->
+    ast := compile '::styles ` = \\verb\n` a%b `', ast: true, fragment: true
+    node := find ast, (node) => node is like { type: "CodeSpan" }
+    assert node is like { type: "CodeSpan" }
     assert.equal node.delimiter, '`'
+    assert.equal node.code, 'a%b'
     assert.deepEqual node.body, { type: "Verbatim", token: 'a%b' }
-    assert node.children.includes node.body
+    assert.strictEqual node.children[2], node.body
+    assert.equal generate(node.body), 'a%b'
     assert.equal generate(node), '\\verb`a%b`'
+
+  it 'aliases inline code for a braced verbatim argument', ->
+    ast := compile '::styles ` = \\hyperbaseurl\n` a%b `', ast: true, fragment: true
+    node := find ast, (node) => node is like { type: "CodeSpan" }
+    assert node is like { type: "CodeSpan" }
+    assert.equal node.code, 'a%b'
+    assert.equal node.delimiter, undefined
+    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b' }
+    assert.strictEqual node.children[2], node.body
+    assert.equal generate(node), '\\hyperbaseurl{a%b}'
+
+  it 'aliases escaped inline code for both EscVerb styles', ->
+    for style of ['\\EscVerb', '\\EscVerb*']
+      ast := compile '`\\^~`', ast: true, fragment: true, styles: {'`': style}
+      node := find ast, (node) => node is like { type: "CodeSpan" }
+      assert node is like { type: "CodeSpan" }
+      assert.equal node.code, '\\^~'
+      assert.equal node.delimiter, undefined
+      assert.deepEqual node.body, { type: "Raw", token: '\\\\\\^\\~' }
+      assert.strictEqual node.children[2], node.body
+      assert.equal generate(node), style + '{\\\\\\^\\~}'
+
+  it 'keeps literal code content when escaping a link label', ->
+    node := findNode '[`a%b`](https://example.com)', 'CodeSpan'
+    assert node is like { type: "CodeSpan" }
+    assert.equal node.style, '\\texttt'
+    assert.equal node.delimiter, undefined
+    assert.equal node.code, 'a%b'
+    assert.deepEqual node.body, { type: "Raw", token: 'a\\%b' }
+    assert.strictEqual node.children[2], node.body
+    assert.equal generate(node), '\\texttt{a\\%b}'
 
   it 'distinguishes fenced code from ordinary environments', ->
     node := findNode '```text\na%b\n```', 'CodeBlock'

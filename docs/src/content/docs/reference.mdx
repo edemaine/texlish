@@ -552,11 +552,12 @@ instead, freeing up backticks `` ` `` for Markdown-style code.
 Similar to Markdown
 [inline code](https://daringfireball.net/projects/markdown/syntax#code) /
 CommonMark [code spans](https://spec.commonmark.org/0.31.2/#code-spans),
-matching backtick runs compile to LaTeX `\verb`:
+matching backtick runs compile to LaTeX `\texttt` with escaped literal text:
 
 <Example src={`
   Write \`$x^2$\` to produce $x^2$.
   Use \`\` \`literal backticks\` \`\` to write code.
+  Escaping: \`\\foo{a_b}  ~ -- 50% & #1\`.
 `}/>
 
 Code-span line endings and following indentation become a single space.
@@ -585,12 +586,19 @@ each content line, following CommonMark:
 
 You can customize both using `::styles`. For inline code commands, the
 `::styles` key is the backtick run. For fenced blocks, add a `*`.
+Using a
+[declared verbatim command](https://github.com/edemaine/texlish/blob/main/src/declarations.civet),
+will omit escaping; `\EscVerb` is also treated specially.
 
 <Example src={`
   ::styles
+    \` = \\verb
     \`\` = \\Verb
+    \`\`\` = \\EscVerb
     \`\`\`\`* = lstlisting
-  \`\`inline\`\`
+  \`inline ~ \\verb\`
+  \`\`inline ~ \\Verb\`\`
+  \`\`\`inline ~ \\EscVerb\`\`\`
   \`\`\`\`
   block
   \`\`\`\`

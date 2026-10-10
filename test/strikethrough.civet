@@ -272,7 +272,7 @@ describe 'Markdown strikethrough', ->
     \\usepackage[normalem]{ulem}
 
     \\begin{document}
-    Code: \\verb`\\usepackage{ulem}`
+    Code: \\texttt{\\char`\\\\usepackage\\char`\\{ulem\\char`\\}}
     \\sout{deleted}
     \\end{document}
 
@@ -286,10 +286,39 @@ describe 'Markdown strikethrough', ->
     \\documentclass[11pt]{article}
 
     \\begin{document}
-    Code: \\verb`\\sout{literal}`
+    Code: \\texttt{\\char`\\\\sout\\char`\\{literal\\char`\\}}
     \\end{document}
 
   ''', fragment: false
+
+  testCase '''
+    package text in configured verb code span stays literal
+    ---
+    Code: `\\usepackage{ulem}`
+    ~~deleted~~
+    ---
+    \\documentclass[11pt]{article}
+    \\usepackage[normalem]{ulem}
+
+    \\begin{document}
+    Code: \\verb`\\usepackage{ulem}`
+    \\sout{deleted}
+    \\end{document}
+
+  ''', fragment: false, styles: {'`': '\\verb'}
+
+  testCase '''
+    sout text in configured verb code span does not load ulem
+    ---
+    Code: `\\sout{literal}`
+    ---
+    \\documentclass[11pt]{article}
+
+    \\begin{document}
+    Code: \\verb`\\sout{literal}`
+    \\end{document}
+
+  ''', fragment: false, styles: {'`': '\\verb'}
 
   testCase '''
     package text in fenced code stays literal

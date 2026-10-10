@@ -4,6 +4,31 @@ type { AST, ASTObject, ASTParent, Comment, Indent } from ./types.civet
 export function escapeRegExp(text: string): string
   text.replace /[.*+?^${}()|[\]\\]/g, "\\$&"
 
+/** These characters can make ligatures, e.g. `--` makes en-dash */
+ligatureChars := new Set "`'<>,-"
+/** \&, \#, and \% select the current font's glyph directly via \chardef */
+backslashEscapes := new Set " &#%"
+
+/**
+ * Escape literal text for a LaTeX text argument, preserving spaces.
+ * Similar to `\verb`.
+ */
+export function escapeText(content: string): string
+  content.replace /[\\{}$&#%_^~ `'<>,\-]/g, (char) =>
+    if ligatureChars.has char
+      // Empty groups prevent adjacent punctuation from forming ligatures.
+      char + "{}"
+    else if backslashEscapes.has char
+      "\\" + char
+    else
+      // Ordinary escapes can change glyphs: in OT1, \{ and \} fall back to
+      // OMS symbol-font braces. \char selects the current font's glyph.
+      "\\char`\\" + char
+
+/** Escape literal text for fvextra's escaped-verbatim arguments. */
+export function escapeEscVerb(content: string): string
+  content.replace /[\\{}$&#%_^~ ]/g, "\\$&"
+
 export function isNumeric(value: string): boolean
   /^\d+$/.test value
 

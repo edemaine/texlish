@@ -269,6 +269,107 @@ describe 'Markdown links', ->
     See \protect\href{https://texlish.org/docs}{\emph{Texlish} \ref{docs}}.
   '''
 
+  // No `r` because backticks are escaped when Civet transpiles raw strings.
+  testCase '''
+    inline code in link text
+    ---
+    [`Abstract.lean`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\texttt{Abstract.lean}}
+  '''
+
+  testCase '''
+    inline code mixed with markup in link text
+    ---
+    See [*file* `Abstract.lean` and [`Other.lean`]](https://example.com).
+    ---
+    See \\protect\\href{https://example.com}{\\emph{file} \\texttt{Abstract.lean} and [\\texttt{Other.lean}]}.
+  '''
+
+  testCase '''
+    inline code in link text escapes TeX special characters
+    ---
+    [`a_b{c}\\%$&#^~`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\texttt{a\\char`\\_b\\char`\\{c\\char`\\}\\char`\\\\\\%\\char`\\$\\&\\#\\char`\\^\\char`\\~}}
+  '''
+
+  testCase '''
+    inline code in link text preserves spaces after normalization
+    ---
+    [`  a
+      b  `](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\texttt{\\ a\\ b\\ }}
+  '''
+
+  testCase '''
+    inline code protects closing bracket in link text
+    ---
+    [`array[i]`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\texttt{array[i]}}
+  '''
+
+  testCase '''
+    incomplete link still compiles inline code
+    ---
+    [`Abstract.lean`](https://example.com
+    ---
+    [\\texttt{Abstract.lean}](https://example.com
+  '''
+
+  testCase '''
+    custom inline code style in link text
+    ---
+    ::styles
+      ` = \\EscVerb
+    [`Abstract.lean`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\EscVerb{Abstract.lean}}
+  '''
+
+  testCase '''
+    custom text code style in link text escapes literal content
+    ---
+    ::styles
+      ` = \\textsf
+    [`a_b%`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\textsf{a\\char`\\_b\\%}}
+  '''
+
+  testCase '''
+    starred EscVerb code style in link text escapes literal content
+    ---
+    ::styles
+      ` = \\EscVerb*
+    [`\\foo{_^~%}`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\EscVerb*{\\\\foo\\{\\_\\^\\~\\%\\}}}
+  '''
+
+  testCase '''
+    custom link code style falls back to shorter marker
+    ---
+    ::styles
+      ` = \\textsf
+      `` = \\textit
+    [`one` ``two`` ```three```](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\textsf{one} \\textit{two} \\textit{three}}
+  '''
+
+  testCase '''
+    explicit verb style in link text is honored
+    ---
+    ::styles
+      ` = \\verb
+    [`code`](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\verb`code`}
+  '''
+
   testCase r'''
     LaTeX command with argument in link text
     ---
@@ -291,6 +392,14 @@ describe 'Markdown links', ->
     ![\texttt{Abstract.lean}](image.pdf)
     ---
     \includegraphics[alt={\texttt{Abstract.lean}}]{image.pdf}
+  '''
+
+  testCase '''
+    inline code in command argument in link text
+    ---
+    [\\textbf{`Abstract.lean`}](https://example.com)
+    ---
+    \\protect\\href{https://example.com}{\\textbf{\\texttt{Abstract.lean}}}
   '''
 
   testCase r'''

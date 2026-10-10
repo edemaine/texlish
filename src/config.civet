@@ -36,7 +36,7 @@ export defaultConfig: ActiveCompilerOptions := {
       close: "'"
   styles:
     '>': 'quote'
-    '`': '\\verb'
+    '`': '\\texttt'
     '```*': 'verbatim'
     '*': '\\emph'
     '**': '\\textbf'

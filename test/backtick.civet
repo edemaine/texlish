@@ -3,13 +3,16 @@
 assert from assert
 
 describe 'Markdown backticks', ->
+  verbOptions := {styles: {'`': '\\verb'}}
+  allPrintable := for join c of ["!".."~"] then c
+
   // No `r` because backticks are escaped when Civet transpiles raw strings.
   testCase '''
     inline code span
     ---
     Use `\\verb` for inline verbatim.
     ---
-    Use \\verb`\\verb` for inline verbatim.
+    Use \\texttt{\\char`\\\\verb} for inline verbatim.
   '''
 
   testCase '''
@@ -17,7 +20,7 @@ describe 'Markdown backticks', ->
     ---
     ``There is a literal backtick (`) here.``
     ---
-    \\verb|There is a literal backtick (`) here.|
+    \\texttt{There\\ is\\ a\\ literal\\ backtick\\ (`{})\\ here.}
   '''
 
   testCase '''
@@ -25,7 +28,7 @@ describe 'Markdown backticks', ->
     ---
     A single backtick: `` ` ``
     ---
-    A single backtick: \\verb|`|
+    A single backtick: \\texttt{`{}}
   '''
 
   testCase '''
@@ -33,7 +36,7 @@ describe 'Markdown backticks', ->
     ---
     `  ``  `
     ---
-    \\verb| `` |
+    \\texttt{\\ `{}`{}\\ }
   '''
 
   testCase '''
@@ -41,7 +44,7 @@ describe 'Markdown backticks', ->
     ---
     ` a` and `b `
     ---
-    \\verb` a` and \\verb`b `
+    \\texttt{\\ a} and \\texttt{b\\ }
   '''
 
   testCase '''
@@ -51,7 +54,7 @@ describe 'Markdown backticks', ->
     bar
     baz``
     ---
-    \\verb`foo bar baz`
+    \\texttt{foo\\ bar\\ baz}
   '''
 
   testCase '''
@@ -60,7 +63,7 @@ describe 'Markdown backticks', ->
     `foo
         bar`
     ---
-    \\verb`foo bar`
+    \\texttt{foo\\ bar}
   '''
 
   testCase '''
@@ -92,35 +95,35 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
-    code span uses backtick delimiter before pipe
+    configured verb code span uses backtick delimiter before pipe
     ---
     `a|b`
     ---
     \\verb`a|b`
-  '''
+  ''', verbOptions
 
   testCase '''
-    code span chooses delimiter not in body
+    configured verb code span chooses delimiter not in body
     ---
     ``a`|b``
     ---
     \\verb!a`|b!
-  '''
+  ''', verbOptions
 
   testCase '''
-    code span chooses later printable delimiter
+    configured verb code span chooses later printable delimiter
     ---
     ``a`|!b``
     ---
     \\verb"a`|!b"
-  '''
+  ''', verbOptions
 
-  it 'code span throws when no printable verb delimiter is available', ->
-    allPrintable .= ""
-    for i of [33..126]
-      allPrintable += String.fromCharCode i
+  it 'default code span needs no unused printable delimiter', ->
+    assert.doesNotThrow => compile "``" + allPrintable + "``"
+
+  it 'configured verb code span throws when no printable delimiter is available', ->
     assert.throws (
-      => compile "``" + allPrintable + "``"
+      => compile "``" + allPrintable + "``", verbOptions
     ), /printable ASCII delimiter/
 
   testCase '''
@@ -136,7 +139,7 @@ describe 'Markdown backticks', ->
     ---
     `one` and ```three```
     ---
-    `one` and \\verb`three`
+    `one` and \\texttt{three}
   ''', markdownBackticks: 3
 
   testCase '''
@@ -154,7 +157,7 @@ describe 'Markdown backticks', ->
     ::config -markdownBackticks
     `after`
     ---
-    \\verb`before`
+    \\texttt{before}
     `after`
   '''
 
@@ -164,7 +167,7 @@ describe 'Markdown backticks', ->
     ::config markdownBackticks=2
     `one` and ``two``
     ---
-    `one` and \\verb`two`
+    `one` and \\texttt{two}
   '''
 
   testCase '''
@@ -174,7 +177,7 @@ describe 'Markdown backticks', ->
     ::config -markdownCompat
     `after`
     ---
-    \\verb`before`
+    \\texttt{before}
     `after`
   '''
 
@@ -186,6 +189,24 @@ describe 'Markdown backticks', ->
     ``code``
     ---
     \\Verb`code`
+  '''
+
+  testCase '''
+    verb style explicitly restores delimited inline code
+    ---
+    ::styles
+      ` = \\verb
+    `a_b%`
+    ---
+    \\verb`a_b%`
+  '''
+
+  testCase '''
+    default inline code inside command arguments
+    ---
+    \\textbf{`a_b%`}
+    ---
+    \\textbf{\\texttt{a\\char`\\_b\\%}}
   '''
 
   testCase '''
@@ -209,6 +230,16 @@ describe 'Markdown backticks', ->
   '''
 
   testCase '''
+    custom text style escapes literal code
+    ---
+    ::styles
+      ` = \\textsf
+    `a_b%`
+    ---
+    \\textsf{a\\char`\\_b\\%}
+  '''
+
+  testCase '''
     custom inline style follows its declared argument
     ---
     ::styles
@@ -216,6 +247,62 @@ describe 'Markdown backticks', ->
     ``code``
     ---
     \\EscVerb{code}
+  '''
+
+  testCase '''
+    custom verbatim style keeps literal code unescaped
+    ---
+    ::styles
+      ` = \\Verb
+    `a_b%`
+    ---
+    \\Verb`a_b%`
+  '''
+
+  testCase '''
+    custom EscVerb style receives escaped literal code
+    ---
+    ::styles
+      ` = \\EscVerb
+    `a_b%`
+    ---
+    \\EscVerb{a\\_b\\%}
+  '''
+
+  testCase '''
+    text code escapes punctuation ligatures
+    ---
+    `'' -- << >> ,,`
+    ---
+    \\texttt{'{}'{}\\ -{}-{}\\ <{}<{}\\ >{}>{}\\ ,{},{}}
+  '''
+
+  testCase '''
+    character escapes preserve following digits without empty groups
+    ---
+    `$12 _34 \\56 {78}90 ^12 ~34`
+    ---
+    \\texttt{\\char`\\$12\\ \\char`\\_34\\ \\char`\\\\56\\ \\char`\\{78\\char`\\}90\\ \\char`\\^12\\ \\char`\\~34}
+  '''
+
+  testCase '''
+    EscVerb style escapes backslashes caret tilde and repeated spaces
+    ---
+    ::styles
+      ` = \\EscVerb
+    `A\\foo{}$&#%_^~^^   Z`
+    ---
+    \\EscVerb{A\\\\foo\\{\\}\\$\\&\\#\\%\\_\\^\\~\\^\\^\\ \\ \\ Z}
+  '''
+
+  testCase '''
+    starred EscVerb style escapes literal code inside a command
+    ---
+    ::styles
+      ` = \\EscVerb*
+    \\textbf{`A\\foo{}$&#%_^~^^   Z`}
+    ---
+    \\textbf{\\EscVerb*{A\\\\foo\\{\\}\\$\\&\\#\\%\\_\\^\\~\\^\\^\\ \\ \\ Z}}
   '''
 
   testCase '''

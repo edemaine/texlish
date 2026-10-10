@@ -28,6 +28,7 @@ type {
   ListItem,
   Preamble,
   QuoteChar,
+  Raw,
   Ref,
   SmartQuote,
   Tex,
@@ -53,6 +54,8 @@ type {
 {
   commentForBody,
   commentForTextBody,
+  escapeEscVerb,
+  escapeText,
   getEndComment,
   getLeadingIndent,
   isEmpty,
@@ -718,52 +721,55 @@ SmartQuote ::SmartQuote
     }
 
 CodeSpan ::CodeSpan
-  CodeSpanOpen:marker CodeSpanBody:content CodeSpanClose ->
+  CodeSpanOpen:marker CodeSpanBody:code CodeSpanClose ->
     state.codeMarker = undefined
     // CommonMark code spans convert line endings to spaces.
     // Texlish also absorbs indentation after line endings,
     // similar to LaTeX line endings and better behaved with indentation model.
-    content = content.replace /(?:\r\n?|\n)[ \t]*/g, " "
+    code = code.replace /(?:\r\n?|\n)[ \t]*/g, " "
     // CommonMark code spans strip exactly one leading/trailing space.
-    if content.startsWith(" ") and content.endsWith(" ") and /[^ ]/.test content
-      content = content[<..<]
-    body: Verbatim := { type: "Verbatim", token: content }
+    if code.startsWith(" ") and code.endsWith(" ") and /[^ ]/.test code
+      code = code[<..<]
     style .= for first length of [marker# >=..1]
       continue unless style := state.compilerOptions.styles["`".repeat length]
       style
-    style ?= "\\verb"
-    let arg: ArgumentSpec?
-    if command := /\\(?:[a-zA-Z@]+|[^\r\n])\*?$/.exec(style)?[0]
-      if resolution := state.declarations.getCommand command
-        arg = resolution.args.-1
-    unless arg?.mode is "verbatim" and
-           arg.delimiter is like "delimited", "required-or-delimited"
-      return {
-        type: "CodeSpan"
-        style
-        body
-        children: [style, "{", body, "}"]
-      }
-    // Delimited arguments use matching before/after delimiters. Find one absent
-    // from the body.
+    style ?= "\\texttt"
+    command := /\\(?:[a-zA-Z@]+|[^\r\n])\*?$/.exec(style)?[0]
+    arg := if command then state.declarations.getCommand(command)?.args?.-1
+    body: Raw | Verbatim :=
+      if arg?.mode is "verbatim"
+        type: "Verbatim"
+        token: code
+      else
+        type: "Raw"
+        token:
+          if command is like "\\EscVerb", "\\EscVerb*"
+            escapeEscVerb code
+          else
+            escapeText code
     let delimiter: string?
-    unless "`" is in content
-      delimiter = "`"
-    else unless "|" is in content
-      delimiter = "|"
-    else
-      for char of ["!".."~"] // 33..126 printable ASCII
-        unless content.includes char
-          delimiter = char
-          break
-      unless delimiter?
-        throw new Error `Could not find printable ASCII delimiter for \\verb in ${JSON.stringify content}`
-    return {
+    if arg?.mode is "verbatim" and
+       arg.delimiter is like "delimited", "required-or-delimited"
+      // Delimited arguments use matching before/after delimiters. Find one absent
+      // from the body.
+      unless "`" is in code
+        delimiter = "`"
+      else unless "|" is in code
+        delimiter = "|"
+      else
+        for char of ["!".."~"] // 33..126 printable ASCII
+          unless code.includes char
+            delimiter = char
+            break
+        unless delimiter?
+          throw new Error `Could not find printable ASCII delimiter for \\verb in ${JSON.stringify code}`
+    {
       type: "CodeSpan"
       style
+      code
       body
       delimiter
-      children: [style, delimiter, body, delimiter]
+      children: [style, delimiter ?? "{", body, delimiter ?? "}"]
     }
 
 CodeSpanOpen ::string

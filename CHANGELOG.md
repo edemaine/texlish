@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+* Markdown-style `` `inline code` `` defaults to escaped `\texttt` instead of
+  `\verb`, so it works in more places, e.g., link labels and command arguments.
+  You can still customize via `::styles` to use other font commands, `\verb`
+  or other declared verbatim commands, and now even `\EscVerb` and `\EscVerb*`
+  (which require special escaping).
 * Markdown-style numbered lists honor the first bullet's number.
   [[#17](https://github.com/edemaine/texlish/issues/17)]
 * Markdown-style checklist items such as `- [ ]` and `- [x]` compile to

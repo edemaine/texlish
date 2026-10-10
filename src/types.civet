@@ -176,10 +176,12 @@ export interface CodeBlock extends Styled
 
 export interface CodeSpan extends Styled
   type: "CodeSpan"
-  /** Matching output delimiter; omitted when the body uses braces */
-  delimiter?: string
-  /** Literal content after code-span whitespace normalization; aliased in children */
-  body: Verbatim
+  /** Literal code after whitespace normalization. */
+  code: string
+  /** Matching output delimiter; undefined when the body uses braces */
+  delimiter: string?
+  /** Emitted argument content, aliased in children. */
+  body: Raw | Verbatim
 
 export interface Command extends ASTToken
   type: "Command"
