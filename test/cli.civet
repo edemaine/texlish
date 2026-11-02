@@ -219,6 +219,78 @@ describe 'CLI LaTeX build', ->
       process.env.PATH = oldPath
       await removeDir dir
 
+  for each outcome of ['resolved', 'stable', 'changing']
+    it `handles natbib citation reruns after BibTeX when citations are ${outcome}`, ->
+      dir := await fs.mkdtemp path.join os.tmpdir(), 'texlish-cli-'
+      oldPath := process.env.PATH
+      try
+        binDir := path.join dir, 'bin'
+        await fs.mkdir binDir
+        await fs.writeFile path.join(dir, 'outcome'), outcome
+        await writeCommand binDir, 'pdflatex', '''
+          #!/usr/bin/env bash
+          set -euo pipefail
+          count=0
+          if [ -f latex-count ]; then
+            count=$(cat latex-count)
+          fi
+          count=$((count + 1))
+          printf '%s\n' "$count" > latex-count
+          printf 'pdflatex %s\n' "$*" >> calls.txt
+          backslash=$(printf '\\134')
+          printf '%s\n' "${backslash}citation{x}" "${backslash}bibstyle{plain}" "${backslash}bibdata{refs}" > paper.aux
+          if [ "$count" -gt 1 ]; then
+            label=1
+            if [ "$(cat outcome)" = changing ]; then
+              label=$count
+            fi
+            printf '%s\n' "${backslash}bibcite{x}{$label}" >> paper.aux
+          fi
+          if [ "$count" -lt 3 ] || [ "$(cat outcome)" != resolved ]; then
+            cat > paper.log <<'LOG'
+          Package natbib Warning: There were undefined citations.
+          Package natbib Warning: Citation(s) may have changed.
+          (natbib)                Rerun to get citations correct.
+          LOG
+          else
+            : > paper.log
+          fi
+        '''
+        await writeCommand binDir, 'bibtex', '''
+          #!/usr/bin/env bash
+          set -euo pipefail
+          printf 'bibtex %s\n' "$*" >> calls.txt
+          cat > "$1.bbl" <<'BBL'
+          \\begin{thebibliography}{1}
+          \\bibitem{x} bibliography
+          \\end{thebibliography}
+          BBL
+        '''
+        texFile := path.join dir, 'paper.tex'
+        await fs.writeFile texFile, 'Text'
+        process.env.PATH = commandPath binDir, oldPath
+
+        result .= 1
+        logs := await captureConsoleLog ->
+          result = await buildLatex 'pdflatex', [], texFile
+
+        changing := outcome is 'changing'
+        assert.equal result, changing ? 1 : 0
+        calls := await fs.readFile path.join(dir, 'calls.txt'), 'utf8'
+        assert.deepEqual calls.trimEnd().split('\n'), [
+          'pdflatex paper.tex'
+          'bibtex paper'
+          ...Array(changing ? 4 : 2).fill 'pdflatex paper.tex'
+        ]
+        if changing
+          assert logsInclude logs, '!! Stopping LaTeX build after 5 runs'
+          assert.equal logsInclude(logs, '** paper.pdf built via'), false
+        else
+          assert logsInclude logs, '** paper.pdf built via pdflatex, bibtex, pdflatex, pdflatex'
+      finally
+        process.env.PATH = oldPath
+        await removeDir dir
+
   it 'reruns BibTeX when LaTeX changes BibTeX-relevant aux input', ->
     dir := await fs.mkdtemp path.join os.tmpdir(), 'texlish-cli-'
     oldPath := process.env.PATH
