@@ -76,6 +76,8 @@
   easier to detect used and defined commands and environments.
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.
 * CLI rebuilds given natbib's citation rerun warning.
+* Docs now show automatic packages, definitions, and preamble content,
+  even when omitting automatic document wrappers.
 
 ## 0.2.0
 

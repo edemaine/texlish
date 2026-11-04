@@ -186,6 +186,7 @@ describe 'tables', ->
     0 | 1
     $$
     ---
+    \usepackage{amsmath}
     $$
     \begin{pmatrix}
     1 & 0 \\
@@ -203,6 +204,7 @@ describe 'tables', ->
     a|b
     $$
     ---
+    \usepackage{amsmath}
     $$
     \begin{pmatrix}
     a & b \\
@@ -227,6 +229,7 @@ describe 'tables', ->
     ::table tabularx{\linewidth}
     a|b
     ---
+    \usepackage{tabularx}
     \begin{tabularx}{\linewidth}{ll}
     a & b \\
     \end{tabularx}
@@ -331,6 +334,7 @@ describe 'tables', ->
     ::table tabularx{[}{ll}
     a|b
     ---
+    \usepackage{tabularx}
     \begin{tabularx}{[}{ll}
     a & b \\
     \end{tabularx}
@@ -353,6 +357,7 @@ describe 'tables', ->
     ::table tabularx
     a|b
     ---
+    \usepackage{tabularx}
     \begin{tabularx}{ll}
     a & b \\
     \end{tabularx}
@@ -515,6 +520,8 @@ describe 'tables', ->
     -|-
     x|y
     ---
+    \usepackage{booktabs}
+    \usepackage{longtable}
     \begin{longtable}{rr}
     \textit{A} & \textit{B} \\
     \midrule
@@ -581,6 +588,7 @@ describe 'tables', ->
     ---- | ----:
     Alpha | 1
     ---
+    \usepackage{booktabs}
     \begin{tabular}{lr}
     \toprule
     \textbf{Name} & \textbf{Value} \\
@@ -604,6 +612,7 @@ describe 'tables', ->
     -|-
     x|y
     ---
+    \usepackage{longtable}
     \begin{longtable}{ll}
     \hline
     \textit{A} & \textit{B} \\
@@ -622,6 +631,7 @@ describe 'tables', ->
     -|-
     x|y
     ---
+    \usepackage{booktabs}
     \begin{tabular}[t]{cr}
     \toprule
     \textbf{A} & \textbf{B} \\
@@ -729,7 +739,7 @@ describe 'tables', ->
       result := compile('::table wide[t]{Xr}\na|b', fragment: true, styles: {
         'table.wide.env': env
       })
-      assert result.startsWith r'\begin{tabularx}{\linewidth}[t]{Xr}' + '\n'
+      assert result.startsWith r'\usepackage{tabularx}' + '\n' + r'\begin{tabularx}{\linewidth}[t]{Xr}' + '\n'
 
   testCase r'''
     generates columns after preset arguments with nested groups and escapes
@@ -737,6 +747,7 @@ describe 'tables', ->
     ::table wide
     a|b
     ---
+    \usepackage{tabularx}
     \begin{tabularx}{\width{[}\{\}}{ll}
     a & b \\
     \end{tabularx}
@@ -761,7 +772,7 @@ describe 'tables', ->
     result := compile('::table wide[t]\na|b', fragment: true, styles: {
       'table.wide.env': r'tabularx{\linewidth}% width'
     })
-    assert result.startsWith r'\begin{tabularx}{\linewidth}[t]{ll}% width' + '\n'
+    assert result.startsWith r'\usepackage{tabularx}' + '\n' + r'\begin{tabularx}{\linewidth}[t]{ll}% width' + '\n'
 
   it 'preserves additional opening LaTeX after explicit style arguments', ->
     for each opening of [r'\small', r'{\small}', r'\small\% text', r'\small}', r'\small' + '\\']
@@ -879,6 +890,7 @@ describe 'tables', ->
     \addlinespace[3pt]
     \specialrule{1pt}{2pt}{3pt}
     ---
+    \usepackage{booktabs}
     \begin{tabular}{ll}
     \toprule[2pt]
     a & b \\
@@ -924,6 +936,7 @@ describe 'tables', ->
     a|b
     x|y| \cmidrule[{]}](lr{2pt}){1-2} \cline{1-2}
     ---
+    \usepackage{booktabs}
     \begin{tabular}{ll}
     a & b \\
     x & y \\ \cmidrule[{]}](lr{2pt}){1-2} \cline{1-2}
@@ -965,6 +978,7 @@ describe 'tables', ->
         if math
           source = `$$\n${source}\n$$`
           expected = `$$\n${expected}\n$$`
+        expected = r'\usepackage{booktabs}' + '\n' + expected if midrule
         assert.equal compile(source, fragment: true, styles: { 'table.midrule': midrule }), expected
 
   testCase r'''

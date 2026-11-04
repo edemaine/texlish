@@ -148,8 +148,8 @@ describe '::use', ->
       bar
     ---
     \usepackage{foo} % package
-      bar
     \usepackage{foo}
+      bar
       bar
   '''
 
@@ -263,13 +263,13 @@ describe '::use', ->
     ---
 
       \usepackage[]{hyperref}
-    \begin{itemize}
-    \item xcolor
-    \end{itemize}
 
       \usepackage[
         % skip
       ]{geometry}
+    \begin{itemize}
+    \item xcolor
+    \end{itemize}
     \begin{itemize}
     \item colorlinks
     \end{itemize}

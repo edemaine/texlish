@@ -22,6 +22,8 @@ describe 'sub/superscript autogrouping', ->
     ---
     $x_\sout{y} + a^\square + b_\boxtimes$
     ---
+    \usepackage[normalem]{ulem}
+    \usepackage{amssymb}
     $x_{\sout{y}} + a^{\square} + b_{\boxtimes}$
   '''
 
@@ -32,8 +34,8 @@ describe 'sub/superscript autogrouping', ->
     ::use ulem
     $x_\uline{b}$
     ---
-    $x_\uline{a}$
     \usepackage{ulem}
+    $x_\uline{a}$
     $x_{\uline{b}}$
   '''
 

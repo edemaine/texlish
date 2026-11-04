@@ -22,6 +22,7 @@ describe 'Markdown emphasis (*/**/***)', ->
     ---
     that's ***it***
     ---
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
     that's \defn{it}
   '''
 
@@ -30,6 +31,7 @@ describe 'Markdown emphasis (*/**/***)', ->
     ---
     *emphasized* and **really emphasized** and ***super emphasized***
     ---
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
     \emph{emphasized} and \textbf{really emphasized} and \defn{super emphasized}
   '''
 
@@ -59,6 +61,7 @@ describe 'Markdown emphasis (*/**/***)', ->
     emphasized** and ***super
     emphasized***
     ---
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
     \emph{emphasized} and \textbf{really
     emphasized} and \defn{super
     emphasized}
@@ -653,6 +656,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       foo***bar***baz
       ---
+      \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
       foo\defn{bar}baz
     '''
 
@@ -1068,6 +1072,7 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       ***foo***
       ---
+      \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
       \defn{foo}
     '''
 

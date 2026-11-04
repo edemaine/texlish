@@ -30,6 +30,7 @@ export type CompilerOptions
   filename?: string
   ast?: boolean
   trace?: string
+  /** Omit automatic document boilerplate. */
   fragment?: boolean
   scriptGrouping?: ScriptGrouping
   scriptParens?: boolean

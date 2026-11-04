@@ -246,6 +246,7 @@ describe 'checklists', ->
     - [x] Done
     - [X] Also done
     ---
+    \usepackage{amssymb}
     \begin{itemize}
     \item[$\square$] To do
     \item[$\boxtimes$] Done
@@ -262,6 +263,7 @@ describe 'checklists', ->
       continuation
     * [x] last
     ---
+    \usepackage{amssymb}
     \begin{itemize}
     \item ordinary
     \item[$\square$] parent
@@ -341,6 +343,7 @@ describe 'checklists', ->
       Nested content
     - [x]
     ---
+    \usepackage{amssymb}
     \begin{itemize}
     \item[$\square$]
       Nested content

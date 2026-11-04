@@ -562,3 +562,76 @@ describe '\\documentclass', ->
     ---
     \documentclass[12pt,letterpaper]{article}
   '''
+
+describe 'document fragments', ->
+  testCase r'''
+    fragments include automatic packages without document boilerplate
+    ---
+    $$
+    ::table pmatrix
+    a_11 | a_12
+    a_21 | a_22
+    $$
+    ---
+    \usepackage{amsmath}
+    $$
+    \begin{pmatrix}
+    a_{11} & a_{12} \\
+    a_{21} & a_{22} \\
+    \end{pmatrix}
+    $$
+  '''
+
+  testCase r'''
+    fragments collect explicit preamble and avoid duplicate automatic packages
+    ---
+    Body
+    ::preamble \newcommand{\heading}{Heading}
+    ::use amsmath
+    $$
+    ::table pmatrix
+    1 | 0
+    0 | 1
+    $$
+    ---
+    \newcommand{\heading}{Heading}
+    \usepackage{amsmath}
+    Body
+    $$
+    \begin{pmatrix}
+    1 & 0 \\
+    0 & 1 \\
+    \end{pmatrix}
+    $$
+  '''
+
+  testCase r'''
+    fragments retain titles without adding maketitle
+    ---
+    \title{Draft}
+    Body
+    ---
+    \title{Draft}
+    Body
+  '''
+
+  testCase r'''
+    fragments retain explicit document commands
+    ---
+    \documentclass{report}
+    \begin{document}
+    ~~Removed~~
+    \end{document}
+    ---
+    \documentclass{report}
+    \usepackage[normalem]{ulem}
+    \begin{document}
+    \sout{Removed}
+    \end{document}
+  '''
+
+  it 'does not leave an empty preamble insertion node in fragment ASTs', ->
+    assert.equal compile('', fragment: true), ''
+    ast := compile('Body', fragment: true, ast: true)
+    assert.equal ast#, 1
+    assert.equal compile('Body', fragment: true), 'Body'

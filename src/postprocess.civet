@@ -26,7 +26,7 @@ export function process(root: AST[], options: CompilerOptions): AST
   processMarkdown root
   processFootnotes root
   processListStarts root
-  processDocument root unless options.fragment
+  processDocument root, options.fragment
   root
 
 /**
@@ -428,8 +428,8 @@ function autoimportDeclarations(
       optionArgument := if options? then `[${options}]` else ""
       preamble.push [`\\usepackage${optionArgument}{${packageName}}`]
 
-/** Automatic `\begin{document}`, `\end{document}`, `\maketitle` */
-function processDocument(root: AST[]): void
+/** Collect preamble support and optionally add document boilerplate. */
+function processDocument(root: AST[], fragment = false): void
   // Find any existing \begin{document}, \end{document}, \maketitle, \title,
   // \documentclass in the document, and put them in `document`.
   // Collect any ::preamble and ::use blocks for possibly moving to preamble.
@@ -462,11 +462,13 @@ function processDocument(root: AST[]): void
         preamble.push parent
 
   // Add \end{document} as a final line if it doesn't exist
-  unless document["\\end"]
+  unless fragment or document["\\end"]
     root.push "\n\\end{document}\n"
 
   // Add \begin{document} if it doesn't exist, before first environment,
   // header, unbraced text, etc.  Also add \maketitle if \title.
+  // Fragments use an empty insertion point for collected preamble content.
+  beginAdded := not document["\\begin"]
   unless document["\\begin"]
     var i = 0
     :line for line, var i of root
@@ -482,6 +484,9 @@ function processDocument(root: AST[]): void
           i := preamble.indexOf line
           preamble.splice i, 1 if i >= 0
         [ { type: "Indent" }, { type: "Enclosed" } ]
+          // Fragment may start with content like {\sout{removed}};
+          // put \usepackage{ulem} before it.
+          break :line if fragment
         ^document["\\end"]  // \begin{document} before \end{document}
           break :line
         ^document["\\maketitle"]  // \begin{document} before \maketitle
@@ -491,10 +496,15 @@ function processDocument(root: AST[]): void
         [ { type: "Indent" }, [ { type: "Command" }, ... ] ],
         [ { type: "Indent" }, [ { type: "Call" }, ... ] ],
         [ { type: "Indent" }, { type: "Tex" } ]
+          // Fragment may start with \sout{removed};
+          // put \usepackage{ulem} before it.
+          break :line if fragment
         else
           break :line
-    root.splice i, 0, document["\\begin"] = ["\n\\begin{document}\n"]
-    if document["\\title"] and not document["\\maketitle"]
+    root.splice i, 0, document["\\begin"] = [
+      if fragment then "" else "\n\\begin{document}\n"
+    ]
+    if not fragment and document["\\title"] and not document["\\maketitle"]
       document["\\begin"][0] += "\\maketitle\n"
 
   autoimportDeclarations root, preamble
@@ -512,7 +522,10 @@ function processDocument(root: AST[]): void
     (document["\\begin"] as AST[]).splice 0, 0, ...copy
     for each line of preamble
       line.splice 0, line#, "\0"
+  else if fragment and beginAdded
+    // No preamble content was needed, so remove the empty insertion point.
+    root.splice root.indexOf(document["\\begin"]), 1
 
   // Add \documentclass as first line if it doesn't exist
-  unless document["\\documentclass"]
+  unless fragment or document["\\documentclass"]
     root.unshift document["\\documentclass"] = defaultDocumentClass + "\n"
