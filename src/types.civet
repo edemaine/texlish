@@ -5,6 +5,25 @@ export type QuoteStyle = Record QuoteRole, string
 export type QuoteConfig = Record QuoteChar, QuoteStyle
 export type PartialQuoteConfig = Partial Record QuoteChar, Partial QuoteStyle
 
+/** Table settings shared by defaults, document styles, and named presets. */
+export interface TableStyle
+  /** Environment name or opening style, with optional arguments and additional LaTeX. */
+  env: string
+  /** LaTeX column specification repeated for columns without explicit alignment. */
+  align: string
+  /** Fallback cell wrapper, emitted as `wrapper{body}`. */
+  cell?: string
+  /** Header cell wrapper; an explicit setting takes precedence over `cell`. */
+  headercell?: string
+  /** Body cell wrapper; an explicit setting takes precedence over `cell`. */
+  bodycell?: string
+  /** LaTeX emitted before all rows. */
+  toprule?: string
+  /** LaTeX at delimiter rows; the first requires both header and body rows. */
+  midrule?: string
+  /** LaTeX emitted after all rows. */
+  bottomrule?: string
+
 type { ArgumentDelimiter, ArgumentsPattern } from ./declarations.civet
 
 export type CompilerOptions
@@ -30,6 +49,7 @@ export type CompilerOptions
   markdownLinks?: boolean
   markdownLists?: boolean
   markdownStrikethrough?: boolean
+  markdownTables?: boolean
   refShorthand?: boolean
   smartQuotes?: boolean
   quotes?: PartialQuoteConfig
@@ -94,6 +114,9 @@ export type ASTNode
   | Raw
   | Ref
   | SmartQuote
+  | Table
+  | TableRow
+  | TableCell
   | Tex
   | Use
   | Uses
@@ -213,6 +236,25 @@ export interface Delimiter
 export interface Environment extends ASTParent
   type: "Environment"
   env: string
+
+export interface Table extends ASTParent
+  type: "Table"
+  /** Resolved LaTeX environment name. */
+  env: string
+  /** Content rows, aliased in children; excludes delimiter and command-only lines. */
+  rows: TableRow[]
+
+export interface TableRow extends ASTParent
+  type: "TableRow"
+  /** Whether this row precedes the first delimiter; false for delimiter-free tables. */
+  header: boolean
+  /** Actual cells, aliased in children; rows are not padded to a common width. */
+  cells: TableCell[]
+
+export interface TableCell extends Styled
+  type: "TableCell"
+  /** Cell content before applying the style wrapper, aliased in children. */
+  body: AST[]
 
 export interface EOL extends ASTToken
   type: "EOL"

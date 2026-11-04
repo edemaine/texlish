@@ -14,10 +14,10 @@ importers:
     devDependencies:
       '@danielx/civet':
         specifier: 0.11.16
-        version: 0.11.16(@danielx/hera@0.9.8)(typescript@5.9.2)(yaml@2.9.0)
+        version: 0.11.16(@danielx/hera@0.9.9)(typescript@5.9.2)(yaml@2.9.0)
       '@danielx/hera':
-        specifier: 0.9.8
-        version: 0.9.8
+        specifier: 0.9.9
+        version: 0.9.9
       '@types/mocha':
         specifier: ^10.0.10
         version: 10.0.10
@@ -50,7 +50,7 @@ importers:
         version: 0.41.1(@astrojs/markdown-remark@7.2.0)(astro@7.0.3(@astrojs/markdown-remark@7.2.0)(@azure/identity@4.13.1)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(stylus@0.64.0)(yaml@2.9.0))(typescript@6.0.3)
       '@danielx/civet':
         specifier: 0.11.16
-        version: 0.11.16(@danielx/hera@0.9.8)(typescript@6.0.3)(yaml@2.9.0)
+        version: 0.11.16(@danielx/hera@0.9.9)(typescript@6.0.3)(yaml@2.9.0)
       astro:
         specifier: ^7.0.3
         version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@azure/identity@4.13.1)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(stylus@0.64.0)(yaml@2.9.0)
@@ -470,8 +470,8 @@ packages:
       yaml:
         optional: true
 
-  '@danielx/hera@0.9.8':
-    resolution: {integrity: sha512-BRuRnQzNBdMmPhbxb1FbL3Aw2vXEV6nvMxL2ttwQkUE2G+Vrh33WbfbqsV9Ul3fFW5s0VvpYRFXFRyw1dhx1TQ==}
+  '@danielx/hera@0.9.9':
+    resolution: {integrity: sha512-kbwMO1pKPS8hPxOPLsRVboi30kkomXCuXQ8LP52+EvgSYjCbXMCCxgld7JKYy66cmDFcFsSQtXZM9qA7dYSQeQ==}
     hasBin: true
 
   '@emmetio/abbreviation@2.3.3':
@@ -4627,25 +4627,25 @@ snapshots:
 
   '@ctrl/tinycolor@4.1.0': {}
 
-  '@danielx/civet@0.11.16(@danielx/hera@0.9.8)(typescript@5.9.2)(yaml@2.9.0)':
+  '@danielx/civet@0.11.16(@danielx/hera@0.9.9)(typescript@5.9.2)(yaml@2.9.0)':
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       unplugin: 2.3.11
     optionalDependencies:
-      '@danielx/hera': 0.9.8
+      '@danielx/hera': 0.9.9
       typescript: 5.9.2
       yaml: 2.9.0
 
-  '@danielx/civet@0.11.16(@danielx/hera@0.9.8)(typescript@6.0.3)(yaml@2.9.0)':
+  '@danielx/civet@0.11.16(@danielx/hera@0.9.9)(typescript@6.0.3)(yaml@2.9.0)':
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       unplugin: 2.3.11
     optionalDependencies:
-      '@danielx/hera': 0.9.8
+      '@danielx/hera': 0.9.9
       typescript: 6.0.3
       yaml: 2.9.0
 
-  '@danielx/hera@0.9.8': {}
+  '@danielx/hera@0.9.9': {}
 
   '@emmetio/abbreviation@2.3.3':
     dependencies:

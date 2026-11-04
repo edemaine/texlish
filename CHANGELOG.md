@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+* Markdown-style `|---|---|` tables compile to `tabular` or `array`
+  depending on text vs math mode, plus support for no or multiple header rows,
+  and repeated delimiter pipes (`||---||---||`) for vertical rules.
+  Prefix `::table` selects environment or named style preset and/or
+  explicit column specifications / arguments.
+  Table `::styles` configure cell wrappers, rules, and text/math defaults.
+  Built-in `booktabs` preset selects `tabular` with booktabs rules.
+  Declared inter-row commands such as `\hline` and booktabs rules auto-attach
+  to the table's start; other commands can occur after `::table` or between rows.
+  Explicit `\\[length]` or `\\*[length]` suffixes or following lines replace
+  automatic row terminators for manual spacing.
+  Automatic recognition can be disabled with `-markdownTables`,
+  but `::table` still works.
 * Markdown-style `` `inline code` `` defaults to escaped `\texttt` instead of
   `\verb`, so it works in more places, e.g., link labels and command arguments.
   You can still customize via `::styles` to use other font commands, `\verb`
@@ -57,6 +70,8 @@
 * `%` comments within `\begin`/`\end` arguments no longer confuse Texlish.
 * Smart quotes work better around commands, references, citations,
   images, and inline code.
+* Bare `@` reference labels can no longer contain `|` (to support tables);
+  enclose in quotes or braces.
 * AST refactor in particular represents declared command calls, making it
   easier to detect used and defined commands and environments.
 * CLI avoids redundant BibTeX/Biber reruns when their input is unchanged.

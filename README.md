@@ -24,6 +24,7 @@ offering the convenience and familiarity of Markdown for easy
 [`[^footnotes]`](https://texlish.org/reference#footnotes),
 [links](https://texlish.org/reference#links),
 [images](https://texlish.org/reference#images),
+[tables](https://texlish.org/reference#tables),
 [`` `code` ``](https://texlish.org/reference#code), and
 [horizontal rules](https://texlish.org/reference#horizontal-rules).
 Again you can turn off any features you don't want

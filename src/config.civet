@@ -23,6 +23,7 @@ export defaultConfig: ActiveCompilerOptions := {
   markdownLinks: true
   markdownLists: true
   markdownStrikethrough: true
+  markdownTables: true
   refShorthand: true
   smartQuotes: true
   scriptParens: true
@@ -52,6 +53,16 @@ export defaultConfig: ActiveCompilerOptions := {
     '[ ]': '$\\square$'
     '[x]': '$\\boxtimes$'
     '[X]': '$\\boxtimes$'
+    'table.textDefault.env': 'tabular'
+    'table.textDefault.align': 'l'
+    'table.textDefault.headercell': '\\textbf'
+    'table.textDefault.midrule': '\\hline'
+    'table.mathDefault.env': 'array'
+    'table.mathDefault.align': 'c'
+    'table.booktabs.env': 'tabular'
+    'table.booktabs.toprule': '\\toprule'
+    'table.booktabs.midrule': '\\midrule'
+    'table.booktabs.bottomrule': '\\bottomrule'
   set latexCompat(value: boolean)
     if value
       @scriptGrouping = "none"
@@ -70,6 +81,7 @@ export defaultConfig: ActiveCompilerOptions := {
     @markdownLinks = value
     @markdownLists = value
     @markdownStrikethrough = value
+    @markdownTables = value
     @smartQuotes = value
 }
 
@@ -141,6 +153,7 @@ type BooleanCompilerOption
   | "markdownLinks"
   | "markdownLists"
   | "markdownStrikethrough"
+  | "markdownTables"
   | "refShorthand"
   | "smartQuotes"
 
@@ -161,6 +174,7 @@ booleanCompilerOptions := new Map<string, BooleanCompilerOption>
   . ["markdownlinks", "markdownLinks"]
   . ["markdownlists", "markdownLists"]
   . ["markdownstrikethrough", "markdownStrikethrough"]
+  . ["markdowntables", "markdownTables"]
   . ["refshorthand", "refShorthand"]
   . ["smartquotes", "smartQuotes"]
 

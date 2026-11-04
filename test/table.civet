@@ -1,0 +1,1177 @@
+{ r, testCase } from ./helper.civet
+{ compile } from ../src/main.civet
+{ builtinPackages } from ../src/declarations.civet
+type { Argument } from ../src/types.civet
+{ iterate } from ../src/util.civet
+assert from assert
+
+describe 'tables', ->
+  // Markdown tables
+
+  testCase r'''
+    GFM with single hyphens and optional outer pipes
+    ---
+    A | B
+    - | -:
+    x | y
+    ---
+    \begin{tabular}{lr}
+    \textbf{A} & \textbf{B} \\
+    \hline
+    x & y \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    header-only tables omit the midrule
+    ---
+    A|B
+    -|-
+    ---
+    \begin{tabular}{ll}
+    \textbf{A} & \textbf{B} \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    short rows and empty cells
+    ---
+    A|B|C
+    -|-|-
+    x|y
+    |x||z|
+    ---
+    \begin{tabular}{lll}
+    \textbf{A} & \textbf{B} & \textbf{C} \\
+    \hline
+    x & y \\
+    x &  & z \\
+    \end{tabular}
+    '''
+
+  // Header and delimiter extensions
+
+  testCase r'''
+    multiple headers and independent cell formatting
+    ---
+    | **A** | B |
+    | units | units |
+    | :-: | -: |
+    | *x* | y |
+    ---
+    \begin{tabular}{cr}
+    \textbf{\textbf{A}} & \textbf{B} \\
+    \textbf{units} & \textbf{units} \\
+    \hline
+    \emph{x} & y \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    preserves wide and short headers without adding cells
+    ---
+    a|b|c
+    |d|
+    -|-
+    x|y
+    ---
+    \begin{tabular}{ll}
+    \textbf{a} & \textbf{b} & \textbf{c} \\
+    \textbf{d} \\
+    \hline
+    x & y \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    preserves excess cells for LaTeX to handle
+    ---
+    a|b
+    -|-
+    x|y|z
+    |x|y|\alpha|
+    ---
+    \begin{tabular}{ll}
+    \textbf{a} & \textbf{b} \\
+    \hline
+    x & y & z \\
+    x & y & \alpha \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    headerless array and grouped pipes
+    ---
+    $$
+    |-|-|
+    {|x|} | {|y|}
+    a_12 | b_34
+    $$
+    ---
+    $$
+    \begin{array}{cc}
+    {|x|} & {|y|} \\
+    a_{12} & b_{34} \\
+    \end{array}
+    $$
+    '''
+
+  testCase r'''
+    repeated delimiter pipes specify rules
+    ---
+    ||-||:-:|||-:||
+    a | b | c
+    ---
+    \begin{tabular}{|l|c||r|}
+    a & b & c \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    additional delimiter rows emit rules without changing columns or headers
+    ---
+    A|B
+    ||:---|---:||
+    a|b
+    ---|:---:|---
+    c|d
+    |||---:||:---|||
+    e|f
+    ---
+    \begin{tabular}{|lr|}
+    \textbf{A} & \textbf{B} \\
+    \hline
+    a & b \\
+    \hline
+    c & d \\
+    \hline
+    e & f \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    consecutive and trailing delimiters after the first emit rules without body rows
+    ---
+    A|B
+    -|-
+    -|-
+    -|-
+    ---
+    \begin{tabular}{ll}
+    \textbf{A} & \textbf{B} \\
+    \hline
+    \hline
+    \end{tabular}
+    '''
+
+  // Explicit tables and environment arguments
+
+  testCase r'''
+    declared environment determines cell mode
+    ---
+    ::table array
+    a_12|b_34
+    ---
+    \begin{array}{ll}
+    a_{12} & b_{34} \\
+    \end{array}
+    '''
+
+  testCase r'''
+    delimiter-free matrix
+    ---
+    $$
+    ::table pmatrix
+    1 | 0
+    0 | 1
+    $$
+    ---
+    $$
+    \begin{pmatrix}
+    1 & 0 \\
+    0 & 1 \\
+    \end{pmatrix}
+    $$
+    '''
+
+  testCase r'''
+    ignores delimiter alignment and borders for environments without columns
+    ---
+    $$
+    ::table pmatrix
+    ||:-||-:||
+    a|b
+    $$
+    ---
+    $$
+    \begin{pmatrix}
+    a & b \\
+    \end{pmatrix}
+    $$
+    '''
+
+  testCase r'''
+    optional arguments do not replace automatic columns
+    ---
+    ::table [t]
+    a|b
+    ---
+    \begin{tabular} [t]{ll}
+    a & b \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    tabularx receives columns after width
+    ---
+    ::table tabularx{\linewidth}
+    a|b
+    ---
+    \begin{tabularx}{\linewidth}{ll}
+    a & b \\
+    \end{tabularx}
+    '''
+
+  testCase r'''
+    unbraced column argument replaces generated columns
+    ---
+    ::table tabular \myspec
+    a|b
+    ---
+    \begin{tabular} \myspec
+    a & b \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    column arguments in directive bullets
+    ---
+    ::table tabular:
+      ~ t
+      - |cr|
+    a|b
+    ---
+    \begin{tabular}
+       [t]%
+       {|cr|}%
+    a & b \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    same-level environment argument bullets stop before table rows
+    ---
+    ::table tabular:
+    ~ t
+    - |cr|
+    a|b
+    ---
+    \begin{tabular}
+     [t]%
+     {|cr|}%
+    a & b \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    same-level math table argument bullets
+    ---
+    $$
+    ::table array:
+    - cr
+    a_12|b_34
+    $$
+    ---
+    $$
+    \begin{array}
+     {cr}%
+    a_{12} & b_{34} \\
+    \end{array}
+    $$
+    '''
+
+  for each [args, expected] of [['', '{ll}'], ['[t]', '[t]{ll}'], ['{cr}', '{cr}']]
+    it `handles undeclared environment arguments ${args}`, ->
+      assert.equal compile(`::table custom${args}\na|b`, fragment: true),
+        `\\begin{custom}${expected}\na & b \\\\\n\\end{custom}`
+
+  it 'uses declared parenthesized arguments before generated columns', ->
+    builtinPackages.set 'table-coords', {
+      name: 'table-coords'
+      environments: new Map [['coords', {
+        args: [
+          { name: 'size', delimiter: 'required-parenthesized', mode: 'raw' }
+          { name: 'origin', delimiter: 'optional-parenthesized', mode: 'raw' }
+          { name: 'columns', delimiter: 'required', mode: 'raw' }
+        ]
+        body: 'text'
+      }]]
+    }
+    try
+      result := compile('::use table-coords\n::table coords(1,2)\na|b', fragment: true)
+      assert result.includes r'\begin{coords}(1,2){ll}' + '\n'
+      for each env of [r'coords(1,2)', r': coords(1,2)', r'\begin {coords}(1,2)']
+        styles := { 'table.positioned.env': env }
+        result := compile('::use table-coords\n::table positioned\na|b', { styles, fragment: true })
+        assert result.includes r'\begin{coords}(1,2){ll}' + '\n'
+        ast := compile('::use table-coords\n::table positioned(3,4){cr}\na|b', { styles, fragment: true, ast: true })
+        args := [...iterate(ast)].filter (node): node is Argument => node is like { type: 'Argument' }
+        assert.deepEqual args.map(.specIndex), [0, 1, 2]
+        assert.deepEqual args.map(.delimiter), ['required-parenthesized', 'optional-parenthesized', 'required']
+        for each arg of args
+          assert [...iterate(arg.children)].includes arg.body
+        continued := compile('::use table-coords\n::table positioned(3,4){cr}\na|b', { styles, fragment: true })
+        assert continued.includes r'\begin{coords}(1,2)(3,4){cr}' + '\n'
+    finally
+      builtinPackages.delete 'table-coords'
+
+  testCase r'''
+    ignores brackets inside required environment arguments when counting them
+    ---
+    ::table tabularx{[}{ll}
+    a|b
+    ---
+    \begin{tabularx}{[}{ll}
+    a & b \\
+    \end{tabularx}
+    '''
+
+  testCase r'''
+    generated columns precede directive comments
+    ---
+    ::table[t] % options
+    a|b
+    ---
+    \begin{tabular}[t]{ll}% options
+    a & b \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    leaves missing required environment arguments for LaTeX to report
+    ---
+    ::table tabularx
+    a|b
+    ---
+    \begin{tabularx}{ll}
+    a & b \\
+    \end{tabularx}
+    '''
+
+  // Cell contents and column spans
+
+  testCase r'''
+    isolates emphasis delimiters in separate cells
+    ---
+    ::table
+    *a | b*
+    ---
+    \begin{tabular}{ll}
+    *a & b* \\
+    \end{tabular}
+    '''
+
+  it 'ends bare references at cell boundaries and closing pipes', ->
+    for each source of ['::table\n@foo|@bar', '|-|-|\n|@foo|@bar|']
+      assert.equal compile(source, fragment: true),
+        [r'\begin{tabular}{ll}', r'\ref{foo} & \ref{bar} \\', r'\end{tabular}'].join '\n'
+    assert.equal compile('::table\n|@foo|', fragment: true),
+      [r'\begin{tabular}{l}', r'\ref{foo} \\', r'\end{tabular}'].join '\n'
+    assert.equal compile('::table\n@{foo|bar}|x', fragment: true),
+      [r'\begin{tabular}{ll}', r'\ref{foo|bar} & x \\', r'\end{tabular}'].join '\n'
+
+  testCase r'''
+    preserves LaTeX double-bar commands and protects nested pipes
+    ---
+    $$
+    ::table
+    \|x\| | \text{|y|}
+    $$
+    ---
+    $$
+    \begin{array}{cc}
+    \|x\| & \text{|y|} \\
+    \end{array}
+    $$
+    '''
+
+  testCase r'''
+    commands in first cells remain cells
+    ---
+    ::table
+    \alpha | B
+    \hline | C
+    ---
+    \begin{tabular}{ll}
+    \alpha & B \\
+    \hline & C \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    keeps undeclared commands with optional and required arguments in cells
+    ---
+    a|b
+    -|-
+    x|y|\custom[1pt]{more}
+    ---
+    \begin{tabular}{ll}
+    \textbf{a} & \textbf{b} \\
+    \hline
+    x & y & \custom[1pt]{more} \\
+    \end{tabular}
+    '''
+
+  it 'preserves command-only final cells without a trailing pipe', ->
+    for each command of [r'\alpha', r'\textbf{x}', r'\multicolumn{2}{c}{x}']
+      result := compile(`::table tabular{lll}\na|${command}`, fragment: true)
+      assert result.includes `a & ${command} ` + r'\\' + '\n'
+
+  testCase r'''
+    colon arguments stop at cell boundaries
+    ---
+    ::table
+    \textbf: *a* | \textit: b
+    \label: raw*key* | \foo: **c**
+    ---
+    \begin{tabular}{ll}
+    \textbf{\emph{a}} & \textit{b} \\
+    \label{raw*key*} & \foo{\textbf{c}} \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    raw colon argument comments stay outside braces
+    ---
+    ::table
+    a | \label: raw*key* % comment
+    ---
+    \begin{tabular}{ll}
+    a & \label{raw*key*} \\ % comment
+    \end{tabular}
+    '''
+
+  it 'preserves parenthesized colon arguments inside table cells', ->
+    for each mode of ['raw', 'verbatim'] as const
+      builtinPackages.set 'table-parens', {
+        name: 'table-parens'
+        commands: new Map [['\\coords', [
+          { name: 'position', delimiter: 'required-parenthesized', mode }
+        ]]]
+      }
+      try
+        result := compile('::use table-parens\n::table\n\\coords: a(*x* | y', fragment: true)
+        assert result.includes r'\coords(a(*x*) & y \\'
+        assert.doesNotMatch result, /\\emph/
+      finally
+        builtinPackages.delete 'table-parens'
+
+  testCase r'''
+    multicolumn body rows and suffixes preserve their cells
+    ---
+    ::table tabular{lll}
+    \multicolumn{3}{c}{wide} | \hline % span
+    left | \multicolumn{2}{c}{right}
+    a | b | c | \noalign{\smallskip}
+    ---
+    \begin{tabular}{lll}
+    \multicolumn{3}{c}{wide} \\ \hline % span
+    left & \multicolumn{2}{c}{right} \\
+    a & b & c \\ \noalign{\smallskip}
+    \end{tabular}
+    '''
+
+  testCase r'''
+    multicolumn math rows preserve their cells
+    ---
+    $$
+    ::table array{ccc}
+    \multicolumn{3}{c}{x} | \cline{1-3}
+    a | \multicolumn{2}{c}{b}
+    c | d
+    $$
+    ---
+    $$
+    \begin{array}{ccc}
+    \multicolumn{3}{c}{x} \\ \cline{1-3}
+    a & \multicolumn{2}{c}{b} \\
+    c & d \\
+    \end{array}
+    $$
+    '''
+
+  // Styles and presets
+
+  testCase r'''
+    customizes text defaults without creating explicit overrides
+    ---
+    ::styles
+      table.textDefault.env = longtable
+      table.textDefault.align = r
+      table.textDefault.cell = \texttt
+      table.textDefault.headercell = \textit
+      table.textDefault.midrule = \midrule
+    A|B
+    -|-
+    x|y
+    ---
+    \begin{longtable}{rr}
+    \textit{A} & \textit{B} \\
+    \midrule
+    \texttt{x} & \texttt{y} \\
+    \end{longtable}
+    '''
+
+  it 'keeps default namespaces distinct from named presets', ->
+    for each name of ['textDefault', 'mathDefault']
+      result := compile(`::table ${name}\na|b`, fragment: true)
+      assert.equal result, [
+        `\\begin{${name}}{ll}`
+        r'a & b \\'
+        `\\end{${name}}`
+      ].join '\n'
+
+  it 'applies explicit cell styles before mode defaults', ->
+    for each key of ['table.cell', 'table.headercell', 'table.text.headercell']
+      result := compile('a|b\n-|-', fragment: true, styles: { [key]: '\\textit' })
+      assert result.includes r'\textit{a} & \textit{b}'
+      assert.doesNotMatch result, /\\textbf/
+
+  testCase r'''
+    lets empty role styles override the shared wrapper
+    ---
+    a|b
+    -|-
+    x|y
+    ---
+    \begin{tabular}{ll}
+    a & b \\
+    \texttt{x} & \texttt{y} \\
+    \end{tabular}
+    ''', styles: {
+      'table.cell': '\\texttt'
+      'table.headercell': ''
+      'table.midrule': ''
+    }
+
+  it 'prefers explicit role styles over higher-precedence cell fallbacks', ->
+    source := '::table compact\nA|B\n-|-\nx|y'
+    styles: Record<string, string> := {
+      'table.headercell': '\\textit'
+      'table.bodycell': ''
+      'table.compact.text.cell': '\\texttt'
+    }
+    result .= compile(source, { styles, fragment: true })
+    assert result.includes r'\textit{A} & \textit{B}'
+    assert result.includes r'x & y \\'
+    delete styles['table.headercell']
+    result = compile(source, { styles, fragment: true })
+    assert result.includes r'\texttt{A} & \texttt{B}'
+    assert result.includes r'x & y \\'
+    styles['table.headercell'] = ''
+    result = compile(source, { styles, fragment: true })
+    assert result.includes r'A & B \\'
+    assert.doesNotMatch result, /\\text(?:bf|it|tt)/
+
+  testCase r'''
+    built-in booktabs preset
+    ---
+    ::table booktabs
+    Name | Value
+    ---- | ----:
+    Alpha | 1
+    ---
+    \begin{tabular}{lr}
+    \toprule
+    \textbf{Name} & \textbf{Value} \\
+    \midrule
+    Alpha & 1 \\
+    \bottomrule
+    \end{tabular}
+    '''
+
+  testCase r'''
+    booktabs preset inherits cell styles and allows environment and rule overrides
+    ---
+    ::styles
+      table.cell = \textit
+      table.booktabs.env = longtable
+      table.booktabs.toprule = \hline
+      table.booktabs.midrule =
+      table.booktabs.bottomrule =
+    ::table booktabs
+    A|B
+    -|-
+    x|y
+    ---
+    \begin{longtable}{ll}
+    \hline
+    \textit{A} & \textit{B} \\
+    \textit{x} & \textit{y} \\
+    \end{longtable}
+    '''
+
+  testCase r'''
+    preset with explicit arguments and replacement wrappers
+    ---
+    ::styles
+      table.cell = \texttt
+      table.booktabs.headercell = \textbf
+    ::table booktabs[t]{cr}
+    A|B
+    -|-
+    x|y
+    ---
+    \begin{tabular}[t]{cr}
+    \toprule
+    \textbf{A} & \textbf{B} \\
+    \midrule
+    \texttt{x} & \texttt{y} \\
+    \bottomrule
+    \end{tabular}
+    '''
+
+  it 'resolves default, shared, mode, preset, and preset-mode settings', ->
+    source := '$$\n::table compact\n|-|-|\na|b\n$$'
+    styles: Record<string, string> := { 'table.mathDefault.align': 'l', 'table.compact.cell': '' }
+    assert.match compile(source, { styles, fragment: true }), /\{ll\}/
+    styles['table.align'] = 'r'
+    assert.match compile(source, { styles, fragment: true }), /\{rr\}/
+    styles['table.math.align'] = 'l'
+    assert.match compile(source, { styles, fragment: true }), /\{ll\}/
+    styles['table.compact.align'] = 'c'
+    assert.match compile(source, { styles, fragment: true }), /\{cc\}/
+    styles['table.compact.math.align'] = 'r'
+    assert.match compile(source, { styles, fragment: true }), /\{rr\}/
+
+  it 'selects cell grammar from automatic styles and named presets', ->
+    for each [source, styles] of [
+      ['|-|-|\na_12|b_34', { 'table.text.env': 'array' }]
+      ['::table numeric\na_12|b_34', { 'table.numeric.env': 'array' }]
+    ] as const
+      result := compile source, { styles, fragment: true }
+      assert result.includes r'a_{12} & b_{34}'
+    result := compile('$$\n::table tabular\n*x*|y\n$$', fragment: true)
+    assert result.includes r'\emph{x} & y'
+
+  it 'accepts arbitrary LaTeX column specifications in alignment styles', ->
+    for each align of ['X', 'p{3cm}', r'>{\raggedright}p{3cm}', 'custom', '']
+      for each source of ['::table\na|b', '|-|-|\na|b']
+        result := compile(source, fragment: true, styles: { 'table.align': align })
+        assert result.startsWith `\\begin{tabular}{${align.repeat 2}}` + '\n'
+    result := compile('A|B\n-|-:\na|b', fragment: true, styles: { 'table.align': 'p{3cm}' })
+    assert result.startsWith r'\begin{tabular}{p{3cm}r}' + '\n'
+
+  testCase r'''
+    does not append columns after an explicit style specification
+    ---
+    a|b
+    -|-
+    ---
+    \begin{tabular}[t]{|cr|}
+    \textbf{a} & \textbf{b} \\
+    \end{tabular}
+    ''', styles: { 'table.env': 'tabular[t]{|cr|}' }
+
+  it 'uses regular environment argument modes in styles', ->
+    for each mode of ['text', 'math', 'raw', 'verbatim', 'inherit'] as const
+      builtinPackages.set 'table-args', {
+        name: 'table-args'
+        environments: new Map [['captioned', {
+          args: [
+            { name: 'label', delimiter: 'optional', mode }
+            { name: 'position', delimiter: 'required-parenthesized', mode }
+            { name: 'caption', delimiter: 'required', mode }
+            { name: 'columns', delimiter: 'required', mode: 'raw' }
+          ]
+          body: 'inherit'
+        }]]
+      }
+      try
+        for each math of [false, true]
+          env := 'captioned[*label*](a_12){*caption*}{lr}'
+          wrap := (source: string) => '::use table-args\n' + if math then `$$\n${source}\n$$` else source
+          regular := compile(wrap(`: ${env}\na`), fragment: true)
+          styled := compile(wrap('::table named\na|b'), fragment: true, styles: {
+            'table.named.env': env
+          })
+          opening := (source: string) => source.split('\n').find .startsWith r'\begin{captioned}'
+          assert.equal opening(styled), opening(regular), `${mode}, math=${math}`
+          resolved := if mode is 'inherit' then (if math then 'math' else 'text') else mode
+          assert styled.includes r'\emph{caption}' if resolved is 'text'
+          assert styled.includes 'a_{12}' if resolved is 'math'
+          if resolved is like 'raw', 'verbatim'
+            assert styled.includes '[*label*](a_12){*caption*}{lr}'
+      finally
+        builtinPackages.delete 'table-args'
+
+  it 'supports environment argument shorthand in styles', ->
+    builtinPackages.set 'table-args', {
+      name: 'table-args'
+      environments: new Map [['captioned', {
+        args: [
+          { name: 'caption', delimiter: 'required', mode: 'text' }
+          { name: 'columns', delimiter: 'required', mode: 'raw' }
+        ]
+        body: 'text'
+      }]]
+    }
+    try
+      result := compile('::use table-args\n::table named{lr}\na|b', fragment: true, styles: {
+        'table.named.env': 'captioned: **caption**'
+      })
+      assert.equal result.split('\n').find(.startsWith r'\begin{captioned}'), r'\begin{captioned}{\textbf{caption}}{lr}%'
+    finally
+      builtinPackages.delete 'table-args'
+
+  it 'continues preset arguments in the directive', ->
+    for each env of [r'tabularx{\linewidth}', r': tabularx{\linewidth}', r'\begin {tabularx}{\linewidth}']
+      result := compile('::table wide[t]{Xr}\na|b', fragment: true, styles: {
+        'table.wide.env': env
+      })
+      assert result.startsWith r'\begin{tabularx}{\linewidth}[t]{Xr}' + '\n'
+
+  testCase r'''
+    generates columns after preset arguments with nested groups and escapes
+    ---
+    ::table wide
+    a|b
+    ---
+    \begin{tabularx}{\width{[}\{\}}{ll}
+    a & b \\
+    \end{tabularx}
+    ''', styles: { 'table.wide.env': r'tabularx{\width{[}\{\}}' }
+
+  testCase r'''
+    does not count groups inside optional style arguments as columns
+    ---
+    ::table
+    a|b
+    ---
+    \begin{custom}[{]}]{ll}
+    a & b \\
+    \end{custom}
+    ''', styles: { 'table.env': r'custom[{]}]' }
+
+  it 'places generated columns before trailing style comments', ->
+    for each source of ['::table\na|b', '::table % directive\na|b']
+      result := compile(source, fragment: true, styles: { 'table.env': 'tabular[t] % style' })
+      assert result.startsWith r'\begin{tabular}[t] {ll}% style'
+      assert result.includes r'% directive' if source.includes '% directive'
+    result := compile('::table wide[t]\na|b', fragment: true, styles: {
+      'table.wide.env': r'tabularx{\linewidth}% width'
+    })
+    assert result.startsWith r'\begin{tabularx}{\linewidth}[t]{ll}% width' + '\n'
+
+  it 'preserves additional opening LaTeX after explicit style arguments', ->
+    for each opening of [r'\small', r'{\small}', r'\small\% text', r'\small}', r'\small' + '\\']
+      for each env of ['tabular{lr}', ': tabular{lr}', r'\begin{tabular}{lr}']
+        result := compile('::table\na|b', fragment: true, styles: {
+          'table.env': env + opening
+        })
+        assert.equal result, [
+          r'\begin{tabular}{lr}' + opening
+          r'a & b \\'
+          r'\end{tabular}'
+        ].join '\n'
+
+  it 'places generated columns before additional style opening LaTeX', ->
+    for each [env, expected] of [
+      [r'custom \small', r'\begin{custom} {ll}\small']
+      [r'tabular[t] text\small % style', r'\begin{tabular}[t] {ll}text\small % style']
+    ]
+      result := compile('::table\na|b', fragment: true, styles: { 'table.env': env })
+      assert result.startsWith expected + '\n'
+
+  it 'places directive arguments before style opening LaTeX and trailing comments', ->
+    for each columns of ['', '{rl}']
+      result := compile(`::table named${columns} % directive\na|b`, fragment: true, styles: {
+        'table.named.env': r'custom[t] \small % style'
+      })
+      expected := r'\begin{custom}[t] ' + (columns or '{ll}') + r'\small % style% directive'
+      assert.equal result.split('\n')[0], expected
+    result := compile('::table named % directive\na|b', fragment: true, styles: {
+      'table.named.env': r'tabular{lr}\small % style'
+    })
+    assert.equal result.split('\n')[0], r'\begin{tabular}{lr}\small % style% directive'
+
+  testCase r'''
+    keeps unbraced style arguments distinct from additional opening LaTeX
+    ---
+    ::table
+    a|b
+    ---
+    \begin{tabular} \myspec\small
+    a & b \\
+    \end{tabular}
+    ''', styles: { 'table.env': r'tabular \myspec\small' }
+
+  testCase r'''
+    preserves additional opening LaTeX in math tables
+    ---
+    $$
+    ::table
+    a_12|b_34
+    $$
+    ---
+    $$
+    \begin{array}{lr}\displaystyle
+    a_{12} & b_{34} \\
+    \end{array}
+    $$
+    ''', styles: { 'table.math.env': r'array{lr}\displaystyle' }
+
+  it 'imports packages used by additional style opening LaTeX', ->
+    result := compile('::table\na|b', styles: { 'table.env': r'tabular{ll}\toprule' })
+    assert result.includes r'\usepackage{booktabs}'
+    assert result.includes r'\begin{tabular}{ll}\toprule' + '\n'
+
+  it 'automatically imports packages used by environments and rule styles', ->
+    assert.match compile('$$\n::table pmatrix\na|b\n$$'), /\\usepackage\{amsmath\}/
+    assert.match compile('|-|-|\na|b', styles: { 'table.toprule': '\\toprule' }), /\\usepackage\{booktabs\}/
+    assert.match compile('::table booktabs\na|b'), /\\usepackage\{booktabs\}/
+
+  // Inter-row commands, rules, and spacing
+
+  testCase r'''
+    flagged leading commands attach but centering stays outside
+    ---
+    \centering
+    \hline
+    | A | B |
+    | - | - |
+    | 1 | 2 | \cline{1-2}
+    \hline
+    ---
+    \centering
+    \begin{tabular}{ll}
+    \hline
+    \textbf{A} & \textbf{B} \\
+    \hline
+    1 & 2 \\ \cline{1-2}
+    \hline
+    \end{tabular}
+    '''
+
+  testCase r'''
+    explicit raw commands between rows
+    ---
+    ::table
+    a|b
+    ::tex \customrule{*raw*}
+    c|d
+    ---
+    \begin{tabular}{ll}
+    a & b \\
+    \customrule{*raw*}
+    c & d \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    booktabs optional and trimming arguments on standalone lines
+    ---
+    ::table
+    \toprule[2pt]
+    a|b
+    \cmidrule[1pt](lr{2pt}){1-2}
+    c|d
+    \addlinespace[3pt]
+    \specialrule{1pt}{2pt}{3pt}
+    ---
+    \begin{tabular}{ll}
+    \toprule[2pt]
+    a & b \\
+    \cmidrule[1pt](lr{2pt}){1-2}
+    c & d \\
+    \addlinespace[3pt]
+    \specialrule{1pt}{2pt}{3pt}
+    \end{tabular}
+    '''
+
+  testCase r'''
+    row suffixes do not contribute to inferred columns
+    ---
+    ::table
+    a | b | \hline
+    c | d | e | \cline{1-3}
+    ---
+    \begin{tabular}{ll}
+    a & b \\ \hline
+    c & d & e \\ \cline{1-3}
+    \end{tabular}
+    '''
+
+  testCase r'''
+    keeps inter-row commands in cells when followed by a closing pipe
+    ---
+    ::table
+    x|y
+    a|\hline|
+    b|{\hline}
+    ---
+    \begin{tabular}{ll}
+    x & y \\
+    a & \hline \\
+    b & {\hline} \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    parses suffix command sequences with brace-protected closing brackets
+    ---
+    ::table
+    a|b
+    x|y| \cmidrule[{]}](lr{2pt}){1-2} \cline{1-2}
+    ---
+    \begin{tabular}{ll}
+    a & b \\
+    x & y \\ \cmidrule[{]}](lr{2pt}){1-2} \cline{1-2}
+    \end{tabular}
+    '''
+
+  it 'keeps incomplete commands and trailing text in extra cells', ->
+    for each suffix of [r'\cline', r'\custom[1pt]{more} text']
+      result := compile(`::table\na|b\nx|y| ${suffix}`, fragment: true)
+      assert result.includes `x & y & ${suffix} ` + r'\\'
+
+  it 'allows packages to declare custom inter-row commands', ->
+    builtinPackages.set 'table-test', {
+      name: 'table-test'
+      commands: new Map [['\\myrule', { args: [], betweenTableRows: true }]]
+    }
+    try
+      result := compile('::use table-test\n\\myrule\na|b\n-|-', fragment: true)
+      assert.match result, /\\begin\{tabular\}\{ll\}\n\\myrule/
+      spanning := compile('::use table-test\n::table tabular{lll}\n|\\multicolumn{3}{c}{x}|\\myrule', fragment: true)
+      assert spanning.includes r'\multicolumn{3}{c}{x} \\ \myrule'
+    finally
+      builtinPackages.delete 'table-test'
+
+  it 'uses configured midrules at later delimiters in headerless text and math tables', ->
+    for each math of [false, true]
+      for each midrule of [r'\midrule', '']
+        source .= '|-|-|\na|b\n||---:|:---:|---||\nc|d'
+        env := if math then 'array' else 'tabular'
+        columns := if math then 'cc' else 'll'
+        lines := [
+          `\\begin{${env}}{${columns}}`
+          r'a & b \\'
+          ...if midrule then [midrule] else []
+          r'c & d \\'
+          `\\end{${env}}`
+        ]
+        expected .= lines.join '\n'
+        if math
+          source = `$$\n${source}\n$$`
+          expected = `$$\n${expected}\n$$`
+        assert.equal compile(source, fragment: true, styles: { 'table.midrule': midrule }), expected
+
+  testCase r'''
+    comments follow generated row terminators and wrappers
+    ---
+    A | B % header
+    - | -
+    x | y | % body
+    a | b | \noalign{\smallskip} % suffix
+    ---
+    \begin{tabular}{ll}
+    \textbf{A} & \textbf{B} \\ % header
+    \hline
+    x & y \\ % body
+    a & b \\ \noalign{\smallskip} % suffix
+    \end{tabular}
+    '''
+
+  it 'uses explicit row terminators in suffixes or on the following line', ->
+    for each math of [false, true]
+      env := if math then 'array' else 'tabular'
+      columns := if math then 'cc' else 'll'
+      for each terminator of [r'\\', r'\\[1ex]', r'\\*[2ex]']
+        for each suffix of [false, true]
+          lines := [
+            '::table'
+            if suffix then `a|b| ${terminator}` else `a|b\n${terminator}`
+            'c|d'
+          ]
+          expected := [
+            `\\begin{${env}}{${columns}}`
+            if suffix then `a & b ${terminator}` else `a & b\n${terminator}`
+            r'c & d \\'
+            `\\end{${env}}`
+          ]
+          for each content of [lines, expected] when math
+            content.unshift '$$'
+            content.push '$$'
+          assert.equal compile(lines.join('\n'), fragment: true), expected.join('\n')
+
+  testCase r'''
+    explicit terminators preserve comments and precede header and suffix rules
+    ---
+    A | B % header
+    \\[1ex] % spacing
+    - | -
+    x | y | \\*[2ex] \hline % body
+    ---
+    \begin{tabular}{ll}
+    \textbf{A} & \textbf{B} % header
+    \\[1ex] % spacing
+    \hline
+    x & y \\*[2ex] \hline % body
+    \end{tabular}
+    '''
+
+  testCase r'''
+    keeps row breaks inside cell arguments independent of the row terminator
+    ---
+    ::table
+    a|\shortstack{x\\[1ex]y}
+    c|d
+    ---
+    \begin{tabular}{ll}
+    a & \shortstack{x\\[1ex]y} \\
+    c & d \\
+    \end{tabular}
+    '''
+
+  it 'does not treat breaks inside inter-row command arguments as row terminators', ->
+    builtinPackages.set 'table-break-test', {
+      name: 'table-break-test'
+      commands: new Map [['\\between', {
+        args: [{ name: 'content', delimiter: 'required', mode: 'inherit' }]
+        betweenTableRows: true
+      }]]
+    }
+    try
+      for each tail of [r'| \between{\shortstack{x\\y}}', '\n' + r'\between{\shortstack{x\\y}}']
+        result := compile(`::use table-break-test\n::table\na|b${tail}`, fragment: true)
+        assert result.includes r'a & b \\'
+    finally
+      builtinPackages.delete 'table-break-test'
+
+  testCase r'''
+    blank lines prevent leading commands from attaching
+    ---
+    \hline
+
+    |-|-|
+    |1|2|
+    ---
+    \hline
+
+    \begin{tabular}{ll}
+    1 & 2 \\
+    \end{tabular}
+    '''
+
+  // Nesting, recognition, configuration, and AST
+
+  testCase r'''
+    tables inside indented environments end at dedent
+    ---
+    : center
+      |-|-|
+      a|b
+    Outside
+    ---
+    \begin{center}
+      \begin{tabular}{ll}
+      a & b \\
+      \end{tabular}
+    \end{center}
+    Outside
+    '''
+
+  it 'restores the surrounding cell grammar after a nested table', ->
+    result := compile(r'''$$
+      ::table
+      a_12 | \text{
+        ::table
+        *x* | y
+      }
+      b_34 | c
+      $$''', fragment: true)
+    assert result.includes r'\begin{array}{cc}'
+    assert result.includes r'\begin{tabular}{ll}'
+    assert result.includes r'\emph{x} & y'
+    assert result.includes r'b_{34} & c'
+
+  it 'supports CRLF and tabs', ->
+    result := compile(': center\r\n\t|-|-|\r\n\ta|b', fragment: true)
+    assert result.includes '\t\\begin{tabular}{ll}'
+    assert result.includes '\ta & b'
+
+  it 'does not turn pipe expressions without a delimiter into tables', ->
+    for each source of ['a|b\nc|d', '$|x|$', '\\hline\na|b', '---']
+      assert.doesNotMatch compile(source, fragment: true), /\\begin\{(?:tabular|array)\}/
+
+  it 'preserves literal pipes in ordinary text and link text', ->
+    assert.equal compile('a | b [x | y](target)', fragment: true),
+      r'a | b \protect\href{target}{x | y}'
+
+  it 'preserves block markers before pipe-containing content', ->
+    assert.match compile('# Heading | Text\n-|-', fragment: true), /\\section\{Heading \| Text\}/
+    assert.match compile('- A | B\n  -|-\n  x|y', fragment: true), /^\\begin\{itemize\}/
+
+  it 'ends tables before following blocks containing pipes', ->
+    table := 'A|B\n-|-\nx|y'
+    for each block of ['# Heading | Text', '- List | Text', '1. List | Text', '> Quote | Text', ': center\n  Literal | Text']
+      assert.equal compile(`${table}\n${block}`, fragment: true),
+        compile(table, fragment: true) + '\n' + compile(block, fragment: true)
+    following := '# Heading | Text\n-|-\nu|v'
+    assert.equal compile(`${table}\n${following}`, fragment: true),
+      compile(table, fragment: true) + '\n' + compile(following, fragment: true)
+
+  testCase r'''
+    preserves mathematical row contents resembling Markdown block markers
+    ---
+    $$
+    ::table
+    x|y
+    * x|y
+    1. x|y
+    $$
+    ---
+    $$
+    \begin{array}{cc}
+    x & y \\
+    * x & y \\
+    1. x & y \\
+    \end{array}
+    $$
+    '''
+
+  it 'omits empty tables without consuming following text', ->
+    for each directive of ['::table', '::table tabular[t]{lr}']
+      assert.equal compile(directive, fragment: true), ''
+      assert.equal compile(`${directive}\nhello`, fragment: true), 'hello'
+      assert.equal compile(`before\n${directive}\nafter`, fragment: true), 'before\nafter'
+      assert.equal compile(`${directive}\n-|-\nhello`, fragment: true), 'hello'
+      assert.equal compile(`before\n${directive}\n-|-\nafter`, fragment: true), 'before\nafter'
+    assert.equal compile('$$\n::table\nx\n$$', fragment: true), '$$\nx\n$$'
+    assert.equal compile('::table\n-|-', fragment: true), ''
+    assert.equal compile('-|-\nhello', fragment: true), 'hello'
+
+  it 'disables automatic tables while retaining the directive', ->
+    source := 'a|b\n-|-'
+    assert.equal compile(source, markdownTables: false, fragment: true), source
+    assert.match compile('::table\na|b', markdownTables: false, fragment: true), /\\begin\{tabular\}/
+    assert.equal compile(source, markdownCompat: false, fragment: true), source
+
+  it 'retains rows and independently styled cells in the AST', ->
+    ast := compile('a|b\n-|-\nx|y', ast: true, fragment: true)
+    table := ast.find (node) => node is like { type: 'Table' }
+    assert table is like { type: 'Table' }
+    if table is like { type: 'Table' }
+      assert.deepEqual table.rows.map(.header), [true, false]
+      assert.equal table.rows[0].cells[0].style, '\\textbf'
+
+  it 'retains spanning header cells and their actual AST cell counts', ->
+    source := '| \\multicolumn{2}{c}{Heading} |\n-|-\nx|y'
+    options := { fragment: true, styles: { 'table.headercell': '' } }
+    result := compile(source, options)
+    assert result.includes r'\multicolumn{2}{c}{Heading} \\' + '\n'
+    ast := compile(source, { ...options, ast: true })
+    table := [...iterate(ast)].find (is like { type: 'Table' })
+    assert table
+    assert.deepEqual table.rows.map(.cells.length), [1, 2]

@@ -120,3 +120,19 @@ describe '@ shorthand for \\ref, \\label, etc.', ->
     ---
     See \ref{thm:main}\protect\href{https://example.com}{details}
   '''
+
+  testCase r'''
+    pipes terminate bare references
+    ---
+    @foo|@bar @=foo|@#bar @|foo @=|foo
+    ---
+    \ref{foo}|\ref{bar} \label{foo}|\pageref{bar} @|foo @=|foo
+  '''
+
+  testCase r'''
+    enclosed reference labels preserve pipes
+    ---
+    @{foo|bar} @'foo|bar' @"foo|bar"
+    ---
+    \ref{foo|bar} \ref{foo|bar} \ref{foo|bar}
+  '''

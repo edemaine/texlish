@@ -31,6 +31,10 @@ type {
   Raw,
   Ref,
   SmartQuote,
+  Table,
+  TableCell,
+  TableRow,
+  TableStyle,
   Tex,
   Use,
   Uses,
@@ -62,6 +66,8 @@ type {
   isNumeric,
   reduceVisualIndent,
   removeLeadingIndent,
+  trimEnd,
+  trimEndComment,
   visualWidth,
 } from ./util.civet
 
@@ -205,6 +211,7 @@ Statement ::AST
 
 TextStatement ::AST
   TextOrMathStatement
+  TextTable
   TextCommandWithColonArguments
   ColonEnvironmentsEnabled TextEnvironment -> $2
   MarkdownHeadingsEnabled Heading -> $2
@@ -244,7 +251,7 @@ Text ::AST[]
 TextPart ::AST
   TextOrMathPart
   TextOnlyPart
-  [()\[\]]
+  [()\[\]|]
 
 EnterMathMode ::AST[]
   "$$" MathContent "$$"
@@ -268,8 +275,8 @@ TextOnlyPart ::AST
   MarkdownStrikethroughEnabled StrikethroughDelimiter -> $2
   MarkdownEmphasisEnabled EmphasisDelimiter -> $2
   /['"]/
-  # Skip to next interesting text-mode character.
-  /[^\r\n'"\\()\[\]{}%][^\r\n!'"@#<`\\()\[\]{}%$*~]*/
+  # Skip to next interesting text-mode character; callers handle literal pipes.
+  /[^\r\n'"\\()\[\]{}|%][^\r\n!'"@#<`\\()\[\]{}|%$*~]*/
 
 RefShorthand ::Ref
   # @'long ref'
@@ -281,7 +288,7 @@ RefShorthand ::Ref
     target := prefix + label
     return { type: "Ref", style, variant: $1, target, children: [style, "{", target, "}"] }
   # @ref without spaces and without grabbing trailing punctuation
-  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^()\[\]\s'"{}=~][^()\[\]\s{}~]*)(?<!\p{Punctuation})/ ->
+  /(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}]))(@[=#^]?)([^()\[\]{}|\s'"=~][^()\[\]{}|\s~]*)(?<!\p{Punctuation})/ ->
     prefix := labelPrefix $1, $2
     return $skip unless prefix?
     style := state.compilerOptions.styles[$1]
@@ -397,6 +404,7 @@ MathStatement ::AST
 
 MathModeStatement ::AST
   TextOrMathStatement
+  MathTable
   MathCommandWithColonArguments
   ColonEnvironmentsEnabled MathEnvironment -> $2
 
@@ -637,7 +645,7 @@ BracketText ::AST[]
 BracketTextPart ::AST
   TextOrMathPart
   TextOnlyPart
-  [()]
+  [()|]
   # Keep brackets balanced
   BracketedText
 
@@ -833,22 +841,25 @@ CodeBlock ::CodeBlock
  * or a literal `\begin{environment}` prefix; optional text is appended to
  * the opening environment for fenced-code options.
  */
-function environmentStyle(style: string, description: string, option: string = ""): {env: string, open: string, close: string}
+function environmentStyle(style: string, description: string, option: string = ""): {env: string, arguments: string, open: string, close: string}
   style = style.trim()
   style = style[>=2].trimStart() if /^:[ \t]/.test style
   if match := /^\\begin\s*\{([^}]+)\}(.*)$/.exec style
-    return {
+    {
       env: match[1]
+      arguments: match[2]
       open: style + option
       close: `\\end{${match[1]}}`
     }
-  if match := /^([^\s(\[\{]+)(.*)$/.exec style
-    return {
+  else if match := /^([^\s:(\[{%]+)(.*)$/.exec style
+    {
       env: match[1]
+      arguments: match[2]
       open: `\\begin{${match[1]}}${match[2]}${option}`
       close: `\\end{${match[1]}}`
     }
-  throw new Error `Invalid ${description} style ${JSON.stringify style}; expected environment name or \\begin{environment}`
+  else
+    throw new Error `Invalid ${description} style ${JSON.stringify style}; expected environment name or \\begin{environment}`
 ```
 
 CodeBlockOpen ::{indent: Indent, marker: string, info: string}
@@ -1310,6 +1321,383 @@ ListColonArguments ::AST[]
       ...args if args
     ]
 
+## TABLES
+
+```
+interface ParsedTableCell
+  body: AST[]
+  suffix: boolean
+
+type TableLine =
+  | { kind: "delimiter", aligns: string[], borders: string[] }
+  | { kind: "row", cells: AST[][], suffix: AST[]?, comment: Comment? }
+  | { kind: "commands", children: AST[] }
+
+interface TableContext
+  /** Whether `::table` was present, making a delimiter row optional. */
+  explicit: boolean
+  /** LaTeX environment name after resolving any preset. */
+  env: string
+  /** Environment body mode used to parse cells. */
+  mode: "text" | "math"
+  /** Surrounding mode used for style overrides and inherited argument modes. */
+  parentMode: "text" | "math"
+  /** Resolved defaults, document settings, and preset overrides. */
+  style: TableStyle
+  /** Flat environment argument nodes, including declaration indices. */
+  args: Argument[]
+  /** Environment argument AST to emit, including spacing and directive comments. */
+  arguments: AST[]
+  /** Additional LaTeX from the style, emitted after all environment arguments. */
+  opening: Tex?
+  /** Trailing style comment, emitted after directive arguments and generated columns. */
+  comment: Comment?
+```
+
+TextTable ::AST
+  &TableCandidate Indent:indent PushIndent PushGenericTextArgumentPattern TableContent?:content PopCommandPattern PopIndent ->
+    return $skip unless content
+    buildTable(content.table, indent, content.lines) ?? $skip
+
+MathTable ::AST
+  &TableCandidate Indent:indent PushIndent PushGenericMathArgumentPattern TableContent?:content PopCommandPattern PopIndent ->
+    return $skip unless content
+    buildTable(content.table, indent, content.lines) ?? $skip
+
+```
+function buildTable(
+  table: TableContext
+  indent: Indent
+  lines: TableLine[]
+): Table? | "\0"
+  // Infer number of columns from delimiter if present, or else first row
+  delimiterIndex := lines.findIndex .kind is "delimiter"
+  return unless table.explicit or delimiterIndex >= 0
+  delimiter := lines.find .kind is "delimiter"
+  firstRow := lines.find .kind is "row"
+  return "\0" unless firstRow?  // empty table
+
+  // Decide whether the environment needs a generated column specification.
+  declaration := state.declarations.getEnvironment table.env
+  args := table.arguments
+  columnIndex := declaration?.args.findIndex .name is "columns"
+  automatic := if declaration
+    columnIndex? >= 0 and not table.args.some .specIndex is columnIndex
+  else
+    not table.args.some not .delimiter.startsWith "optional"
+
+  // Open the environment, placing generated columns before style content and comments.
+  comment := getEndComment args
+  children: AST[] := [indent, `\\begin{${table.env}}`, trimEndComment(args)]
+  if automatic
+    aligns := if delimiter then [...delimiter.aligns] else new Array<string> firstRow.cells#
+    aligns[i] or= table.style.align for i of [0..<aligns#]
+    borders := delimiter?.borders ?? []
+    columns := (borders[0] ?? "") + for join each alignment, i of aligns
+      alignment + (borders[i+1] ?? "")
+    children.push `{${columns}}`
+  children.push table.opening, table.comment, comment, "\n"
+
+  function hook(property: keyof TableStyle): void
+    if style := table.style[property]
+      children.push indent, { type: "Tex", children: [style] }, "\n"
+
+  // Emit rows, inter-row commands, and rules at delimiter rows.
+  rows: TableRow[] := []
+  hook "toprule"
+  hasHeader := delimiterIndex > 0 and lines[<delimiterIndex].some .kind is "row"
+  hasBody := lines[delimiterIndex+1..].some .kind is "row"
+  headerCell := table.style.headercell ?? ""
+  bodyCell := table.style.bodycell ?? ""
+  for each line, index of lines
+    if line.kind is "delimiter"
+      hook "midrule" if index > delimiterIndex or hasHeader and hasBody
+      continue
+    if line.kind is "commands"
+      children.push indent, line.children, "\n"
+      continue
+
+    // Apply cell wrappers without changing the number of cells.
+    header := index < delimiterIndex
+    wrapper := if header then headerCell else bodyCell
+    cellNodes := for each body of line.cells
+      {
+        type: "TableCell"
+        style: wrapper
+        body
+        children: if wrapper then [wrapper, "{", body, "}"] else [body]
+      } satisfies TableCell
+    rowChildren: AST[] := []
+    for each cell, i of cellNodes
+      rowChildren.push " & " if i
+      rowChildren.push cell
+    nextLine := lines[index+1]
+    explicitTerminator := hasTableRowTerminator(line.suffix) or
+      nextLine?.kind is "commands" and hasTableRowTerminator(nextLine.children)
+    rowChildren.push " \\\\" unless explicitTerminator
+    rowChildren.push " ", line.suffix if line.suffix
+    rowChildren.push " ", line.comment if line.comment
+    row: TableRow := { type: "TableRow", header, cells: cellNodes, children: rowChildren }
+    rows.push row
+    children.push indent, row, "\n"
+
+  // Finish with the bottom rule and closing environment.
+  hook "bottomrule"
+  children.push indent, `\\end{${table.env}}`
+  { type: "Table", table.env, rows, children }
+
+/** Check top-level commands without descending into their arguments. */
+function hasTableRowTerminator(content: AST): boolean
+  if Array.isArray content
+    content.some hasTableRowTerminator
+  else
+    content is like { type: "Call", command: { token: "\\\\" } }, { type: "Call", command: { token: "\\\\*" } }
+```
+
+TableCandidate
+  /[ \t]*::table\b/
+  MarkdownTablesEnabled TableCandidateLine
+
+# A delimiter-first table may start with a spaced hyphen, but other block
+# markers must retain their meaning when their content happens to contain pipes.
+TableCandidateLine
+  /[ \t|:\-]*\|[ \t|:\-]*(?=[\r\n]|$)/
+  !TableBlockMarker /[^\r\n]*[|\\]/
+
+TableBlockMarker
+  /[ \t]*(?:#{1,}\*?[ \t]|>|(?:[*~\-]|\d+\.)[ \t]|:[ \t]|`{3})/
+
+# Resolve the header before choosing the cell grammar, just as EnvironmentContent
+# does. Table metadata and rows remain local values, not parser state.
+TableContent ::{table: TableContext, lines: TableLine[]}
+  &MathTableHeader TableHeaderAndArguments:table MathTableLines:lines -> { table, lines }
+  &TextTableHeader TableHeaderAndArguments:table TextTableLines:lines -> { table, lines }
+  TableDirectiveHeader:table -> { table, lines: [] }
+
+TextTableHeader ::TableContext
+  TableHeader:table -> if table.mode is "text" then table else $skip
+
+MathTableHeader ::TableContext
+  TableHeader:table -> if table.mode is "math" then table else $skip
+
+TableHeaderAndArguments ::TableContext
+  TableDirectiveHeader:table ActualEOL &IndentedAtLeast Indent -> table
+  !TableDirective TableHeader:table -> table
+
+TableDirectiveHeader ::TableContext
+  PushTableEnvironmentPattern:table EnvironmentArguments:args TrimmedText:tail NestedComment*:comments PopCommandPattern &EOL ->
+    {
+      ...table
+      args: [...table.args, ...args]
+      arguments: [table.arguments, args, tail, comments]
+    }
+
+PushTableEnvironmentPattern ::TableContext
+  &TableDirective TableHeader:table ->
+    pushEnvironmentPattern table.env, table.parentMode
+    for each arg of table.args
+      consumeCommandArgument arg.delimiter
+    table
+
+TableHeader ::TableContext
+  TableDirective?:directive ->
+    parentMode := state.argumentPatterns.-1
+    unless parentMode is like "text", "math"
+      throw new Error "Expected surrounding text or math mode"
+    { styles } := state.compilerOptions
+    preset := (and)
+      directive
+      directive is not "text"
+      directive is not "math"
+      directive is not "textDefault"
+      directive is not "mathDefault"
+      Object.keys(styles).some .startsWith `table.${directive}.`
+    // Presets override document settings; mode-specific settings override shared ones.
+    overrides := {
+      ...styleOverrides "table"
+      ...styleOverrides `table.${parentMode}`
+      ...if preset then styleOverrides `table.${directive}`
+      ...if preset then styleOverrides `table.${directive}.${parentMode}`
+    }
+    // Mode defaults supply env and align; explicit settings take precedence.
+    defaults := styleOverrides(`table.${parentMode}Default`) as TableStyle
+    style := {
+      ...defaults
+      ...overrides
+      headercell: overrides.headercell ?? overrides.cell ?? defaults.headercell ?? defaults.cell ?? ""
+      bodycell: overrides.bodycell ?? overrides.cell ?? defaults.bodycell ?? defaults.cell ?? ""
+    }
+    envStyle := if directive and not preset then directive else style.env
+    env := environmentStyle envStyle, "table"
+    body := state.declarations.getEnvironment(env.env)?.body
+    mode := if body? is not "inherit" then body else parentMode
+    unless mode is like "text", "math"
+      throw new Error `Table environment ${env.env} must have a text or math body`
+    function styleOverrides(prefix: string): Partial<TableStyle>
+      prefix += "."
+      Object.fromEntries for each [key, value] of Object.entries styles when key.startsWith prefix
+        [key[prefix#..], value]
+    pushEnvironmentPattern env.env, parentMode
+    finally state.argumentPatterns.pop()
+    parsed := parse env.arguments, startRule: "StyleArguments", filename: `${env.env} table style`
+    {
+      explicit: directive?
+      parentMode, style, mode
+      env.env
+      ...parsed
+    }
+
+# Returns the environment/preset name, or "" for an unnamed explicit directive.
+# An optional TableDirective? match yields undefined when no directive is present.
+TableDirective ::string
+  "::table" /\b/ ( ActualSpace EnvironmentName )?:name -> name?[1] ?? ""
+
+# The caller supplies the environment's argument pattern. Remaining opening
+# content is LaTeX; escaped percent signs stay outside the trailing comment.
+StyleArguments ::{args: Argument[], arguments: AST[], opening: Tex?, comment: Comment?}
+  EnvironmentArguments:args Space:space $/(?:\\[^\r\n]?|[^\\%\r\n])*/:opening Comment?:comment ->
+    children := [ ...args, space, comment ]
+    {
+      args
+      arguments: trimEndComment(children)
+      opening: { type: "Tex", children: [opening] } if opening
+      comment: getEndComment(children)
+    }
+
+TextTableLines ::TableLine[]
+  TextTableLine:first ( ActualEOL &IndentedAtLeast Indent TextTableLine )*:rest ->
+    [first, ...rest.map (entry) => entry[3]]
+
+MathTableLines ::TableLine[]
+  MathTableLine:first ( ActualEOL &IndentedAtLeast Indent MathTableLine )*:rest ->
+    [first, ...rest.map (entry) => entry[3]]
+
+TextTableLine ::TableLine
+  TableSpecialLine
+  TextTableRowCommands:children -> { kind: "commands", children }
+  !TableBlockMarker TextTableCell:first ( "|" TextTableCell )+:rest &EOL ->
+    tableRow([first, ...rest.map (entry) => entry[1]]) ?? $skip
+
+MathTableLine ::TableLine
+  TableSpecialLine
+  MathTableRowCommands:children -> { kind: "commands", children }
+  MathTableCell:first ( "|" MathTableCell )+:rest &EOL ->
+    tableRow([first, ...rest.map (entry) => entry[1]]) ?? $skip
+
+```
+/** Strip optional outer pipes and separate suffix commands and comments. */
+function tableRow(parsed: ParsedTableCell[]): TableLine?
+  cells := parsed.map .body
+  comment := getEndComment cells.-1
+  cells.-1 = trimEnd(trimEndComment(cells.-1)) if comment
+  closed := isEmpty cells.-1
+  cells.shift() if isEmpty cells[0]
+  cells.pop() if closed
+  suffix := cells.pop() if not closed and parsed.-1.suffix
+  return unless cells#
+  { kind: "row", cells, suffix, comment }
+```
+
+TableSpecialLine ::TableLine
+  # Delimiter pipes describe boundaries, not empty cells.
+  &/[ 	:\-]*\|/ TableBorder?:left TableAlignment:first ( TableBorder TableAlignment )*:rest TableBorder?:right Space &EOL ->
+    {
+      kind: "delimiter"
+      aligns: [first, ...rest.map (entry) => entry[1]]
+      borders: [left ?? "", ...rest.map((entry) => entry[0]), right ?? ""]
+    }
+  "::tex" /\b[ \t]?/ TexText:body &EOL -> { kind: "commands", children: [{ type: "Tex", children: body.children }] }
+
+TableBorder ::string
+  Space $/\|+/:pipes Space -> pipes[1..]
+
+TableAlignment ::string
+  Space /(:?)-+(:?)/:match Space ->
+    if match[1] then (if match[2] then "c" else "l") else if match[2] then "r" else ""
+
+TextTableCell ::ParsedTableCell
+  TextTableRowCommands:body -> { body: trimContent(body), suffix: true }
+  TableTextPart*:parts -> { body: trimContent(parts), suffix: false }
+
+MathTableCell ::ParsedTableCell
+  MathTableRowCommands:body -> { body: trimContent(body), suffix: true }
+  TableMathPart*:parts -> { body: trimContent(parts), suffix: false }
+
+TextTableRowCommands ::AST[]
+  ( Space &BetweenTableRows CompleteTextTableCommand )+:commands Space:space Comment?:comment &EOL ->
+    [ ...commands.flatMap((entry) => [entry[0], entry[2]]), space, comment ]
+
+MathTableRowCommands ::AST[]
+  ( Space &BetweenTableRows CompleteMathTableCommand )+:commands Space:space Comment?:comment &EOL ->
+    [ ...commands.flatMap((entry) => [entry[0], entry[2]]), space, comment ]
+
+BetweenTableRows
+  StarredCommand:command ->
+    $skip unless state.declarations.getCommand(command.token)?.betweenTableRows
+
+CompleteTextTableCommand ::AST
+  TableTextCommand:command ->
+    return $skip if command is like { type: "Call", complete: false }
+    command
+
+CompleteMathTableCommand ::AST
+  TableMathCommand:command ->
+    return $skip if command is like { type: "Call", complete: false }
+    command
+
+# Groups and command arguments use the ordinary grammar; only top-level pipes
+# are separators. Cell nodes keep Markdown delimiters from crossing cells.
+TableTextPart ::AST
+  EnterMathMode
+  TextOrMathPart
+  !EndTextEnvironment TableTextCommand -> $2
+  TextOnlyPart
+  [()\[\]]
+
+TableMathPart ::AST
+  MathOnlyPart
+  !MathCloseDelimiter TextOrMathPart -> $2
+  !MathCloseDelimiter TableMathCommand -> $2
+  [()\[\]]
+  /[^|\r\n\\()\[\]{}%$][^|\r\n\\\^_()\[\]{}%$]*/
+
+# Inline colon arguments end at the cell boundary. Braced arguments continue
+# to use the normal grammar, including literal pipes and nested commands.
+TableTextCommand ::AST
+  PushTextCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
+  CommandWithoutNewline:command PushGenericTextArgumentPattern TableCommandArguments:parsed ->
+    [command, parsed.args]
+
+TableMathCommand ::AST
+  PushMathCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
+  CommandWithoutNewline:command PushGenericMathArgumentPattern TableCommandArguments:parsed ->
+    [command, parsed.args]
+
+TableCommandArguments ::ParsedCallArguments
+  CommandArgument*:args TableColonArgument?:arg CommandPatternComplete:complete PopCommandPattern ->
+    { args: args ++ (arg ?? []), complete }
+
+TableColonArgument ::Argument
+  ColonCommandsEnabled Colon TableColonBody:body ->
+    [open, close] := colonDelimiters()
+    consumeRequiredCommandArgument enclosedContent(open, trimContent(body), close)
+
+TableColonBody ::AST[]
+  RequiredTextArgument TableTextPart*:body -> body
+  RequiredMathArgument TableMathPart*:body -> body
+  RequiredRawArgument $TableRawPart*:body Comment?:comment -> [{ type: "Raw", token: body.trim() }, comment]
+  RequiredVerbatimArgument $TableVerbatimPart*:body -> [{ type: "Verbatim", token: body.trim() }]
+
+TableRawPart ::AST
+  RawBracedContent
+  CommandWithoutNewline
+  /[^|{}\\%\r\n]+/
+
+TableVerbatimPart ::AST
+  VerbatimBracedContent
+  CommandWithoutNewline
+  /[^|{}\\\r\n]+/
+
 ## COMMANDS
 
 Command ::Command
@@ -1428,11 +1816,9 @@ PopCommandPattern
 
 CommandArgument ::Argument
   OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:content ->
-    commandArgument "optional", "bracketed", content.body,
-      [ space, content ]
+    commandArgument "optional", "bracketed", content.body, [space, content]
   RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:content ->
-    commandArgument "required", "braced", content.body,
-      [ space, content ]
+    commandArgument "required", "braced", content.body, [space, content]
   ParenthesizedArgumentPossible:delimiter CommandSpace:space ParenthesizedArgumentContent:content ->
     commandArgument delimiter, "parenthesized", content.body, [space, content]
   # Prefer colon shorthand over `:` as a verbatim delimiter when a required
@@ -1482,6 +1868,9 @@ function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fal
      pattern.args[>=pattern.index].every .delimiter.startsWith "optional"
     return arg: { name: "argument", delimiter, mode: pattern.parentMode }
 
+function selectParenthesizedArgument(): SelectedArgument?
+  selectCommandArgument("optional-parenthesized") ?? selectCommandArgument("required-parenthesized")
+
 function commandArgument(
   delimiter: ArgumentDelimiter
   form: Argument["form"]
@@ -1507,7 +1896,7 @@ RequiredArgumentPossible
   "" -> $skip unless selectCommandArgument "required"
 ParenthesizedArgumentPossible ::ArgumentDelimiter
   "" ->
-    selected := selectCommandArgument("optional-parenthesized") ?? selectCommandArgument("required-parenthesized")
+    selected := selectParenthesizedArgument()
     selected?.arg.delimiter ?? $skip
 ParenthesizedRawArgument
   "" -> $skip unless parenthesizedArgumentIs "raw"
@@ -1582,8 +1971,7 @@ RequiredMathArgument
 
 ```
 function parenthesizedArgumentIs(mode: ArgumentMode): boolean
-  selected := selectCommandArgument("optional-parenthesized") ?? selectCommandArgument("required-parenthesized")
-  selected?.arg.mode is mode
+  selectParenthesizedArgument()?.arg.mode is mode
 
 function commandArgumentIs(delimiter: ArgumentDelimiter, mode: ArgumentMode, allowFallback = false, colon = allowFallback): boolean
   return false unless selected := selectCommandArgument delimiter, allowFallback, colon
@@ -2023,15 +2411,12 @@ NestedVerbatimEnvironmentStatement ::AST[]
     [ eols, indent, text.children ]
 
 EnvironmentHeaderAndArguments ::{env: string, args: Argument[]}
-  PushEnvironmentPattern:env CommandArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs PopCommandPattern ->
-    colon := colonArgs?[2] ?? []
-    {
-      env
-      args: [
-        ...args
-        ...if Array.isArray colon then colon else [colon]
-      ]
-    }
+  PushEnvironmentPattern:env EnvironmentArguments:args PopCommandPattern -> { env, args }
+
+# Environment and table arguments share non-strict argument bullets.
+EnvironmentArguments ::Argument[]
+  CommandArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs ->
+    args ++ (colonArgs?[2] ?? [])
 
 # Consume `: name` to select and push the environment's argument pattern before
 # parsing its arguments. Resolve inherited argument modes from the surrounding
@@ -2229,6 +2614,9 @@ MarkdownListsEnabled
 MarkdownStrikethroughEnabled
   "" ->
     return $skip unless state.compilerOptions.markdownStrikethrough
+
+MarkdownTablesEnabled
+  "" -> $skip unless state.compilerOptions.markdownTables
 
 RefShorthandEnabled
   "" ->

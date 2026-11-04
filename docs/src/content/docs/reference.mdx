@@ -7,17 +7,23 @@ import Example from '../../components/example.astro'
 <div className="overview">
 
 * Markdown features: [`# Section`](#sections),
-  [`*emphasis*`](#emphasis), [`~~strikethrough~~`](#strikethrough),
+  [`*emphasis*`](#emphasis),
+  [`` `code` ``](#code),
+  [`~~strikethrough~~`](#strikethrough),
   [`"smart quotes"`](#smart-quotes),
-  [`- lists`](#lists), [`- [x] checklists`](#checklists),
-  [`> quotes`](#block-quotes), [`[^footnote]`](#footnotes),
   [`<url>`](#links), [`[text](url)`](#links), [`![alt](url)`](#images),
-  [`` `code` ``](#code), and [`---`](#horizontal-rules).
+  [`- lists`](#lists), [`- [x] checklists`](#checklists),
+  [`| tables |`](#tables),
+  [`> quotes`](#block-quotes),
+  [`[^footnotes]`](#footnotes),
+  and
+  [`---`](#horizontal-rules).
 * Cross-references: [`@=label`, `@ref`](#label-ref) and [`[[citation]]`](#cite).
 * [Math mode](#math-mode): [`x^123` script grouping](#script-grouping)
 * Indentation-based LaTeX: [`\command: arg`](#latex-commands),
   [`: environment`](#latex-environments),
   [`::list`](#custom-lists),
+  [`::table`](#custom-tables),
   and [`::tex raw`](#raw-tex).
 * Document/config:
   [`::use package`](#use-packages),
@@ -344,6 +350,136 @@ and they start behaving like checkboxes with the defined styles.
 Checklists can be disabled with `::config -markdownChecklists`,
 `::config -markdownLists`, or `::config -markdownCompat`.
 
+## Tables
+
+Similar to GitHub Flavored Markdown
+[tables](https://github.github.com/gfm/#tables-extension-),
+Texlish tables have one row per line, with `|` pipes between cells.
+Pipes do not need to line up, and the leftmost and rightmost pipes are optional
+(except for one-column tables which need the pipes).
+To be recognized as a table (without `::table` described below),
+one "separator" row should consist of
+one or more hyphens in each cell, with optional colons for alignment:
+`:---` for left, `:---:` for center, and `---:` for right.
+Repeat pipes in the separator (`||`) to add vertical rules.
+
+<Example src={`
+  | Algorithm  | Stable? | Running time  |
+  | ---        || :---:  | ---:          |
+  | Insertion sort | Yes | $O(n^2)$      |
+  | Merge sort     | Yes | $O(n \\log n)$ |
+  | Quicksort      | No  | $O(n \\log n)$ |
+`}/>
+
+An unmarked separator (`---`) defaults to left alignment (`l`) in text mode
+and center alignment (`c`) in math mode.
+In text mode, tables become LaTeX `tabular` environments, with bold headings
+above the first separator (which is the only one that defines column alignment)
+and a horizontal rule for each separator (except if it's the first row,
+which indicates a table with no headings).
+In math mode, tables become LaTeX `array` environments,
+with no bold headings and no automatic horizontal rules:
+
+<Example src={`
+  $$
+  ---:      | --- | :---
+  x + y     | =   | 3
+  {|x - y|} | =   | 1
+  $$
+`}/>
+
+As shown above, wrap `|` in braces to keep them inside a cell.
+
+If you write `::table` before a table, you do not need the separator row.
+On the `::table` line, you can override the default environment:
+
+<Example src={`
+  $$
+  A =
+  ::table pmatrix
+  a_11 | a_12
+  a_21 | a_22
+  $$
+`}/>
+
+You can also specify a "preset" after `::table`,
+such as the built-in `booktabs` preset,
+which uses `tabular` with `\toprule`, `\midrule`, and `\bottomrule`.
+
+<Example src={`
+  ::table booktabs
+  Item       | Quantity | Cost (USD)
+  :---       | :---:    | ---:
+  Sensor     | 3        | 36.00
+  Controller | 1        | 24.00
+  ---        | ---      | ---
+  Total      | 4        | 60.00
+`}/>
+
+Unlike Markdown tables, Texlish tables can have multiple separators,
+and several or no heading rows before the first separator.
+You can also put specific commands such as `\hline` or `\cmidrule{1-2}`
+between rows; use `::tex` for other inter-row LaTeX.
+For manual row spacing, put `| \\[1ex]` at the end of a row
+or put `\\[1ex]` on the line immediately after it.
+
+As with [LaTeX environments](#latex-environments), you can specify arguments
+after the `::table` environment:
+
+<Example src={`
+  ::table tabularx{\\linewidth}{lX}
+  Requirement     | Rationale
+  ---             | ---
+  Fast startup    | Keep command-line tools responsive during interactive use.
+  Portable output | Share the generated LaTeX with collaborators and publishers.
+`}/>
+
+If you omitted the `lX` column specification, Texlish would have provided `ll`
+automatically, because `tabularx` is among
+[declared environments](https://github.com/edemaine/texlish/blob/main/src/declarations.civet)
+with a `column` argument.
+
+Automatic tables can be disabled with `::config -markdownTables` or
+`-markdownCompat`; explicit `::table` remains available.
+
+### Table Styles
+
+Use `::styles` to change cell formatting, rules, or the default environment.
+Settings under `table.*` apply to all tables; settings under `table.NAME.*`
+define a named preset.
+For example, this `options` preset makes headings small caps,
+prints names and values in monospace, and removes the rule below the headings:
+
+<Example src={`
+  ::styles
+    table.options.headercell = \\textsc
+    table.options.bodycell = \\texttt
+    table.options.midrule =
+  ::table options
+  Setting | Default
+  :---    | :---
+  engine  | pdflatex
+  output  | pdf
+`}/>
+
+Available `table` styles:
+
+| Style | Text default | Math default | Meaning |
+| --- | --- | --- | --- |
+| `env` | `tabular` | `array` | Environment, optionally with arguments |
+| `align` | `l` | `c` | Specification for unmarked columns, e.g. `l`, `X`, or `p{3cm}` |
+| `cell` | empty | empty | Wrapper for every cell |
+| `headercell` | `\textbf` | empty | Header cell wrapper, overriding `cell` |
+| `bodycell` | empty | empty | Body cell wrapper, overriding `cell` |
+| `toprule` | empty | empty | LaTeX before all rows |
+| `midrule` | `\hline` | empty | LaTeX at separator rows (except for first row) |
+| `bottomrule` | empty | empty | LaTeX after all rows |
+
+You can set these style defaults specific to text or math mode by setting
+`table.text.*` or `table.math.*`, or specific to a preset in a specific mode
+such as `table.options.math.*`. Texlish checks preset + mode, preset, mode,
+global settings, then the defaults listed above.
+
 ## Block Quotes
 
 Similar to Markdown
@@ -398,7 +534,8 @@ or `::config -markdownCompat`.
   @#thm:main
 `}/>
 
-If your label needs spaces or trailing punctuation, put it in quotes or braces:
+If your label needs spaces, pipes, or trailing punctuation, put it in quotes
+or braces:
 
 <Example src={`
   @='thm main'
@@ -1029,8 +1166,9 @@ and/or report a bug.
   Outside document
 `}/>
 
-For clarity, most examples in this documentation disable this feature
-(via the `fragment: true` compiler option).
+For clarity, most examples use `fragment: true`: required packages and preamble
+definitions are included, but automatic `\documentclass`, `\begin{document}`,
+`\end{document}`, and `\maketitle` are omitted.
 
 ## Config
 
@@ -1093,7 +1231,7 @@ Supported config options are:
   currently `markdownBackticks`, `markdownBlockquotes`, `markdownChecklists`,
   `markdownEmphasis`, `markdownFootnotes`, `markdownHeadings`,
   `markdownHorizontalRules`, `markdownImages`, `markdownLinks`, `markdownLists`,
-  `markdownStrikethrough`, and `smartQuotes`
+  `markdownStrikethrough`, `markdownTables`, and `smartQuotes`
 * `markdownBackticks`: minimum number of backticks that enables
   [code spans and fenced code blocks](#code), or `0` to disable them;
   enabled by default as `1`
@@ -1117,6 +1255,8 @@ Supported config options are:
   numbered lists compile to LaTeX lists; enabled by default
 * `markdownStrikethrough`: whether `~~text~~` compiles to `\sout{text}` in
   text mode; enabled by default
+* `markdownTables`: whether pipe tables compile to LaTeX tables in text and
+  math mode; enabled by default
 * `refShorthand`: whether `@ref`, `@=label`, `@#ref`, and `@^ref` compile to
   configured cross-reference commands; enabled by default
 * `smartQuotes`: whether straight `'` and `"` characters compile to
@@ -1128,7 +1268,7 @@ Supported config options are:
 * `scriptGrouping`: [script grouping](#script-grouping) mode,
   one of `numeric` (default), `alphanumeric`, `alpha`, or `none`
 * `styles`: styles for [emphasis](#emphasis), [strikethrough](#strikethrough),
-  [checklists](#checklists), [block quotes](#block-quotes),
+  [checklists](#checklists), [tables](#tables), [block quotes](#block-quotes),
   [images](#images), [code](#code),
   [horizontal rules](#horizontal-rules), [label/ref](#label-ref),
   or [citations](#cite);

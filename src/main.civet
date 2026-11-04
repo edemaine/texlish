@@ -65,6 +65,9 @@ uncacheable := new Set [
   "PushListEnvironmentPattern"
   "PushEnumerateArgumentPattern"
   "PushEnvironmentPattern"
+  "PushTableEnvironmentPattern"
+  "TableCommandArguments"
+  "TableColonArgument"
   // Parse an argument and advance the active pattern's argument index.
   "CommandArgument"
   "CommandArgumentAfterColon"
@@ -77,6 +80,7 @@ uncacheable := new Set [
   // EnvironmentHeaderAndArguments, they do not push/pop their own argument pattern.
   "ListDirectiveArguments"
   "ListColonArguments"
+  "EnvironmentArguments"
   "NestedArgumentList"
   "NestedCommandArgumentList"
   "ArgumentList"

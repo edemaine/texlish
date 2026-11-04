@@ -64,12 +64,17 @@ export interface EnvironmentDeclaration
   args: ArgumentsPattern
   body: ArgumentMode
 
+export interface CommandDeclaration
+  args: ArgumentsPattern
+  /** Commands allowed between table rows, including leading and row-suffix commands. */
+  betweenTableRows?: boolean
+
 /** Declarations and autoimport behavior for a package. */
 export interface PackageDeclarations
   /** Package name; empty string identifies core declarations */
   name: string
   /** Command declarations activated by loading this package. */
-  commands?: Map<string, ArgumentsPattern>
+  commands?: Map<string, ArgumentsPattern | CommandDeclaration>
   /** Environment declarations activated by loading this package. */
   environments?: Map<string, EnvironmentDeclaration>
   /** Default \usepackage options used when Texlish automatically loads this package. */
@@ -85,8 +90,7 @@ export interface Autoimports
   environments?: Map<string, string>
 
 /** The declaration and package selected by a command lookup */
-export interface CommandResolution
-  args: ArgumentsPattern
+export interface CommandResolution extends CommandDeclaration
   package: PackageDeclarations
 
 /**
@@ -243,7 +247,12 @@ theoremDefinitionPattern: ArgumentsPattern :=
   . { name: "within", ...rawOptional }
 
 /** Built-in command declarations. */
-export builtinCommandPatterns := new Map<string, ArgumentsPattern> Object.entries
+export builtinCommandPatterns := new Map<string, ArgumentsPattern | CommandDeclaration> Object.entries
+  "\\\\": { args: [{ name: "space", ...rawOptional }], betweenTableRows: true }
+  "\\\\*": { args: [{ name: "space", ...rawOptional }], betweenTableRows: true }
+  "\\hline": { args: noArguments, betweenTableRows: true }
+  "\\cline": { args: [{ name: "columns", ...rawRequired }], betweenTableRows: true }
+  "\\noalign": { args: [{ name: "material", ...rawRequired }], betweenTableRows: true }
   "\\begin": environmentPattern
   "\\end": environmentPattern
   "\\usepackage": packagesPattern
@@ -509,6 +518,16 @@ export builtinEnvironments := new Map<string, EnvironmentDeclaration> Object.ent
     body: "text"
   "array": { args: positionColumnsPattern, body: "math" }
 
+matrixEnvironments := [
+  "matrix"
+  "pmatrix"
+  "bmatrix"
+  "Bmatrix"
+  "vmatrix"
+  "Vmatrix"
+  "smallmatrix"
+]
+
 /** Core (`""`) and package-specific built-in declarations. */
 builtinPackageDeclarations: PackageDeclarations[] :=
   . name: "" // built-in core LaTeX
@@ -528,12 +547,38 @@ builtinPackageDeclarations: PackageDeclarations[] :=
       "\\boxtimes": noArguments
 
   . name: "booktabs"
-    commands: new Map<string, ArgumentsPattern> Object.entries
-      "\\cmidrule": [
-        { name: "width", ...rawOptional }
-        { name: "trim", delimiter: "optional-parenthesized", mode: "raw" }
-        { name: "columns", ...rawRequired }
-      ]
+    commands: new Map<string, CommandDeclaration> Object.entries
+      "\\toprule": { args: [{ name: "width", ...rawOptional }], betweenTableRows: true }
+      "\\midrule": { args: [{ name: "width", ...rawOptional }], betweenTableRows: true }
+      "\\bottomrule": { args: [{ name: "width", ...rawOptional }], betweenTableRows: true }
+      "\\cmidrule":
+        args: [
+          { name: "width", ...rawOptional }
+          { name: "trim", delimiter: "optional-parenthesized", mode: "raw" }
+          { name: "columns", ...rawRequired }
+        ]
+        betweenTableRows: true
+      "\\addlinespace": { args: [{ name: "height", ...rawOptional }], betweenTableRows: true }
+      "\\specialrule":
+        args: [
+          { name: "width", ...rawRequired }
+          { name: "above", ...rawRequired }
+          { name: "below", ...rawRequired }
+        ]
+        betweenTableRows: true
+      "\\morecmidrules": { args: noArguments, betweenTableRows: true }
+  . name: "amsmath"
+    environments: new Map<string, EnvironmentDeclaration>
+      for each name of matrixEnvironments
+        [name, { args: noArguments, body: "math" }] as [string, EnvironmentDeclaration]
+  . name: "tabularx"
+    environments: new Map Object.entries
+      "tabularx":
+        args: [{ name: "width", ...rawRequired }, ...positionColumnsPattern]
+        body: "text"
+  . name: "longtable"
+    environments: new Map Object.entries
+      "longtable": { args: positionColumnsPattern, body: "text" }
 
 /** Built-in package declarations indexed by name */
 export builtinPackages := new Map<string, PackageDeclarations>
@@ -543,11 +588,22 @@ for declarations of builtinPackageDeclarations
 /** Preamble support automatically added for used commands and environments. */
 export builtinAutoimports: Autoimports =
   commands: new Map<string, string> Object.entries
+    "\\toprule": "booktabs"
+    "\\midrule": "booktabs"
+    "\\bottomrule": "booktabs"
+    "\\cmidrule": "booktabs"
+    "\\addlinespace": "booktabs"
+    "\\specialrule": "booktabs"
+    "\\morecmidrules": "booktabs"
     "\\defn": "texlish:defn"
     "\\sout": "ulem"
     "\\square": "amssymb"
     "\\boxtimes": "amssymb"
-  environments: new Map
+  environments: new Map [
+    ...matrixEnvironments.map (name) => [name, "amsmath"] as [string, string]
+    ["tabularx", "tabularx"]
+    ["longtable", "longtable"]
+  ]
 
 /** Active package declarations with cached command/environment lookup. */
 export class Declarations
@@ -582,8 +638,8 @@ export class Declarations
     unless resolution?
       if packageName? := @autoimports.commands?.get name
         if declarations := @loadPackage packageName
-          if args := declarations.commands?.get name
-            resolution = { args, package: declarations }
+          if command := declarations.commands?.get name
+            resolution = { ...commandDeclaration(command), package: declarations }
     @commandCache.set name, return = resolution
 
   /** Find an environment among the currently loaded declarations. */
@@ -606,10 +662,16 @@ export class Declarations
   findCommand(name: string): CommandResolution?
     for first i of [@loadedPackages#>..0]
       declarations := @loadedPackages[i]
-      continue unless args := declarations.commands?.get name
-      { args, package: declarations }
+      continue unless command := declarations.commands?.get name
+      { ...commandDeclaration(command), package: declarations }
 
   findEnvironment(name: string): EnvironmentDeclaration?
     for first i of [@loadedPackages#>..0]
       continue unless declaration := @loadedPackages[i].environments?.get name
       declaration
+
+function commandDeclaration(command: ArgumentsPattern | CommandDeclaration): CommandDeclaration
+  if Array.isArray command
+    { args: command }
+  else
+    command
