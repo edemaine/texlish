@@ -382,6 +382,13 @@ export builtinCommandPatterns := new Map<string, ArgumentsPattern | CommandDecla
   "\\hyperimage": urlTextPattern
   "\\hyperref": labelTextPattern
   "\\frac": numeratorDenominatorPattern
+  // Standard ellipsis commands have no arguments, including before a colon.
+  "\\dots": noArguments
+  "\\ldots": noArguments
+  "\\cdots": noArguments
+  "\\vdots": noArguments
+  "\\ddots": noArguments
+  "\\textellipsis": noArguments
   // Standard Greek letter commands are variables with no arguments.
   "\\alpha": noArguments
   "\\beta": noArguments
@@ -575,6 +582,12 @@ builtinPackageDeclarations: PackageDeclarations[] :=
         betweenTableRows: true
       "\\morecmidrules": { args: noArguments, betweenTableRows: true }
   . name: "amsmath"
+    commands: new Map Object.entries
+      "\\dotsb": noArguments
+      "\\dotsc": noArguments
+      "\\dotsi": noArguments
+      "\\dotsm": noArguments
+      "\\dotso": noArguments
     environments: new Map<string, EnvironmentDeclaration>
       for each name of matrixEnvironments
         [name, { args: noArguments, body: "math" }] as [string, EnvironmentDeclaration]
@@ -606,6 +619,11 @@ export builtinAutoimports: Autoimports =
     "\\sout": "ulem"
     "\\square": "amssymb"
     "\\boxtimes": "amssymb"
+    "\\dotsb": "amsmath"
+    "\\dotsc": "amsmath"
+    "\\dotsi": "amsmath"
+    "\\dotsm": "amsmath"
+    "\\dotso": "amsmath"
   environments: new Map [
     ...matrixEnvironments.map (name) => [name, "amsmath"] as [string, string]
     ["tabularx", "tabularx"]

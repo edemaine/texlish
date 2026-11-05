@@ -231,6 +231,27 @@ describe 'math mode', ->
   '''
 
   testCase r'''
+    declared ellipsis commands keep following colons literal
+    ---
+    $\cdots: x$
+    $\dots: \ldots: \cdots: \vdots: \ddots:$
+    \textellipsis: text
+    ---
+    $\cdots: x$
+    $\dots: \ldots: \cdots: \vdots: \ddots:$
+    \textellipsis: text
+  '''
+
+  testCase r'''
+    amsmath ellipsis commands keep following colons literal and autoimport
+    ---
+    $\dotsb: \dotsc: \dotsi: \dotsm: \dotso:$
+    ---
+    \usepackage{amsmath}
+    $\dotsb: \dotsc: \dotsi: \dotsm: \dotso:$
+  '''
+
+  testCase r'''
     declared Greek variables keep following colons literal
     ---
     $\lambda: a\rightarrow b$
