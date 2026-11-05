@@ -408,12 +408,12 @@ which uses `tabular` with `\toprule`, `\midrule`, and `\bottomrule`.
 
 <Example src={`
   ::table booktabs
-  Item       | Quantity | Cost (USD)
-  :---       | :---:    | ---:
-  Sensor     | 3        | 36.00
-  Controller | 1        | 24.00
-  ---        | ---      | ---
-  Total      | 4        | 60.00
+  Item      | Quantity | Cost (USD)
+  :---      | :---:    | ---:
+  CPU cores | 32       | 500
+  RAM gigs  | 128      | 9001
+  ---       | ---      | ---
+  Total     | 160      | 9501
 `}/>
 
 Unlike Markdown tables, Texlish tables can have multiple separators,
@@ -428,10 +428,11 @@ after the `::table` environment:
 
 <Example src={`
   ::table tabularx{\\linewidth}{lX}
-  Requirement     | Rationale
-  ---             | ---
-  Fast startup    | Keep command-line tools responsive during interactive use.
-  Portable output | Share the generated LaTeX with collaborators and publishers.
+  Category    | Texlish features
+  ---         | ---
+  Markdown    | Lists, images, text styling, etc.
+  GFM         | Tables, footnotes, checklists
+  Indentation | \`\\command:\` and \`: environment\`
 `}/>
 
 If you omitted the `lX` column specification, Texlish would have provided `ll`
