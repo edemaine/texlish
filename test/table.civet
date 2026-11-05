@@ -505,6 +505,105 @@ describe 'tables', ->
     $$
     '''
 
+  testCase r'''
+    styles spanning headers inside their content argument
+    ---
+    \multicolumn{2}{c}{*Measurements*} | Units
+    - | - | -
+    x | y | mm
+    ---
+    \begin{tabular}{lll}
+    \multicolumn{2}{c}{\textbf{\emph{Measurements}}} & \textbf{Units} \\
+    \hline
+    x & y & mm \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    styles spanning body cells and accepts colon content
+    ---
+    ::styles
+      table.bodycell = \texttt
+    ::table tabular{lll}
+    \multicolumn{2}{c}: Total | 42
+    ---
+    \begin{tabular}{lll}
+    \multicolumn{2}{c}{\texttt{Total}} & \texttt{42} \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    parses spanning math content in the surrounding mode
+    ---
+    ::styles
+      table.math.cell = \mathbf
+    $$
+    ::table array{ccc}
+    \multicolumn{2}{c}{x^12} | y
+    $$
+    ---
+    $$
+    \begin{array}{ccc}
+    \multicolumn{2}{c}{\mathbf{x^{12}}} & \mathbf{y} \\
+    \end{array}
+    $$
+    '''
+
+  testCase r'''
+    braces styled single-command cell arguments
+    ---
+    \multicolumn{2}{c}\LaTeX | Other
+    - | - | -
+    x | y | z
+    ---
+    \begin{tabular}{lll}
+    \multicolumn{2}{c}{\textbf{\LaTeX}} & \textbf{Other} \\
+    \hline
+    x & y & z \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    preserves comments between spanning arguments and inside content
+    ---
+    \multicolumn{2}% span
+    {c}{Heading % content
+    continued} | Other
+    - | - | -
+    x | y | z
+    ---
+    \begin{tabular}{lll}
+    \multicolumn{2}% span
+    {c}{\textbf{Heading % content
+    continued}} & \textbf{Other} \\
+    \hline
+    x & y & z \\
+    \end{tabular}
+    '''
+
+  it 'styles declared table-cell arguments through nested custom commands', ->
+    builtinPackages.set 'table-cell-test', {
+      name: 'table-cell-test'
+      commands: new Map [['\\cellalias', [
+        { name: 'options', delimiter: 'optional', mode: 'raw' }
+        { name: 'content', delimiter: 'required', mode: 'inherit', tableCell: true }
+      ]]]
+    }
+    try
+      for each options of ['', '[raw*options*]']
+        source := `::use table-cell-test\n\\cellalias${options}{\\cellalias{\\multicolumn{2}{c}{Heading}}} | Other\n-|-|-\nx|y|z`
+        expected := [
+          r'\usepackage{table-cell-test}'
+          r'\begin{tabular}{lll}'
+          `\\cellalias${options}{\\cellalias{\\multicolumn{2}{c}{\\textbf{Heading}}}} & \\textbf{Other} ` + r'\\'
+          r'\hline'
+          r'x & y & z \\'
+          r'\end{tabular}'
+        ].join '\n'
+        assert.equal compile(source, fragment: true), expected
+    finally
+      builtinPackages.delete 'table-cell-test'
+
   // Styles and presets
 
   testCase r'''
@@ -1212,10 +1311,18 @@ describe 'tables', ->
 
   it 'retains spanning header cells and their actual AST cell counts', ->
     source := '| \\multicolumn{2}{c}{Heading} |\n-|-\nx|y'
-    options := { fragment: true, styles: { 'table.headercell': '' } }
+    options := { fragment: true }
     result := compile(source, options)
-    assert result.includes r'\multicolumn{2}{c}{Heading} \\' + '\n'
+    assert result.includes r'\multicolumn{2}{c}{\textbf{Heading}} \\' + '\n'
     ast := compile(source, { ...options, ast: true })
     table := [...iterate(ast)].find (is like { type: 'Table' })
     assert table
     assert.deepEqual table.rows.map(.cells.length), [1, 2]
+    call := [...iterate(table.rows[0].cells[0].body)].find (is like { type: 'Call' })
+    assert call is like { type: 'Call' }
+    if call is like { type: 'Call' }
+      assert.deepEqual call.args.map(.specIndex), [0, 1, 2]
+      assert.equal call.argsSpec[2].tableCell, true
+      assert.equal call.children[1], call.args
+      assert [...iterate(call.args[2].children)].includes call.args[2].body
+      assert [...iterate(table.rows[0].cells[0].children)].includes table.rows[0].cells[0].body

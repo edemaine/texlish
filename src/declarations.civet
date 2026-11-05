@@ -42,6 +42,8 @@ interface ArgumentSpecBase
   name: string
   /** The argument's value defines a symbol in this namespace. */
   defines?: DefinitionKind
+  /** This argument represents a table cell and receives its style wrapper. */
+  tableCell?: boolean
 
 /** A paired command argument, whose contents can use any parsing mode */
 interface PairedArgumentSpec extends ArgumentSpecBase
@@ -253,6 +255,11 @@ export builtinCommandPatterns := new Map<string, ArgumentsPattern | CommandDecla
   "\\hline": { args: noArguments, betweenTableRows: true }
   "\\cline": { args: [{ name: "columns", ...rawRequired }], betweenTableRows: true }
   "\\noalign": { args: [{ name: "material", ...rawRequired }], betweenTableRows: true }
+  "\\multicolumn": [
+    { name: "columns", ...rawRequired }
+    { name: "format", ...rawRequired }
+    { name: "content", ...inheritRequired, tableCell: true }
+  ]
   "\\begin": environmentPattern
   "\\end": environmentPattern
   "\\usepackage": packagesPattern

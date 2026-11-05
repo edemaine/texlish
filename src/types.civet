@@ -254,7 +254,7 @@ export interface TableRow extends ASTParent
 
 export interface TableCell extends Styled
   type: "TableCell"
-  /** Cell content before applying the style wrapper, aliased in children. */
+  /** Cell content without style wrapper, aliased in children */
   body: AST[]
 
 export interface EOL extends ASTToken

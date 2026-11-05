@@ -69,6 +69,7 @@ type {
   trimEnd,
   trimEndComment,
   visualWidth,
+  withNodeReplaced,
 } from ./util.civet
 
 type ParserState
@@ -1421,19 +1422,7 @@ function buildTable(
     header := index < delimiterIndex
     wrapper := if header then headerCell else bodyCell
     cellNodes := for each body, col of line.cells
-      {
-        type: "TableCell"
-        style: wrapper
-        body
-        // Protect a leading `[` in the first column from becoming
-        // the preceding row's \\'s optional spacing.
-        children: if wrapper
-          [wrapper, "{", body, "}"]
-        else if col is 0 and generate(body).trimStart().startsWith "["
-          ["{", body, "}"]
-        else
-          [body]
-      } satisfies TableCell
+      tableCell body, wrapper, col
     rowChildren: AST[] := []
     for each cell, i of cellNodes
       rowChildren.push " & " if i
@@ -1452,6 +1441,38 @@ function buildTable(
   hook "bottomrule"
   children.push indent, `\\end{${table.env}}`
   { type: "Table", table.env, rows, children }
+
+/** Apply a cell style inside declared table-cell arguments, or around ordinary content. */
+function tableCell(body: AST[], style: string, col?: number): TableCell
+  // Check for a call with a table-cell argument, such as `\multicolumn`.
+  // Flatten arrays without descending into other commands or nested tables.
+  call := if style
+    body
+    |> .flat(Infinity) as AST[]
+    |> .find (node): node is Call =>
+      node is like { type: "Call" } and
+      node.args.some (arg) =>
+        arg.specIndex? and node.argsSpec[arg.specIndex].tableCell
+  children: AST[] :=
+    if call
+      for each arg of call.args
+        continue unless arg.specIndex? and call.argsSpec[arg.specIndex].tableCell
+        cell := tableCell [arg.body], style
+        styled := if arg.form is "unbraced"
+          { ...arg, body: cell, children: [arg.children[0], "{", cell, "}"] }
+        else
+          withNodeReplaced(arg.body, cell, arg)
+        body = withNodeReplaced(arg, styled, body) as AST[]
+      [body]
+    else if style
+      [style, "{", body, "}"]
+    // Protect a leading `[` in the first column from becoming
+    // the preceding row's \\'s optional spacing.
+    else if col is 0 and generate(body).trimStart().startsWith "["
+      ["{", body, "}"]
+    else
+      [body]
+  { type: "TableCell", style, body, children }
 
 /** Check top-level commands without descending into their arguments. */
 function hasTableRowTerminator(content: AST): boolean

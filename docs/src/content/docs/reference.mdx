@@ -356,7 +356,7 @@ Similar to GitHub Flavored Markdown
 [tables](https://github.github.com/gfm/#tables-extension-),
 Texlish tables have one row per line, with `|` pipes between cells.
 Pipes do not need to line up, and the leftmost and rightmost pipes are optional
-(except for one-column tables which need the pipes).
+(except for one-column tables and empty cells which need the pipes).
 To be recognized as a table (without `::table` described below),
 one "separator" row should consist of
 one or more hyphens in each cell, with optional colons for alignment:
@@ -437,7 +437,22 @@ after the `::table` environment:
 If you omitted the `lX` column specification, Texlish would have provided `ll`
 automatically, because `tabularx` is among
 [declared environments](https://github.com/edemaine/texlish/blob/main/src/declarations.civet)
-with a `column` argument.
+with a `columns` argument.
+
+As usual with LaTeX, `\multicolumn{count}{format}{content}` spans multiple
+columns from one pipe-separated cell.  Cell formatting such as bold headings
+applies to the content argument.
+
+<Example src={`
+  {} | \\multicolumn{2}{c}: Measurement
+  Dimension | Value | Unit
+  --- | ---: | ---
+  Length | 12 | cm
+  Width  |  8 | in
+`}/>
+
+Above we use `{}` for a leading empty cell, to avoid the leading `|`
+necessary for truly empty cells.
 
 Automatic tables can be disabled with `::config -markdownTables` or
 `-markdownCompat`; explicit `::table` remains available.
