@@ -289,6 +289,34 @@ describe 'declared command call AST', ->
       content.children[0] = '['
       assert.equal generate(ast), before.replace('\\textbf{', '\\textbf[')
 
+  it 'removes implicit comments before math closers in the AST', ->
+    for source of [
+      '$\\frac{a}: b$'
+      '$$\\frac{a}: b$$'
+      '\\(\\frac{a}: b\\)'
+      '\\[\\frac{a}: b\\]'
+      '\\begin{equation}\\frac{a}: b\\end{equation}'
+    ]
+      ast := compile source, ast: true, fragment: true
+      assertAliases ast
+      assert.equal [...iterate(ast)].some((node) => node is like { type: 'Comment', implicit: true }), false
+      call := findCall ast, '\\frac'
+      assert call
+      assert.equal call.args#, 2
+      assert.equal generate(call.args[1].body), 'b'
+
+  it 'removes implicit comments before heading and text environment closers in the AST', ->
+    for source of [
+      '# \\textbf: text'
+      '\\begin{itemize}\\item \\textbf: text\\end{itemize}'
+    ]
+      ast := compile source, ast: true, fragment: true
+      assertAliases ast
+      assert.equal [...iterate(ast)].some((node) => node is like { type: 'Comment', implicit: true }), false
+      call := findCall ast, '\\textbf'
+      assert call
+      assert.equal generate(call.args[0].body), 'text'
+
   it 'records colon, bullet, and final forms with skipped optional arguments', ->
     for [source, token, forms, indices] of [
       ['\\includegraphics: figure', '\\includegraphics', ['colon'], [1]]

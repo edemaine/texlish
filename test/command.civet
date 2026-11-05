@@ -60,7 +60,45 @@ describe '\\command:', ->
     ---
     $\frac{a_12}: b_34$
     ---
-    $\frac{a_{12}}{b_{34}}%$
+    $\frac{a_{12}}{b_{34}}$
+  '''
+
+  testCase r'''
+    implicit comments do not hide same-line math delimiters
+    ---
+    $\foo: x$
+    $$\foo: x$$
+    \(\foo: x\)
+    \[\foo: x\]
+    \begin{equation}\foo: x\end{equation}
+    ---
+    $\foo{x}$
+    $$\foo{x}$$
+    \(\foo{x}\)
+    \[\foo{x}\]
+    \begin{equation}\foo{x}\end{equation}
+  '''
+
+  testCase r'''
+    implicit comments do not hide following text or enclosing groups
+    ---
+    {\emph: hi} there
+    $\foo: x$ and $y$
+    $\foo: \bar: x$
+    ---
+    {\emph{hi}} there
+    $\foo{x}$ and $y$
+    $\foo{\bar{x}}$
+  '''
+
+  testCase r'''
+    explicit comments at the end of math colon arguments are preserved
+    ---
+    $\foo: x % explanation
+    $
+    ---
+    $\foo{x}% explanation
+    $
   '''
 
   testCase r'''

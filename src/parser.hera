@@ -68,6 +68,7 @@ type {
   removeLeadingIndent,
   trimEnd,
   trimEndComment,
+  trimEndImplicitComment,
   visualWidth,
   withNodeReplaced,
 } from ./util.civet
@@ -184,7 +185,8 @@ Content ::AST[]
 # First line starts mid-line, so uses Text; following lines assume start of line
 # No Nested requirement; used in TextBracedContent where indentation doesn't matter
 TextAndContent ::AST[]
-  Text:first ( EOL Statement )*:rest -> [ first, ...rest.flat() ]
+  Text:first ( EOL Statement )*:rest ->
+    trimEndImplicitComment [ first, ...rest.flat() ]
   "" -> []
 
 Space ::string
@@ -387,7 +389,8 @@ CharCommand ::AST[]
 
 # Content inside e.g. `$...$` that respects indentation
 MathContent ::AST[]
-  MathText:text NestedMathStatement*:body -> [ text, ...body.flat() ]
+  MathText:text NestedMathStatement*:body ->
+    trimEndImplicitComment [ text, ...body.flat() ]
 
 # No Nested requirement; used in MathBracedContent where braces delimit the
 # argument and indentation should not matter.
@@ -531,8 +534,9 @@ function enclosedContent(
   comment?: Comment
 ): Enclosed
   if not comment and Array.isArray body
-    [body, comment] = commentForBody body
-    comment = undefined if comment.implicit
+    body = trimEndImplicitComment body
+    comment = getEndComment body
+    body = body |> trimEndComment |> trimEnd if comment
   {
     type: "Enclosed"
     open
@@ -927,7 +931,10 @@ Heading ::Heading
     return {
       type: "Heading",
       subtype: command,
-      children: [ command, '{', title, '}' ],
+      children: [
+        command
+        enclosedContent '{', title, '}'
+      ]
     }
 
 HorizontalRule ::AST[]

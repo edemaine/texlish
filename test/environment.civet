@@ -38,6 +38,30 @@ describe ': environments', ->
       builtinEnvironments.delete `test${mode}env`
 
   testCase r'''
+    colon commands do not hide native text environment closers
+    ---
+    \begin{itemize}\item \emph: text\end{itemize} after
+    \begin{picture}(1,2)\textbf: \emph: text\end{picture}
+    ---
+    \begin{itemize}\item \emph{text}\end{itemize} after
+    \begin{picture}(1,2)\textbf{\emph{text}}\end{picture}
+  '''
+
+  testCase r'''
+    native text environments preserve comments before actual line breaks
+    ---
+    \begin{itemize}\item \emph: text
+    \end{itemize}
+    \begin{itemize}\item \emph: text % note
+    \end{itemize}
+    ---
+    \begin{itemize}\item \emph{text}%
+    \end{itemize}
+    \begin{itemize}\item \emph{text}% note
+    \end{itemize}
+  '''
+
+  testCase r'''
     declared environments accept unbraced command arguments
     ---
     : list \label \settings

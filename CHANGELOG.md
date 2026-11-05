@@ -68,6 +68,8 @@
   [[#35](https://github.com/edemaine/texlish/issues/35)]
 * `%` comments now supported within `::use`, `::config`, and `::styles`.
 * `%` comments within `\begin`/`\end` arguments no longer confuse Texlish.
+* Fix generated `%` comments after colon arguments from hiding closing math
+  delimiters, text environment `\end`ings, and heading braces.
 * Smart quotes work better around commands, references, citations,
   images, and inline code.
 * Bare `@` reference labels can no longer contain `|` (to support tables);

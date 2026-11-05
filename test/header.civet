@@ -10,6 +10,28 @@ describe 'Markdown headers (#/##/...)', ->
   '''
 
   testCase r'''
+    colon commands do not hide heading closers
+    ---
+    # \textbf: Title
+    ## \textbf:
+      Title
+    ---
+    \section{\textbf{Title}}
+    \subsection{\textbf{%
+      Title}}
+  '''
+
+  testCase r'''
+    explicit comments follow heading closers
+    ---
+    # Title % note
+    ## \textbf: Title % note
+    ---
+    \section{Title}% note
+    \subsection{\textbf{Title}}% note
+  '''
+
+  testCase r'''
     several
     ---
     !!# Part

@@ -262,6 +262,16 @@ export function trimEndComment(node: AST): AST
     else
       node
 
+/**
+ * Discard a trailing implicit comment so it cannot hide a closing delimiter.
+ * Source comments and comments before actual line breaks remain intact.
+ */
+export function trimEndImplicitComment(node: AST[]): AST[]
+  if getEndComment(node)?.implicit
+    trimEndComment node
+  else
+    node
+
 /** Extract comment at end of [text, body] pair to replace comment */
 export function commentForTextBody(text: AST[], body: AST[]): [AST[], AST[], Comment]
   let comment: Comment?
