@@ -1420,12 +1420,19 @@ function buildTable(
     // Apply cell wrappers without changing the number of cells.
     header := index < delimiterIndex
     wrapper := if header then headerCell else bodyCell
-    cellNodes := for each body of line.cells
+    cellNodes := for each body, col of line.cells
       {
         type: "TableCell"
         style: wrapper
         body
-        children: if wrapper then [wrapper, "{", body, "}"] else [body]
+        // Protect a leading `[` in the first column from becoming
+        // the preceding row's \\'s optional spacing.
+        children: if wrapper
+          [wrapper, "{", body, "}"]
+        else if col is 0 and generate(body).trimStart().startsWith "["
+          ["{", body, "}"]
+        else
+          [body]
       } satisfies TableCell
     rowChildren: AST[] := []
     for each cell, i of cellNodes

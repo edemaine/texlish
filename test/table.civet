@@ -997,6 +997,36 @@ describe 'tables', ->
     \end{tabular}
     '''
 
+  testCase r'''
+    protects bracket-leading cells from optional row spacing
+    ---
+    ::table
+    a | b
+    [c] | d
+    ---
+    \begin{tabular}{ll}
+    a & b \\
+    {[c]} & d \\
+    \end{tabular}
+    '''
+
+  testCase r'''
+    protects bracket-leading math cells after explicit row terminators
+    ---
+    $$
+    ::table
+    a | b | \\[1ex]
+    [c] | d
+    $$
+    ---
+    $$
+    \begin{array}{cc}
+    a & b \\[1ex]
+    {[c]} & d \\
+    \end{array}
+    $$
+    '''
+
   it 'uses explicit row terminators in suffixes or on the following line', ->
     for each math of [false, true]
       env := if math then 'array' else 'tabular'

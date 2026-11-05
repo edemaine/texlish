@@ -630,6 +630,17 @@ describe 'document fragments', ->
     \end{document}
   '''
 
+  testCase r'''
+    fragments insert automatic packages after an explicit class without document wrappers
+    ---
+    \documentclass{article}
+    ~~Removed~~
+    ---
+    \documentclass{article}
+    \usepackage[normalem]{ulem}
+    \sout{Removed}
+  '''
+
   it 'does not leave an empty preamble insertion node in fragment ASTs', ->
     assert.equal compile('', fragment: true), ''
     ast := compile('Body', fragment: true, ast: true)

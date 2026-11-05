@@ -491,6 +491,7 @@ function processDocument(root: AST[], fragment = false): void
           break :line
         ^document["\\maketitle"]  // \begin{document} before \maketitle
           break :line
+        ^document["\\documentclass"]  // Packages must follow an explicit class.
         [ { type: "Indent" }, { type: "Command" }, ... ],
         [ { type: "Indent" }, { type: "Call" }, ... ],
         [ { type: "Indent" }, [ { type: "Command" }, ... ] ],
