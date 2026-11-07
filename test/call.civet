@@ -198,7 +198,7 @@ describe 'declared command call AST', ->
       call := compileCall source, token
       assert.equal generate(call), source
       assert.equal call.args[0].form, 'delimited'
-      assert.deepEqual call.args[0].body, { type: 'Verbatim', token: 'foo*bar*' }
+      assert.deepEqual call.args[0].body, { type: 'Verbatim', children: ['foo*bar*'] }
       assert.equal call.complete, true
 
   it 'represents environment boundaries as calls with raw names', ->

@@ -1,6 +1,6 @@
 { r, testCase } from ./helper.civet
-{ compile } from ../src/main.civet
-{ builtinEnvironments } from ../src/declarations.civet
+{ compile, generate } from ../src/main.civet
+{ builtinCommandPatterns, builtinEnvironments } from ../src/declarations.civet
 { iterate } from ../src/util.civet
 type { AST } from ../src/types.civet
 assert from assert
@@ -35,6 +35,30 @@ describe 'verbatim LaTeX', ->
         for node of nodes
           assert node is like { type: "Raw" }, { type: "Verbatim" }
           assert.equal node.type, type
+
+  it 'keeps command spellings as strings in every Verbatim argument form', ->
+    for each [delimiter, open, close] of [
+      ['required', '{', '}']
+      ['optional', '[', ']']
+      ['required-parenthesized', '(', ')']
+      ['optional-parenthesized', '(', ')']
+    ] as const
+      builtinCommandPatterns.set '\\literaltest', [{ name: 'text', delimiter, mode: 'verbatim' }]
+      try
+        source := `\\literaltest${open}a{\\sout}b\\${close}${close}`
+        ast := compile source, ast: true, fragment: true
+        literal := [...iterate(ast)].find (node) => node is like { type: 'Verbatim' }
+        assert literal is like { type: 'Verbatim' }
+        assert [...iterate(literal.children)].every (node) => Array.isArray(node) or node <? 'string'
+        assert.equal generate(ast), source
+      finally
+        builtinCommandPatterns.delete '\\literaltest'
+    for source of ['\\verb|\\sout|', '::table\n\\url: a{\\sout}b\\% | other']
+      ast := compile source, ast: true, fragment: true
+      literal := [...iterate(ast)].find (node) => node is like { type: 'Verbatim' }
+      assert literal is like { type: 'Verbatim' }
+      assert [...iterate(literal.children)].every (node) => Array.isArray(node) or node <? 'string'
+      assert not generate(ast).includes '{ulem}'
 
   it 'environment declarations select body modes', ->
     builtinEnvironments.set "rawbody", { args: [], body: "raw" }
@@ -134,7 +158,7 @@ describe 'verbatim LaTeX', ->
     assert.equal arg.form, "delimited"
     assert.deepEqual arg.body,
       type: "Verbatim"
-      token: "\\usepackage{ulem} *raw*"
+      children: ["\\usepackage{ulem} *raw*"]
     assert.strictEqual verb.args, verb.children[1]
     enclosed := arg.children[1]
     assert enclosed is like { type: 'Enclosed' }
@@ -155,19 +179,18 @@ describe 'verbatim LaTeX', ->
       arg.specIndex? and href.argsSpec[arg.specIndex].name is "url"
     assert.deepEqual url?.body,
       type: 'Verbatim'
-      token: 'https://example.com/a_*raw*'
+      children: ['https://example.com/a_*raw*']
 
-    result = await compile '\\includegraphics{\\sout{not used}}'
-    assert.doesNotMatch result, /\\usepackage\{ulem\}/
+    result = await compile '\\includegraphics{\\sout{used in raw TeX}}'
+    assert.match result, /\\usepackage\[normalem\]\{ulem\}/
 
     ast = await compile '\\includegraphics{image% } hidden by comment\n.png}',
       ast: true
       fragment: true
     graphics := (ast[0] as AST[])[1]
     assert graphics is like { type: "Call", command: { token: "\\includegraphics" } }
-    assert.deepEqual graphics.args[0].body,
-      type: "Raw"
-      token: "image% } hidden by comment\n.png"
+    assert graphics.args[0].body is like { type: "Raw", children }
+    assert.equal generate(graphics.args[0].body), "image% } hidden by comment\n.png"
 
   testCase r'''
     environments preserve Texlish syntax
@@ -233,6 +256,17 @@ describe 'verbatim LaTeX', ->
     \\char`\\% \\ref{ref}
     \\char`\\command \\ref{ref}
   '''
+
+  it 'preserves space character constants when trimming before comments', ->
+    for character of [' ', '\\ ']
+      constant := '\\char`' + character
+      for [source, expected] of [
+        [`\\textbf: ${constant}% comment`, `\\textbf{${constant}}% comment`]
+        [`\\textbf:\n  ${constant}% comment`, `\\textbf{%\n  ${constant}}% comment`]
+        [`# ${constant}% comment`, `\\section{${constant}}% comment`]
+        [`\\textbf{${constant}}`, `\\textbf{${constant}}`]
+      ]
+        assert.equal compile(source, fragment: true), expected
 
   testCase r'''
     package verbatim commands preserve contents
@@ -529,6 +563,16 @@ describe 'verbatim LaTeX', ->
     \url{https://example.com/a_b@c*d}%
     \includegraphics{figures/*raw*_@2x.pdf}%
   '''
+
+  it 'keeps whitespace inside Raw arguments when trimming outer content', ->
+    for source of ['\\label{a }', '\\custom: \\label{a }', '# \\label{a }']
+      result := compile source, fragment: true
+      assert result.includes '\\label{a }'
+
+  it 'trims raw and verbatim colon arguments without trimming nested groups', ->
+    for command of ['label', 'url']
+      result := compile `\\${command}:   { a }   `, fragment: true
+      assert result.includes `\\${command}{{ a }}%`
 
   testCase r'''
     percent follows the command argument mode

@@ -146,6 +146,10 @@ describe 'Markdown smart quotes', ->
     ``\\textbf{``inside''}''
   '''
 
+  it 'treats opaque Raw content as an inline boundary for quote lookaround', ->
+    for source of ['\\csname symbol\\endcsname', '\\char`x']
+      assert.equal compile(`"${source}"s`, fragment: true), "``" + source + "''s"
+
   testCase '''
     unmatched double quotes after digits stay literal
     ---

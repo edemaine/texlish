@@ -16,6 +16,7 @@ type {
   Comment,
   ConfigEntry,
   Command,
+  DelimitedContent,
   Delimiter,
   Environment,
   EOL,
@@ -371,7 +372,7 @@ TextOrMathPart ::AST
   Comment
   VerbatimEnvironment
   RawEnvironment
-  $( Csname / CharCommand ):token -> { type: "Raw", token }
+  ( Csname / CharCommand ):children -> { type: "Raw", children }
 
 Csname ::AST[]
   /\\csname(?![a-zA-Z@])/ CsnamePart* /\\endcsname(?![a-zA-Z@])/
@@ -383,7 +384,8 @@ CsnamePart ::AST
   /[^\\%]+/
 
 CharCommand ::AST[]
-  /\\char(?![a-zA-Z@])/ Space "`" ( Command / /[^\\%\r\n]/ )
+  # Keep the alphabetic constant atomic: its character can be a significant space.
+  $( /\\char(?![a-zA-Z@])/ Space "`" ( Command / /[^\\%\r\n]/ ) ):token -> [{ token, $loc }]
 
 ## MATH
 
@@ -567,7 +569,7 @@ MathBracketedPart ::AST
 
 # TeX-mode arguments stay opaque to Texlish, but TeX comments hide delimiters
 # until the end of their line and commands stay opaque.
-RawBracedContent ::AST[]
+RawBracedContent ::DelimitedContent
   "{" RawBracedPart* "}"
 
 RawBracedPart ::AST
@@ -576,7 +578,7 @@ RawBracedPart ::AST
   RawBracedContent
   /[^\\{}%]+/
 
-RawBracketedContent ::AST[]
+RawBracketedContent ::DelimitedContent
   "[" RawBracketedPart* "]"
 
 RawBracketedPart ::AST
@@ -599,26 +601,27 @@ MathParenthesizedContent ::Enclosed
 MathParenthesizedPart ::AST
   !")" ( MathPart / EOL ) -> $2
 
-RawParenthesizedContent ::AST[]
+RawParenthesizedContent ::DelimitedContent
   "(" ( Command / Comment / RawBracedContent / /[^\\){}%]+/ )* ")"
 
-VerbatimParenthesizedContent ::AST[]
-  "(" ( Command / VerbatimBracedContent / /[^\\){}]+/ )* ")"
+VerbatimParenthesizedContent ::DelimitedContent
+  "(" ( $Command / VerbatimBracedContent / /[^\\){}]+/ )* ")"
 
 # Verbatim-mode arguments treat % literally, so comments never hide delimiters.
-VerbatimBracedContent ::AST[]
+# Commands are recognized for delimiter handling, but retained as literal strings.
+VerbatimBracedContent ::DelimitedContent
   "{" VerbatimBracedPart* "}"
 
 VerbatimBracedPart ::AST
-  Command
+  $Command
   VerbatimBracedContent
   /[^\\{}]+/
 
-VerbatimBracketedContent ::AST[]
+VerbatimBracketedContent ::DelimitedContent
   "[" VerbatimBracketedPart* "]"
 
 VerbatimBracketedPart ::AST
-  Command
+  $Command
   VerbatimBracedContent
   /[^\\\]{}]+/
 
@@ -752,14 +755,15 @@ CodeSpan ::CodeSpan
     body: Raw | Verbatim :=
       if arg?.mode is "verbatim"
         type: "Verbatim"
-        token: code
+        children: [code]
       else
         type: "Raw"
-        token:
+        children: [
           if command is like "\\EscVerb", "\\EscVerb*"
             escapeEscVerb code
           else
             escapeText code
+        ]
     let delimiter: string?
     if arg?.mode is "verbatim" and
        arg.delimiter is like "delimited", "required-or-delimited"
@@ -822,7 +826,7 @@ CodeBlock ::CodeBlock
       // https://spec.commonmark.org/0.31.2/#fenced-code-blocks
       content = content.replace /(^|\r\n?|\n)([ \t]*)/g, (_, lineStart, lineIndent) =>
         lineStart + reduceVisualIndent lineIndent, indent.level
-    body: Verbatim := { type: "Verbatim", token: content }
+    body: Verbatim := { type: "Verbatim", children: [content] }
     {
       type: "CodeBlock"
       style
@@ -1720,8 +1724,8 @@ TableColonArgument ::Argument
 TableColonBody ::AST[]
   RequiredTextArgument TableTextPart*:body -> body
   RequiredMathArgument TableMathPart*:body -> body
-  RequiredRawArgument $TableRawPart*:body Comment?:comment -> [{ type: "Raw", token: body.trim() }, comment]
-  RequiredVerbatimArgument $TableVerbatimPart*:body -> [{ type: "Verbatim", token: body.trim() }]
+  RequiredRawArgument TableRawPart*:body Comment?:comment -> [{ type: "Raw", children: trimContent(body) }, comment]
+  RequiredVerbatimArgument TableVerbatimPart*:body -> [{ type: "Verbatim", children: trimContent(body) }]
 
 TableRawPart ::AST
   RawBracedContent
@@ -1730,7 +1734,7 @@ TableRawPart ::AST
 
 TableVerbatimPart ::AST
   VerbatimBracedContent
-  CommandWithoutNewline
+  $CommandWithoutNewline
   /[^|{}\\\r\n]+/
 
 ## COMMANDS
@@ -1858,7 +1862,7 @@ CommandArgument ::Argument
     commandArgument delimiter, "parenthesized", content.body, [space, content]
   # Prefer colon shorthand over `:` as a verbatim delimiter when a required
   # argument remains, e.g. `\url: ...`, but preserve `\verb:...:`.
-  !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space $DelimitedVerbatim:arg ->
+  !(Colon ColonCommandsEnabled RequiredArgumentPossible) DelimitedVerbatimArgument Space:space DelimitedVerbatim:arg ->
     content := unparsedArgument arg, "Verbatim"
     commandArgument "delimited", "delimited", content.body, [space, content]
   # Try delimiters first so a backslash-delimited verbatim argument stays literal.
@@ -1948,8 +1952,8 @@ DeclaredRequiredArgumentPossible
     $skip unless arg?.index?
 DelimitedVerbatimArgument
   "" -> $skip unless commandArgumentIs "delimited", "verbatim"
-DelimitedVerbatim ::string
-  /([^\s])[^\r\n]*?\1/
+DelimitedVerbatim ::DelimitedContent
+  /([^\s])([^\r\n]*?)\1/ -> [$1, [$2], $1]
 
 CommandSpace ::AST[]
   Space CommandCommentContinuation*
@@ -1957,20 +1961,20 @@ CommandCommentContinuation ::AST[]
   Comment:comment EOL:eol &IndentedAtLeast Indent:indent -> [ comment, eol, indent ]
 
 OptionalArgumentContent ::Enclosed
-  OptionalRawArgument $RawBracketedContent:arg -> unparsedArgument arg, "Raw"
-  OptionalVerbatimArgument $VerbatimBracketedContent:arg -> unparsedArgument arg, "Verbatim"
+  OptionalRawArgument RawBracketedContent:arg -> unparsedArgument arg, "Raw"
+  OptionalVerbatimArgument VerbatimBracketedContent:arg -> unparsedArgument arg, "Verbatim"
   OptionalTextArgument TextBracketedContent:arg -> arg
   OptionalMathArgument MathBracketedContent:arg -> arg
 
 RequiredArgumentContent ::Enclosed
-  RequiredRawArgument $RawBracedContent:arg -> unparsedArgument arg, "Raw"
-  RequiredVerbatimArgument $VerbatimBracedContent:arg -> unparsedArgument arg, "Verbatim"
+  RequiredRawArgument RawBracedContent:arg -> unparsedArgument arg, "Raw"
+  RequiredVerbatimArgument VerbatimBracedContent:arg -> unparsedArgument arg, "Verbatim"
   RequiredTextArgument TextBracedContent:arg -> arg
   RequiredMathArgument MathBracedContent:arg -> arg
 
 ParenthesizedArgumentContent ::Enclosed
-  ParenthesizedRawArgument $RawParenthesizedContent:arg -> unparsedArgument arg, "Raw"
-  ParenthesizedVerbatimArgument $VerbatimParenthesizedContent:arg -> unparsedArgument arg, "Verbatim"
+  ParenthesizedRawArgument RawParenthesizedContent:arg -> unparsedArgument arg, "Raw"
+  ParenthesizedVerbatimArgument VerbatimParenthesizedContent:arg -> unparsedArgument arg, "Verbatim"
   ParenthesizedTextArgument TextParenthesizedContent:arg -> arg
   ParenthesizedMathArgument MathParenthesizedContent:arg -> arg
 
@@ -1980,11 +1984,10 @@ ParenthesizedArgumentContent ::Enclosed
  * Preserve those delimiters in children alongside the raw or verbatim body.
  */
 function unparsedArgument(
-  source: string
+  [open, children, close]: DelimitedContent
   type: "Raw" | "Verbatim"
 ): Enclosed
-  body := { type, token: source[<..<] }
-  enclosedContent source[0], body, source.-1
+  enclosedContent open, { type, children }, close
 ```
 
 OptionalRawArgument
@@ -2121,47 +2124,49 @@ RawNestedBody ::AST[]
 VerbatimNestedBody ::AST[]
   PushStrictIndent ( Nested Indent VerbatimText )* PopIndent -> $2
 
-RawText ::{text: string, comment: Comment?, children: AST[]}
-  RawTextPart*:parts Comment?:comment ->
-    text := parts.join ''
-    {
-      text
-      comment
-      children: unparsedTextChildren { text, comment }, "Raw"
-    }
+RawText ::UnparsedText
+  RawTextPart*:text Comment?:comment -> unparsedText text, "Raw", comment
 
-VerbatimText ::{text: string, comment: undefined, children: AST[]}
-  VerbatimTextPart*:parts ->
-    text := parts.join ''
-    {
-      text
-      comment: undefined
-      children: unparsedTextChildren { text }, "Verbatim"
-    }
+VerbatimText ::UnparsedText
+  VerbatimTextPart*:text -> unparsedText text, "Verbatim"
 
 ```
+type UnparsedText
+  mode: "Raw" | "Verbatim"
+  text: AST[]
+  comment: Comment?
+  children: AST[]
+
+function unparsedText(text: AST[], mode: UnparsedText["mode"], comment?: Comment?): UnparsedText
+  content := { text, mode, comment }
+  { ...content, children: unparsedTextChildren(content) }
+
+/** Shared emission for original text and trimmed colon arguments. */
 function unparsedTextChildren(
-  content: {text: string, comment?: Comment?}
-  type: "Raw" | "Verbatim"
+  { text, mode, comment }: Omit<UnparsedText, "children">
   trim = false
 ): AST[]
-  text :=
+  children :=
     if trim
-      content.text.trim()
-    else if content.comment
-      content.text.trimEnd()
+      trimContent text
+    else if comment
+      trimEnd text
     else
-      content.text
-  return [] unless text or content.comment
-  [ { type, token: text } if text, content.comment ]
+      text
+  empty := isEmpty children
+  return [] if empty and not comment
+  [
+    { type: mode, children } unless empty
+    comment
+  ]
 ```
 
-RawTextPart ::string
-  $RawBracedContent
+RawTextPart ::AST
+  RawBracedContent
   /\\[^\r\n]|[^\\{}%\r\n]+/
 
-VerbatimTextPart ::string
-  $VerbatimBracedContent
+VerbatimTextPart ::AST
+  VerbatimBracedContent
   /\\[^\r\n]|[^\\{}\r\n]+/
 
 # Parse and consume one required inline colon argument according to the next
@@ -2215,9 +2220,9 @@ function trimVerbatimNestedBody(body: AST[]): AST[]
 ```
 
 TrimmedRawText ::AST[]
-  RawText:text -> unparsedTextChildren text, "Raw", true
+  RawText:text -> unparsedTextChildren text, true
 TrimmedVerbatimText ::AST[]
-  VerbatimText:text -> unparsedTextChildren text, "Verbatim", true
+  VerbatimText:text -> unparsedTextChildren text, true
 
 # Argument bullets plus an optional final nested body block,
 # which becomes another braced command argument.
@@ -2281,10 +2286,10 @@ MathArgumentBullet
   &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "math", true
 
 RawArgumentListItemLine ::AST[]
-  PushListItemIndent RawText:text PopListItemIndent -> unparsedTextChildren text, "Raw"
+  PushListItemIndent RawText:text PopListItemIndent -> text.children
 
 VerbatimArgumentListItemLine ::AST[]
-  PushListItemIndent VerbatimText:text PopListItemIndent -> unparsedTextChildren text, "Verbatim"
+  PushListItemIndent VerbatimText:text PopListItemIndent -> text.children
 
 MathArgumentListItemLine ::AST[]
   PushListItemIndent MathText:text PopListItemIndent -> text
@@ -2372,7 +2377,7 @@ VerbatimEnvironment ::Environment
     {
       type: "Environment"
       env: match[1]
-      children: [{ type: "Verbatim", token: match[0] }]
+      children: [{ type: "Verbatim", children: [match[0]] }]
     }
 
 # Raw environments treat `%` as comments, so `%...\end` doesn't terminate
@@ -2391,7 +2396,7 @@ RawEnvironment ::Environment
     {
       type: "Environment"
       env: match[1]
-      children: [{ type: "Raw", token: match[0] }]
+      children: [{ type: "Raw", children: [match[0]] }]
     }
 
 TextEnvironment ::Environment

@@ -1,5 +1,6 @@
 { r, testCase } from ./helper.civet
 { compile } from ../src/main.civet
+{ builtinCommandPatterns } from ../src/declarations.civet
 assert from assert
 
 describe '\\begin/\\end{document}', ->
@@ -400,6 +401,20 @@ describe '\\maketitle', ->
     \end{document}
 
   ''', fragment: false
+
+  it 'recognizes document commands in Raw arguments', ->
+    builtinCommandPatterns.set '\\execute', [{ name: 'body', delimiter: 'required', mode: 'raw' }]
+    try
+      source := '::tex \\def\\execute#1{#1}\n\\execute{\\title{Raw title}}\nbody'
+      result := compile source
+      assert result.includes '\\execute{\\title{Raw title}}'
+      assert result.includes '\\begin{document}\n\\maketitle\n'
+    finally
+      builtinCommandPatterns.delete '\\execute'
+
+  it 'keeps document command spellings literal in Verbatim arguments', ->
+    for source of ['\\verb|\\title{literal}|', '\\url{\\title{literal}}']
+      assert not compile(source).includes '\\maketitle'
 
   testCase r'''
     \title and existing document

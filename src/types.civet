@@ -161,6 +161,9 @@ export interface BlockQuote extends ASTParent
   /** Environment selected by the blockquote style */
   env: string
 
+/** Parsed delimiters kept separate from their content, without flattening it. */
+export type DelimitedContent = [open: string, body: AST[], close: string]
+
 /** Content enclosed in braces, brackets, parentheses, or matching delimiters. */
 export interface Enclosed extends ASTParent
   type: "Enclosed"
@@ -315,12 +318,12 @@ export interface Preamble extends ASTParent
   textBody: AST[]
 
 /**
- * TeX source preserved without representing its internal structure in the AST.
- * Raw argument and environment modes produce these nodes. TeX commands and
- * comments retain their meaning and may be analyzed with the appropriate context.
- * Texlish transformations must leave the source unchanged.
+ * TeX fragments preserved without Texlish processing. Children can include
+ * nested fragments and lexical command/comment nodes. Dependency discovery
+ * sees the commands, while Texlish rewrites leave the children unchanged.
+ * Percent signs retain TeX comment semantics, including across fragment boundaries.
  */
-export interface Raw extends ASTToken
+export interface Raw extends ASTParent
   type: "Raw"
 
 export interface Ref extends Styled
@@ -352,7 +355,9 @@ export interface Uses extends ASTParent
 /**
  * Literal content from verbatim argument and environment modes.
  * Apparent TeX commands and comments are literal text, not TeX to analyze.
- * Preserve the content unchanged without command discovery or comment stripping.
+ * Parser-produced children are nested strings, including command spellings.
+ * Preserve them unchanged, including percent signs: no command discovery or
+ * comment stripping. TeX text-run traversal excludes this node's children.
  */
-export interface Verbatim extends ASTToken
+export interface Verbatim extends ASTParent
   type: "Verbatim"

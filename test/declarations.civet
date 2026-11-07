@@ -159,6 +159,21 @@ describe 'declarations', ->
 
     assert.match generate(ast), /\\usepackage\[option\]\{custom\}/
 
+  it 'autoimports commands in Raw arguments while keeping Verbatim spellings literal', ->
+    commands := builtinAutoimports.commands!
+    previous := commands.get '\\textwidth'
+    commands.set '\\textwidth', 'raw-width-test'
+    try
+      raw := compile '\\includegraphics[width=.5\\textwidth]{plot.pdf}', fragment: true
+      assert raw.includes '\\usepackage{raw-width-test}'
+      verbatim := compile '\\url{a\\textwidth}', fragment: true
+      assert not verbatim.includes 'raw-width-test'
+    finally
+      if previous?
+        commands.set '\\textwidth', previous
+      else
+        commands.delete '\\textwidth'
+
   it 'postprocess uses the current preamble autoimports', ->
     ast := compile '\\fallback', ast: true, fragment: true
     declarations := getDeclarations()

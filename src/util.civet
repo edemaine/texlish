@@ -76,17 +76,23 @@ export function iterateFlatArrays(node: AST): Generator<AST[]>
   else if "children" in node
     yield* iterateFlatArrays node.children
 
-/** Yield each run of consecutive strings in the flattened AST arrays. */
+/** Yield consecutive TeX strings, joining nested arrays and excluding Verbatim. */
 export function iterateTextRuns(node: AST): Generator<string>
-  for parent of iterateFlatArrays node
+  return if node is like { type: "Verbatim" }
+  if Array.isArray node
     text .= ""
-    for child of parent
+    //@ts-ignore deep type recursion
+    for child of node.flat Infinity
       if child <? "string"
         text += child
-      else if text
-        yield text
-        text = ""
+      else
+        if text
+          yield text
+          text = ""
+        yield* iterateTextRuns child
     yield text if text
+  else if node <? "object" and "children" in node
+    yield* iterateTextRuns node.children
 
 /** Generate every node twice, once before and once after recursion. */
 export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
@@ -96,8 +102,7 @@ export function iteratePrePost(node: AST): Generator<{node: AST, post: boolean}>
     for each child of node
       yield* iteratePrePost child
   else if "children" in node
-    for each child of node.children
-      yield* iteratePrePost child
+    yield* iteratePrePost node.children
   yield {node, post: true}
 
 /** Find any node that matches a given condition, or undefined if not found. */

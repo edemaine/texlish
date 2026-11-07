@@ -1,6 +1,6 @@
 { compile, generate } from ../src/main.civet
 type { Argument, ASTNode } from ../src/types.civet
-{ find, iterate } from ../src/util.civet
+{ find, iterate, iterateTextRuns } from ../src/util.civet
 assert from assert
 
 function findNode(source: string, type: ASTNode["type"]): ASTNode
@@ -54,7 +54,7 @@ describe 'semantic shorthand AST', ->
     assert.equal node.style, '\\texttt'
     assert.equal node.delimiter, undefined
     assert.equal node.code, 'a%b'
-    assert.deepEqual node.body, { type: "Raw", token: 'a\\%b' }
+    assert.deepEqual node.body, { type: "Raw", children: ['a\\%b'] }
     assert.strictEqual node.children[2], node.body
     assert.equal generate(node.body), 'a\\%b'
     assert.equal generate(node), '\\texttt{a\\%b}'
@@ -65,7 +65,7 @@ describe 'semantic shorthand AST', ->
     assert node is like { type: "CodeSpan" }
     assert.equal node.delimiter, '`'
     assert.equal node.code, 'a%b'
-    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b' }
+    assert.deepEqual node.body, { type: "Verbatim", children: ['a%b'] }
     assert.strictEqual node.children[2], node.body
     assert.equal generate(node.body), 'a%b'
     assert.equal generate(node), '\\verb`a%b`'
@@ -76,7 +76,7 @@ describe 'semantic shorthand AST', ->
     assert node is like { type: "CodeSpan" }
     assert.equal node.code, 'a%b'
     assert.equal node.delimiter, undefined
-    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b' }
+    assert.deepEqual node.body, { type: "Verbatim", children: ['a%b'] }
     assert.strictEqual node.children[2], node.body
     assert.equal generate(node), '\\hyperbaseurl{a%b}'
 
@@ -87,7 +87,7 @@ describe 'semantic shorthand AST', ->
       assert node is like { type: "CodeSpan" }
       assert.equal node.code, '\\^~'
       assert.equal node.delimiter, undefined
-      assert.deepEqual node.body, { type: "Raw", token: '\\\\\\^\\~' }
+      assert.deepEqual node.body, { type: "Raw", children: ['\\\\\\^\\~'] }
       assert.strictEqual node.children[2], node.body
       assert.equal generate(node), style + '{\\\\\\^\\~}'
 
@@ -97,7 +97,7 @@ describe 'semantic shorthand AST', ->
     assert.equal node.style, '\\texttt'
     assert.equal node.delimiter, undefined
     assert.equal node.code, 'a%b'
-    assert.deepEqual node.body, { type: "Raw", token: 'a\\%b' }
+    assert.deepEqual node.body, { type: "Raw", children: ['a\\%b'] }
     assert.strictEqual node.children[2], node.body
     assert.equal generate(node), '\\texttt{a\\%b}'
 
@@ -106,7 +106,7 @@ describe 'semantic shorthand AST', ->
     assert node is like { type: "CodeBlock" }
     assert.equal node.info, 'text'
     assert.equal node.env, 'verbatim'
-    assert.deepEqual node.body, { type: "Verbatim", token: 'a%b\n' }
+    assert.deepEqual node.body, { type: "Verbatim", children: ['a%b\n'] }
     assert node.children.includes node.body
     assert.equal generate(node), '\\begin{verbatim}\na%b\n\\end{verbatim}'
 
@@ -115,3 +115,46 @@ describe 'semantic shorthand AST', ->
     assert node is like { type: "HorizontalRule" }
     assert.equal node.marker, '- - -'
     assert.equal generate(node), node.style
+
+describe 'Raw and Verbatim AST', ->
+  it 'preserves Raw children while exposing their lexical structure to inspection', ->
+    source := '\\csname name\\sout% comment\n tail\\endcsname'
+    raw := findNode source, 'Raw'
+    assert raw is like { type: 'Raw', children }
+    assert not ('token' in raw)
+    assert.equal generate(raw), source
+    nodes := [...iterate(raw)]
+    assert nodes.some (node) => node is like { type: 'Command', token: '\\sout' }
+    assert nodes.some (node) => node is like { type: 'Comment', token: '% comment' }
+    result := compile source, fragment: true
+    assert result.includes '\\usepackage[normalem]{ulem}'
+    assert result.endsWith source
+
+  it 'keeps Raw and Verbatim children unchanged by Texlish rewrites', ->
+    text := '"raw" *word* [^note]\n[^note]: note'
+    for each command of ['label', 'url']
+      ast := compile `\\${command}{${text}}`, ast: true, fragment: true
+      opaque := find ast, (node) => node is like { type: 'Raw' }, { type: 'Verbatim' }
+      assert opaque is like { type: 'Raw' }, { type: 'Verbatim' }
+      assert.equal generate(opaque), text
+      assert [...iterate(opaque)].every (node) =>
+        node is not like { type: 'SmartQuote' }, { type: 'Delimiter' }, { type: 'FootnoteRef' }, { type: 'FootnoteDefinition' }
+
+  it 'preserves nested Verbatim children without interpreting their TeX spelling', ->
+    source := '\\url{a{\\sout}b% literal}'
+    verbatim := findNode source, 'Verbatim'
+    assert verbatim is like { type: 'Verbatim', children }
+    assert not ('token' in verbatim)
+    assert.equal generate(verbatim), 'a{\\sout}b% literal'
+    assert [...iterate(verbatim)].every (node) => Array.isArray(node) or node is verbatim or node <? 'string'
+    result := compile source, fragment: true
+    assert not result.includes '{ulem}'
+    assert result.endsWith source
+
+describe 'AST traversal', ->
+  it 'keeps Verbatim out of TeX text runs without joining across it', ->
+    raw := { type: 'Raw' as const, children: ['\\', ['sout{raw}']] }
+    verbatim := { type: 'Verbatim' as const, children: [['\\usepackage{literal}']] }
+    tree := [['before', [' ']], verbatim, ['after'], raw, { children: ['nested'] }]
+    assert.deepEqual [...iterateTextRuns(tree)], ['before ', 'after', '\\sout{raw}', 'nested']
+    assert [...iterate(tree)].includes '\\usepackage{literal}'
