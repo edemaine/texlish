@@ -21,7 +21,7 @@ type {
 
 defaultDocumentClass := "\\documentclass[11pt]{article}"
 
-/** Root node is always an array of statements. */
+/** Root node is always an array of statements */
 export function process(root: AST[], options: CompilerOptions): AST
   processSmartQuotes root
   processMarkdown root
@@ -284,19 +284,28 @@ function processFootnotes(root: AST[]): void
 function liftsToPreamble(node: AST): boolean
   node is like { type: "Preamble" }, { type: "Use" }, { type: "Uses" }
 
+/** Remove comments without joining a control word to text after its comment. */
+function stripTexComments(text: string): string
+  text.replace /(\\[a-zA-Z@]+)|\\[^\r\n]|(%[^\r\n]*(?:(?:\r\n?|\n)[ \t]*)?)/g,
+    (token, controlWord: string | undefined, comment: string | undefined, offset: number) =>
+      return "" if comment?
+      if controlWord? and text[offset + token#] is "%"
+        return token + " "
+      token
+
 /**
  * Collect TeX commands and LaTeX environments emitted by an AST.
- * Lexical scans of ::tex can still find apparent commands in unmodeled verbatim.
+ * Lexical scans can still find apparent commands in unmodeled verbatim.
  */
 function usedNames(root: AST): {commands: Set<string>, environments: Set<string>}
   commands := new Set<string>
   environments := new Set<string>
 
   function addTextNames(text: string): void
-    for match of text.matchAll /\\(?:[a-zA-Z@]+|[^\r\n])/g
+    text = stripTexComments text
+    for match of text.matchAll /\\(?:begin(?=\s*\{([^{}\r\n]+)\})|[a-zA-Z@]+|[^\r\n])/g
       commands.add match[0]
-    for match of text.matchAll /\\begin\s*\{([^{}\r\n]+)\}/g
-      environments.add match[1]
+      environments.add match[1] if match[1]?
 
   for node of iterate root
     if { style } := node
@@ -308,7 +317,7 @@ function usedNames(root: AST): {commands: Set<string>, environments: Set<string>
         commands.add token
       { type: "Call", command: { token: "\\begin" }, args }
         environments.add argumentText args[0] if args[0]?
-      { type: "Tex" }
+      { type: "Tex" }, { type: "Raw" }
         for text of iterateTextRuns node
           addTextNames text
   { commands, environments }
@@ -322,9 +331,7 @@ function argumentText(arg: Argument): string
   tex .= ""
 
   function flushTex(): void
-    // Match control sequences before comments so escaped percent signs survive.
-    text += tex.replace /\\(?:[a-zA-Z@]+|[^\r\n])|%[^\r\n]*(?:(?:\r\n?|\n)[ \t]*)?/g,
-      (token) => if token.startsWith "%" then "" else token
+    text += stripTexComments tex
     tex = ""
 
   function visit(node: AST): void
@@ -370,14 +377,15 @@ function usedPackages(root: AST[]): Set<string>
     packages.add name.trim() for name of names.split ','
 
   function addTextPackages(text: string): void
-    for match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
-      addPackageNames match[1]
+    text = stripTexComments text
+    for match of text.matchAll /\\(?:usepackage|RequirePackage)(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}|\\(?:[a-zA-Z@]+|[^\r\n])/g
+      addPackageNames match[1] if match[1]?
 
   for node of iterate root
     switch node
       { type: "Use", packages: packageNames }
         packages.add packageName for packageName of packageNames
-      { type: "Tex" }
+      { type: "Tex" }, { type: "Raw" }
         for text of iterateTextRuns node
           addTextPackages text
       { type: "Call", command: { token }, argsSpec }

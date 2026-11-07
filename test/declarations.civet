@@ -3,6 +3,8 @@
   argumentPatternKey,
   builtinPackages,
   builtinAutoimports,
+  builtinCommandPatterns,
+  builtinEnvironments,
   Declarations,
   type PackageDeclarations,
 } from ../src/declarations.civet
@@ -173,6 +175,74 @@ describe 'declarations', ->
         commands.set '\\textwidth', previous
       else
         commands.delete '\\textwidth'
+
+  it 'discovers commands consistently across raw argument forms', ->
+    for each mode of ['raw', 'verbatim'] as const
+      builtinCommandPatterns.set '\\execute', [{ name: 'body', delimiter: 'required', mode }]
+      try
+        for source of [
+          '\\execute{\\square}'
+          '\\execute: \\square'
+          '\\execute:\n  \\square'
+          '\\execute:\n  - \\square'
+          'Text \\execute: \\square'
+          '\\execute: \\% \\square'
+        ]
+          result := compile source, fragment: true
+          assert.equal result.includes('\\usepackage{amssymb}'), mode is 'raw', `${mode}: ${source}`
+      finally
+        builtinCommandPatterns.delete '\\execute'
+
+  it 'ignores comments when scanning raw environment strings for dependencies', ->
+    builtinEnvironments.set 'rawscan', { args: [], body: 'raw' }
+    try
+      comment := '% \\square \\begin{pmatrix} \\usepackage{amssymb}'
+      source .= `\\begin{rawscan}\n${comment}\n\\end{rawscan}`
+      result .= compile source, fragment: true
+      assert not result.includes '\\usepackage{amsmath}'
+      assert not result.startsWith '\\usepackage{amssymb}'
+      // An escaped percent is an ordinary control sequence, not a comment opener.
+      source = `\\begin{rawscan}\n${comment}\n\\% \\square\n\\end{rawscan}`
+      result = compile source, fragment: true
+      assert result.startsWith '\\usepackage{amssymb}\n'
+      assert not result.includes '\\usepackage{amsmath}'
+      source = '\\begin{rawscan}\n\\square% comment\nx\n\\end{rawscan}'
+      assert compile(source, fragment: true).startsWith '\\usepackage{amssymb}\n'
+      // Removing a comment must not invent a command or a package load.
+      source = '\\begin{rawscan}\n\\beg% comment\nin{pmatrix}\n\\use% comment\npackage{amssymb}\n\\square\n\\end{rawscan}'
+      result = compile source, fragment: true
+      assert result.startsWith '\\usepackage{amssymb}\n'
+      assert not result.includes '\\usepackage{amsmath}'
+    finally
+      builtinEnvironments.delete 'rawscan'
+
+  it 'recognizes package loads in raw string fragments', ->
+    builtinCommandPatterns.set '\\execute', [{ name: 'body', delimiter: 'required', mode: 'raw' }]
+    try
+      source := '\\execute: \\usepackage{amssymb}\n\\square'
+      result := compile source, fragment: true
+      assert.equal result.match(/\\usepackage\{amssymb\}/g)?#, 1
+    finally
+      builtinCommandPatterns.delete '\\execute'
+
+  it 'respects control symbol boundaries in Raw and Tex dependency scans', ->
+    for [body, packageName] of [
+      ['\\\\square', undefined]
+      ['\\\\begin{pmatrix}', undefined]
+      ['\\\\usepackage{amssymb}\n\\square', 'amssymb']
+      ['\\\\RequirePackage{amssymb}\n\\square', 'amssymb']
+      ['\\\\% \\square\nx', undefined]
+      ['\\% \\square', 'amssymb']
+      ['\\\\\\square', 'amssymb']
+      ['\\\\\\begin{pmatrix}', 'amsmath']
+    ]
+      for type of ['Raw', 'Tex'] as const
+        ast := compile '', ast: true, fragment: true
+        ast.push { type, children: [body] }
+        process ast, fragment: true
+        result := generate ast
+        for name of ['amssymb', 'amsmath']
+          assert.equal result.startsWith(`\\usepackage{${name}}\n`), name is packageName, `${type}: ${body}`
 
   it 'postprocess uses the current preamble autoimports', ->
     ast := compile '\\fallback', ast: true, fragment: true
