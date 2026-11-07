@@ -36,7 +36,6 @@ type {
   TableCell,
   TableRow,
   TableStyle,
-  Tex,
   Use,
   Uses,
   Verbatim,
@@ -1075,10 +1074,10 @@ MetaUse ::AST
   "use" ActualSpace UseItem:item -> item
   "use" NestedUseList:list -> list
 
-MetaTex ::Tex
+MetaTex ::Raw
   "tex" /\b[ \t]?/ TexText:text TexNestedBody:body ->
     {
-      type: "Tex"
+      type: "Raw"
       children: [text, body]
     }
 
@@ -1361,7 +1360,7 @@ interface TableContext
   /** Environment argument AST to emit, including spacing and directive comments. */
   arguments: AST[]
   /** Additional LaTeX from the style, emitted after all environment arguments. */
-  opening: Tex?
+  opening: Raw?
   /** Trailing style comment, emitted after directive arguments and generated columns. */
   comment: Comment?
 ```
@@ -1412,7 +1411,7 @@ function buildTable(
 
   function hook(property: keyof TableStyle): void
     if style := table.style[property]
-      children.push indent, { type: "Tex", children: [style] }, "\n"
+      children.push indent, { type: "Raw", children: [style] }, "\n"
 
   // Emit rows, inter-row commands, and rules at delimiter rows.
   rows: TableRow[] := []
@@ -1593,13 +1592,13 @@ TableDirective ::string
 
 # The caller supplies the environment's argument pattern. Remaining opening
 # content is LaTeX; escaped percent signs stay outside the trailing comment.
-StyleArguments ::{args: Argument[], arguments: AST[], opening: Tex?, comment: Comment?}
+StyleArguments ::{args: Argument[], arguments: AST[], opening: Raw?, comment: Comment?}
   EnvironmentArguments:args Space:space $/(?:\\[^\r\n]?|[^\\%\r\n])*/:opening Comment?:comment ->
     children := [ ...args, space, comment ]
     {
       args
       arguments: trimEndComment(children)
-      opening: { type: "Tex", children: [opening] } if opening
+      opening: { type: "Raw", children: [opening] } if opening
       comment: getEndComment(children)
     }
 
@@ -1645,7 +1644,7 @@ TableSpecialLine ::TableLine
       aligns: [first, ...rest.map (entry) => entry[1]]
       borders: [left ?? "", ...rest.map((entry) => entry[0]), right ?? ""]
     }
-  "::tex" /\b[ \t]?/ TexText:body &EOL -> { kind: "commands", children: [{ type: "Tex", children: body.children }] }
+  "::tex" /\b[ \t]?/ TexText:body &EOL -> { kind: "commands", children: [{ type: "Raw", children: body.children }] }
 
 TableBorder ::string
   Space $/\|+/:pipes Space -> pipes[1..]

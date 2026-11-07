@@ -317,7 +317,7 @@ function usedNames(root: AST): {commands: Set<string>, environments: Set<string>
         commands.add token
       { type: "Call", command: { token: "\\begin" }, args }
         environments.add argumentText args[0] if args[0]?
-      { type: "Tex" }, { type: "Raw" }
+      { type: "Raw" }
         for text of iterateTextRuns node
           addTextNames text
   { commands, environments }
@@ -385,7 +385,7 @@ function usedPackages(root: AST[]): Set<string>
     switch node
       { type: "Use", packages: packageNames }
         packages.add packageName for packageName of packageNames
-      { type: "Tex" }, { type: "Raw" }
+      { type: "Raw" }
         for text of iterateTextRuns node
           addTextPackages text
       { type: "Call", command: { token }, argsSpec }
@@ -505,7 +505,7 @@ function processDocument(root: AST[], fragment = false): void
         [ { type: "Indent" }, { type: "Call" }, ... ],
         [ { type: "Indent" }, [ { type: "Command" }, ... ] ],
         [ { type: "Indent" }, [ { type: "Call" }, ... ] ],
-        [ { type: "Indent" }, { type: "Tex" } ]
+        [ { type: "Indent" }, { type: "Raw" } ]
           // Fragment may start with \sout{removed};
           // put \usepackage{ulem} before it.
           break :line if fragment

@@ -225,7 +225,7 @@ describe 'declarations', ->
     finally
       builtinCommandPatterns.delete '\\execute'
 
-  it 'respects control symbol boundaries in Raw and Tex dependency scans', ->
+  it 'respects control symbol boundaries in Raw dependency scans', ->
     for [body, packageName] of [
       ['\\\\square', undefined]
       ['\\\\begin{pmatrix}', undefined]
@@ -236,13 +236,12 @@ describe 'declarations', ->
       ['\\\\\\square', 'amssymb']
       ['\\\\\\begin{pmatrix}', 'amsmath']
     ]
-      for type of ['Raw', 'Tex'] as const
-        ast := compile '', ast: true, fragment: true
-        ast.push { type, children: [body] }
-        process ast, fragment: true
-        result := generate ast
-        for name of ['amssymb', 'amsmath']
-          assert.equal result.startsWith(`\\usepackage{${name}}\n`), name is packageName, `${type}: ${body}`
+      ast := compile '', ast: true, fragment: true
+      ast.push { type: 'Raw', children: [body] }
+      process ast, fragment: true
+      result := generate ast
+      for name of ['amssymb', 'amsmath']
+        assert.equal result.startsWith(`\\usepackage{${name}}\n`), name is packageName, body
 
   it 'postprocess uses the current preamble autoimports', ->
     ast := compile '\\fallback', ast: true, fragment: true

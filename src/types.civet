@@ -118,7 +118,6 @@ export type ASTNode
   | Table
   | TableRow
   | TableCell
-  | Tex
   | Use
   | Uses
   | Verbatim
@@ -341,9 +340,6 @@ export interface SmartQuote extends ASTToken
   open: string
   /** Configured replacement if the quote is closing. */
   close: string
-
-export interface Tex extends ASTParent
-  type: "Tex"
 
 export interface Use extends ASTParent
   type: "Use"

@@ -140,6 +140,16 @@ describe 'Raw and Verbatim AST', ->
       assert [...iterate(opaque)].every (node) =>
         node is not like { type: 'SmartQuote' }, { type: 'Delimiter' }, { type: 'FootnoteRef' }, { type: 'FootnoteDefinition' }
 
+  it 'represents ::tex as Raw while preserving arbitrary TeX lines', ->
+    text := '\\sout{raw} "quoted" *word*\n  {unclosed'
+    raw := findNode `::tex ${text}`, 'Raw'
+    assert.equal generate(raw), text
+    assert [...iterate(raw)].every (node) =>
+      node is not like { type: 'SmartQuote' }, { type: 'Delimiter' }
+    result := compile `::tex ${text}`, fragment: true
+    assert result.includes '\\usepackage[normalem]{ulem}'
+    assert result.endsWith text
+
   it 'preserves nested Verbatim children without interpreting their TeX spelling', ->
     source := '\\url{a{\\sout}b% literal}'
     verbatim := findNode source, 'Verbatim'

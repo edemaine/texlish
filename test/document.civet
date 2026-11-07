@@ -52,6 +52,15 @@ describe '\\begin/\\end{document}', ->
 
   ''', fragment: false
 
+  it 'allows standalone Raw commands in the preamble until body text', ->
+    for command of ['\\char`x', '\\csname custom\\endcsname']
+      result := compile `${command}\nBody\n${command}`
+      begin := result.indexOf '\\begin{document}'
+      assert result.includes command
+      assert result.indexOf(command) < begin
+      assert result.indexOf('Body') > begin
+      assert result.lastIndexOf(command) > begin
+
   testCase r'''
     leading signature commands stay in preamble
     ---
