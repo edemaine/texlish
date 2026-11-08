@@ -42,7 +42,7 @@
     "vsce-publish": "pnpm run build && vsce publish"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.9.2",
+    "@vscode/vsce": "^4.1.0",
     "yaml": "^2.9.0"
   }
 }
