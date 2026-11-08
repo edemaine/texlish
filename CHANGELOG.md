@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0
+
 * Markdown-style `|---|---|` tables compile to `tabular` or `array`
   depending on text vs math mode, plus support for no or multiple header rows,
   and repeated delimiter pipes (`||---||---||`) for vertical rules.

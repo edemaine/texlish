@@ -1,5 +1,10 @@
 # Texlish VSCode Extension Changelog
 
+## 0.3.0
+
+* Syntax highlighting and indentation support for Texlish 0.3.0,
+  including `::list`, `::table`, and Markdown-style strikethrough.
+
 ## 0.2.0
 
 * Syntax highlighting and indentation support for Texlish 0.2.0.
