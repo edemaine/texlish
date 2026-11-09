@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* Undeclared starred forms of declared commands no longer consume colon
+  arguments, so `\alpha*: x` stays literal.
+* Smart quotes treat undeclared command calls like declared calls;
+  for example, `\foo"s` now becomes `\foo''s`.
+* AST includes call nodes for undeclared commands too
+
 ## 0.3.0
 
 * Markdown-style `|---|---|` tables compile to `tabular` or `array`

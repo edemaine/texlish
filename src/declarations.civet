@@ -98,9 +98,8 @@ export interface CommandResolution extends CommandDeclaration
 /**
  * Compact parse-cache key; argument names do not affect parsing.
  *
- * A generic repeated mode starts with `*`, followed by its mode code.
- * A finite pattern concatenates one delimiter code and one mode code per
- * argument:
+ * An undeclared argument pattern uses `?`. Finite patterns concatenate one
+ * delimiter code and one mode code per argument:
  * - delimiter: `o` optional, `r` required,
  *   `p` optional-parenthesized, `P` required-parenthesized,
  *   `d` delimited, `b` both required or delimited
@@ -109,10 +108,8 @@ export interface CommandResolution extends CommandDeclaration
  * Codes must remain unique within each position; the same character can be
  * used in both positions, as `r` is for required delimiters and raw mode.
  */
-export function argumentPatternKey(
-  pattern: ArgumentsPattern | ResolvedArgumentMode
-): string
-  return "*" + pattern[0] if pattern <? "string"
+export function argumentPatternKey(pattern: ArgumentsPattern?): string
+  return "?" unless pattern?
   for join each {delimiter, mode} of pattern
     if delimiter is "required-or-delimited"
       "b"

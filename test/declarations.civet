@@ -7,8 +7,9 @@
   builtinEnvironments,
   Declarations,
   type PackageDeclarations,
+  type ArgumentsPattern,
 } from ../src/declarations.civet
-{ getDeclarations } from ../src/parser.hera
+{ getDeclarations, getStateKey, state } from ../src/parser.hera
 assert from assert
 
 function compileWithEnvironmentAutoimport(source: string, styles: Record<string, string>, env: string): string
@@ -123,6 +124,41 @@ describe 'declarations', ->
     keys := delimiters.map (delimiter) =>
       argumentPatternKey [{ name: 'argument', delimiter, mode: 'raw' }]
     assert.equal new Set(keys).size, delimiters.length
+
+  it 'keys undeclared patterns and remaining arguments', ->
+    pattern: ArgumentsPattern := [
+      { name: 'option', delimiter: 'optional', mode: 'raw' }
+      { name: 'body', delimiter: 'required', mode: 'text' }
+    ]
+    assert.equal argumentPatternKey(undefined), '?'
+    assert.notEqual argumentPatternKey(undefined), argumentPatternKey([])
+    active := { args: pattern, index: 0, parentMode: 'text' as const, allowLatexArguments: false }
+    state.argumentPatterns.push active
+    try
+      full := getStateKey()
+      active.index = 1
+      remaining := getStateKey()
+      assert.notEqual remaining, full
+      active.args = pattern[>=1]
+      active.index = 0
+      assert.equal getStateKey(), remaining
+      active.index = active.args#
+      exhausted := getStateKey()
+      active.args = []
+      active.index = 0
+      assert.equal getStateKey(), exhausted
+    finally
+      state.argumentPatterns.pop()
+
+  it 'includes undeclared LaTeX-argument permission in parse-cache keys', ->
+    pattern := { args: undefined, index: 0, parentMode: 'text' as const, allowLatexArguments: false }
+    state.argumentPatterns.push pattern
+    try
+      colonOnly := getStateKey()
+      pattern.allowLatexArguments = true
+      assert.notEqual getStateKey(), colonOnly
+    finally
+      state.argumentPatterns.pop()
 
   it 'caches missing command and environment lookups', ->
     declarations := new Declarations

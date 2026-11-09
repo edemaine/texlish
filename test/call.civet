@@ -22,7 +22,103 @@ function assertAliases(ast: AST): void
     else if node is like { type: "Argument" }, { type: "Enclosed" }
       assert [...iterate(node.children)].includes node.body
 
-describe 'declared command call AST', ->
+describe 'command call AST', ->
+  it 'records undeclared calls without declaration metadata', ->
+    for [source, forms] of [
+      ['\\custom', []]
+      ['Text \\custom', []]
+      ['$\\custom$', []]
+      ['\\', []]
+      ['\\custom: *body*', ['colon']]
+      ['Text \\custom: *body*', ['colon']]
+      ['\\custom:\n  body', ['colon']]
+      ['\\custom:\n  ~ short\n  - *body*\n  final', ['bullet', 'bullet', 'final']]
+      ['$\\custom: x_12$', ['colon']]
+      ['\\custom:', ['colon']]
+    ] as const
+      token := if source is '\\' then '\\' else '\\custom'
+      call := compileCall source, token
+      assert.equal call.argsSpec, undefined
+      assert.equal call.package, undefined
+      assert.equal call.complete, undefined
+      assert.deepEqual call.args.map(.form), forms
+      assert call.args.every (.specIndex is undefined)
+      assertAliases call
+
+  it 'distinguishes undeclared calls from declared zero-argument calls', ->
+    declared := compileCall '\\alpha', '\\alpha'
+    assert.deepEqual declared.argsSpec, []
+    assert.equal declared.package, ''
+    assert.equal declared.complete, true
+    assert.deepEqual declared.args, []
+
+    generic := compileCall '\\custom*: body', '\\custom*'
+    assert.equal generic.argsSpec, undefined
+    assert.equal generic.complete, undefined
+    assert.equal generate(generic), '\\custom*{body}%'
+
+  it 'records a star suffix separately from a star control symbol', ->
+    for source of ['\\citep*{key}', '\\citep *{key}']
+      call := compileCall source, '\\citep*'
+      assert.equal call.command.star, true
+      assert.equal generate(call), '\\citep*{key}'
+      assertAliases call
+
+    generic := compileCall '\\custom*: body', '\\custom*'
+    assert.equal generic.command.star, true
+
+    for token of ['\\custom', '\\*']
+      call := compileCall token, token
+      assert.equal call.command.star, undefined
+      assert.equal generate(call), token
+
+  it 'leaves undeclared literal groups and disabled colon shorthand outside the argument list', ->
+    for [source, options] of [
+      ['\\custom{body}[^missing]', {}]
+      ['\\custom[option]{body}', {}]
+      ['\\custom: body', { colonCommands: false }]
+    ] as const
+      ast := compile source, { ast: true, fragment: true, ...options }
+      call := findCall ast, '\\custom'
+      assert call
+      assert.deepEqual call.args, []
+      assert.equal call.argsSpec, undefined
+      assert.equal call.complete, undefined
+      assertAliases call
+      assert.equal generate(ast), source
+
+  it 'leaves stars outside undeclared calls unless colon shorthand is enabled', ->
+    for [source, output, options] of [
+      ['\\custom*word*', '\\custom\\emph{word}', {}]
+      ['\\custom *word*', '\\custom \\emph{word}', {}]
+      ['$\\custom*word*$', '$\\custom*word*$', {}]
+      ['\\custom*: body', '\\custom*: body', { colonCommands: false }]
+      ['\\custom*{body}', '\\custom*{body}', {}]
+      ['\\foo*{arg}*', '\\foo*{arg}*', {}]
+    ] as const
+      ast := compile source, { ast: true, fragment: true, ...options }
+      token := if source.startsWith '\\foo' then '\\foo' else '\\custom'
+      call := findCall ast, token
+      assert call
+      assert.deepEqual call.args, []
+      assert.equal call.command.star, undefined
+      assert.equal findCall(ast, token + '*'), undefined
+      assert.equal generate(ast), output
+
+  it 'keeps undeclared stars outside declared commands', ->
+    for [source, token, output] of [
+      ['\\alpha*word*', '\\alpha', '\\alpha\\emph{word}']
+      ['\\textbf*word*', '\\textbf', '\\textbf\\emph{word}']
+      ['$x_\\alpha*word*$', '\\alpha', '$x_{\\alpha}*word*$']
+      ['\\alpha*: tail', '\\alpha', '\\alpha*: tail']
+      ['\\textbf*: tail', '\\textbf', '\\textbf*: tail']
+    ]
+      ast := compile source, ast: true, fragment: true
+      call := findCall ast, token
+      assert call?.argsSpec?
+      assert.equal findCall(ast, token + '*'), undefined
+      assert.equal generate(ast), output
+
   it 'retains enclosed content without adding comments to literal arguments', ->
     for [source, token] of [
       ['\\includegraphics[width=.5]{figure}', '\\includegraphics']
@@ -205,6 +301,7 @@ describe 'declared command call AST', ->
     for each token of ['\\begin', '\\end']
       for each source of [`${token}{custom_name}`, `${token}: custom_name`]
         call := compileCall source, token
+        assert call.argsSpec?
         assert.equal call.argsSpec[0].name, 'environment'
         assert.equal generate(call.args[0].body), 'custom_name'
         assert [...iterate(call.args[0].body)].some (node) => node is like { type: "Raw" }
@@ -216,6 +313,7 @@ describe 'declared command call AST', ->
 
     assert.equal call.package, ""
     assert.equal call.complete, true
+    assert call.argsSpec?
     assert.deepEqual call.argsSpec.map(.name),
       [ "options", "filename" ]
     assert.strictEqual call.command, call.children[0]
@@ -261,6 +359,7 @@ describe 'declared command call AST', ->
     assert call
 
     assert.equal call.complete, true
+    assert call.argsSpec?
     assert.equal call.argsSpec#, 1
     assert.equal call.argsSpec[0].defines, "command"
     assert.equal call.args[0].form, "unbraced"

@@ -361,7 +361,7 @@ function definedNames(root: AST[]): {commands: Set<string>, environments: Set<st
     continue unless node is like { type: "Call" }
     for each arg of node.args
       continue unless arg.specIndex?
-      continue unless kind := node.argsSpec[arg.specIndex].defines
+      continue unless kind := node.argsSpec?[arg.specIndex]?.defines
       name := argumentText arg
       if kind is "command"
         commands.add name if /^\\(?:[a-zA-Z@]+|[^\r\n])$/.test name
@@ -389,6 +389,7 @@ function usedPackages(root: AST[]): Set<string>
         for text of iterateTextRuns node
           addTextPackages text
       { type: "Call", command: { token }, argsSpec }
+        continue unless argsSpec?
         continue unless token is like "\\usepackage", "\\RequirePackage"
         continue unless arg := node.args.find (arg) =>
           arg.specIndex? and argsSpec[arg.specIndex].name is "packages"

@@ -57,8 +57,6 @@ uncacheable := new Set [
   // Push or pop the active pattern.
   "PushTextCommandPattern"
   "PushMathCommandPattern"
-  "PushGenericTextColonCommandPattern"
-  "PushGenericMathColonCommandPattern"
   "PushGenericTextArgumentPattern"
   "PushGenericMathArgumentPattern"
   "PopCommandPattern"

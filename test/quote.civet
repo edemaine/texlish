@@ -146,6 +146,34 @@ describe 'Markdown smart quotes', ->
     ``\\textbf{``inside''}''
   '''
 
+  testCase '''
+    quotes inside undeclared calls and around enclosing declared calls
+    ---
+    \\custom: "inside"
+    "\\textbf{\\custom: words}"
+    ---
+    \\custom{``inside''}%
+    ``\\textbf{\\custom{words}}''
+  '''
+
+  testCase '''
+    bare declared and undeclared calls use the same quote context
+    ---
+    \\custom"s
+    "\\custom"s
+    "\\custom"
+    \\alpha"s
+    "\\alpha"s
+    "\\alpha"
+    ---
+    \\custom''s
+    ``\\custom''s
+    ``\\custom''
+    \\alpha''s
+    ``\\alpha''s
+    ``\\alpha''
+  '''
+
   it 'treats opaque Raw content as an inline boundary for quote lookaround', ->
     for source of ['\\csname symbol\\endcsname', '\\char`x']
       assert.equal compile(`"${source}"s`, fragment: true), "``" + source + "''s"

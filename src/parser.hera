@@ -92,20 +92,22 @@ type ParserState
   compilerOptions: ActiveCompilerOptions
   /** Active declared command and environment declarations. */
   declarations: Declarations
-  /** Stack of finite command patterns or repeated generic colon-argument modes. */
+  /** Stack of active command/environment argument patterns. */
   argumentPatterns: ActiveArgumentPattern[]
 
-/**
- * A finite declared command pattern or a repeating generic argument mode.
- * Mode strings allow unlimited colon arguments for undeclared commands and
- * environments; unlike command patterns, they do not advance an argument index.
- */
-type ActiveArgumentPattern = ActiveCommandPattern | ResolvedArgumentMode
-
-type ActiveCommandPattern
-  args: ArgumentsPattern
+/** Active argument declaration and syntax, with a fallback parsing mode. */
+type ActiveArgumentPattern
+  /** Argument declaration; undefined for undeclared commands and environments. */
+  args: ArgumentsPattern?
+  /** Next index in args to consider; args.length when exhausted, 0 if undeclared. */
   index: number
   parentMode: ResolvedArgumentMode
+  /**
+   * True for undeclared environments, which accept [options]{argument}
+   * to enable a later colon argument.
+   * Ignored when args supplies a declaration.
+   */
+  allowLatexArguments: boolean
 
 initialIndent: Indent := { type: "Indent", token: '', level: 0 }
 
@@ -135,11 +137,9 @@ export function getDeclarations(): Declarations
 export function getStateKey(): string
   state.currentIndent.level +
   for join each pattern of state.argumentPatterns
-    if pattern <? "string"
-      "/" + argumentPatternKey pattern
-    else
-      "/" + argumentPatternKey(pattern.args[>=pattern.index]) +
-      ":" + pattern.parentMode
+    "/" + argumentPatternKey(pattern.args?[>=pattern.index]) +
+    ":" + pattern.parentMode +
+    (if pattern.allowLatexArguments then "+" else "")
 
 /**
  * Prefix generated labels for shorthand references with special namespaces.
@@ -461,9 +461,9 @@ ScriptCommand ::AST[]
 
 CommandPatternComplete ::boolean
   "" ->
-    pattern := state.argumentPatterns.-1
-    return false if pattern <? "string"
-    pattern.args[>=pattern.index].every .delimiter.startsWith "optional"
+    { args, index } := state.argumentPatterns.-1
+    return false unless args?
+    args[>=index].every .delimiter.startsWith "optional"
 
 MathParenthesizedText ::AST[]
   "(" MathParenContent ")"
@@ -1462,11 +1462,11 @@ function tableCell(body: AST[], style: string, col?: number): TableCell
     |> .find (node): node is Call =>
       node is like { type: "Call" } and
       node.args.some (arg) =>
-        arg.specIndex? and node.argsSpec[arg.specIndex].tableCell
+        arg.specIndex? and node.argsSpec?[arg.specIndex]?.tableCell
   children: AST[] :=
     if call
       for each arg of call.args
-        continue unless arg.specIndex? and call.argsSpec[arg.specIndex].tableCell
+        continue unless arg.specIndex? and call.argsSpec?[arg.specIndex]?.tableCell
         cell := tableCell [arg.body], style
         styled := if arg.form is "unbraced"
           { ...arg, body: cell, children: [arg.children[0], "{", cell, "}"] }
@@ -1539,7 +1539,7 @@ PushTableEnvironmentPattern ::TableContext
 
 TableHeader ::TableContext
   TableDirective?:directive ->
-    parentMode := state.argumentPatterns.-1
+    { parentMode } := state.argumentPatterns.-1
     unless parentMode is like "text", "math"
       throw new Error "Expected surrounding text or math mode"
     { styles } := state.compilerOptions
@@ -1702,12 +1702,16 @@ TableMathPart ::AST
 # Inline colon arguments end at the cell boundary. Braced arguments continue
 # to use the normal grammar, including literal pipes and nested commands.
 TableTextCommand ::AST
-  PushTextCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
+  PushTextCommandPattern:head TableCommandArguments:parsed ->
+    return $skip unless head.argsSpec? or parsed.args# and not head.command.star
+    buildCall head, parsed
   CommandWithoutNewline:command PushGenericTextArgumentPattern TableCommandArguments:parsed ->
     [command, parsed.args]
 
 TableMathCommand ::AST
-  PushMathCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
+  PushMathCommandPattern:head TableCommandArguments:parsed ->
+    return $skip unless head.argsSpec? or parsed.args# and not head.command.star
+    buildCall head, parsed
   CommandWithoutNewline:command PushGenericMathArgumentPattern TableCommandArguments:parsed ->
     [command, parsed.args]
 
@@ -1760,32 +1764,16 @@ CommandWithoutNewline ::Command
 StarredCommand ::Command
   CommandWithoutNewline ( Space "*" )?:star ->
     return $1 unless star
-    return { ...$1, token: $1.token + "*" }
+    return { ...$1, token: $1.token + "*", star: true }
 
 TextCommandWithArguments ::AST
-  # Declared commands push their pattern on the argumentPatterns stack.
-  PushTextCommandPattern:head CommandArguments:parsed ->
-    buildCall head, parsed
-  # Undeclared commands get a generic pattern only when using colon shorthand;
-  # otherwise the plain Command fallback leaves their groups alone.
-  PushGenericTextColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
-    return $skip unless colonArgs?
-    [ command, ...colonArgs ]
-  Command
+  PushTextCommandPattern:head CommandArguments:parsed -> buildCall head, parsed
 
 MathCommandWithArguments ::AST
-  PushMathCommandPattern:head CommandArguments:parsed ->
-    buildCall head, parsed
-  PushGenericMathColonCommandPattern:command InlineCommandColonArguments?:colonArgs PopCommandPattern ->
-    return $skip unless colonArgs?
-    [ command, ...colonArgs ]
-  Command
+  PushMathCommandPattern:head CommandArguments:parsed -> buildCall head, parsed
 
 ```
-type PendingCall =
-  command: Command
-  argsSpec: ArgumentsPattern
-  package: string
+type PendingCall = Pick Call, "command" | "argsSpec" | "package"
 
 type ParsedCallArguments =
   args: Argument[]
@@ -1797,9 +1785,9 @@ function buildCall(
 ): Call
   {
     type: "Call"
-    head.{command,argsSpec,package}
+    ...head
     args
-    complete
+    complete: complete if head.argsSpec?
     children: [ head.command, args ]
   }
 ```
@@ -1818,35 +1806,43 @@ InlineCommandColonArguments ::Argument[]
   ColonCommandsEnabled Colon NestedCommandArgumentList:args -> args
   ColonCommandsEnabled Colon InlineCommandArgumentAfterColon:arg -> [ arg ]
 
+# Undeclared commands collect only colon arguments: `\foo{x}[^note]`
+# leaves `{x}[^note]` to ordinary text parsing.
 PushTextCommandPattern ::PendingCall
-  StarredCommand:command -> pushCommandPattern(command, "text") ?? $skip
-  CommandWithoutNewline:command -> pushCommandPattern(command, "text") ?? $skip
+  StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
+    pushCommandPattern(command, "text", Boolean colon) ?? $skip
+  Command:command -> pushCommandPattern(command, "text") ?? $skip
 
 PushMathCommandPattern ::PendingCall
-  StarredCommand:command -> pushCommandPattern(command, "math") ?? $skip
-  CommandWithoutNewline:command -> pushCommandPattern(command, "math") ?? $skip
+  StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
+    pushCommandPattern(command, "math", Boolean colon) ?? $skip
+  Command:command -> pushCommandPattern(command, "math") ?? $skip
 
 ```
 function pushCommandPattern(
   command: Command
   parentMode: ResolvedArgumentMode
+  colon = false
 ): PendingCall?
-  return unless resolution := state.declarations.getCommand command.token
-  pushArgumentPattern resolution.args, parentMode
-  {
-    command
-    argsSpec: resolution.args
-    package: resolution.package.name
-  }
+  resolution := state.declarations.getCommand command.token
+  // Undeclared stars belong to Markdown, except in explicit colon shorthand.
+  if command.star and not resolution?
+    return unless colon and not state.declarations.hasCommand command.token[< -1]
+  pushArgumentPattern resolution?.args, parentMode
+  { command, argsSpec: resolution?.args, package: resolution?.package.name }
 
-function pushArgumentPattern(args: ArgumentsPattern, parentMode: ResolvedArgumentMode): void
-  if (arg.mode is "inherit" for some each arg of args)
+function pushArgumentPattern(
+  args: ArgumentsPattern?
+  parentMode: ResolvedArgumentMode
+  allowLatexArguments = false
+): void
+  if args? and (arg.mode is "inherit" for some each arg of args)
     args = for each arg of args
       if arg.mode is "inherit"
         { ...arg, mode: parentMode }
       else
         arg
-  state.argumentPatterns.push { args, index: 0, parentMode }
+  state.argumentPatterns.push { args, index: 0, parentMode, allowLatexArguments }
 ```
 
 PopCommandPattern
@@ -1882,18 +1878,19 @@ function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fa
     throw new Error "No current command argument"
   // Entering fallback skips any remaining optional declarations permanently.
   pattern := state.argumentPatterns.-1
-  unless pattern <? "string"
+  if pattern.args?
     pattern.index = if selected.index? then selected.index + 1 else pattern.args#
   selected
 
 function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false, colon = false): SelectedArgument?
   return unless pattern := state.argumentPatterns.-1
-  if pattern <? "string"
-    // Generic colon arguments use only paired optional/required syntax.
+  { args, parentMode, allowLatexArguments } := pattern
+  unless args?
+    return unless allowLatexArguments or colon
     return unless delimiter is like "optional", "required"
-    return arg: { name: "argument", delimiter, mode: pattern }
-  for index .= pattern.index; index < pattern.args#; index++
-    arg := pattern.args[index]
+    return arg: { name: "argument", delimiter, mode: parentMode }
+  for index .= pattern.index; index < args#; index++
+    arg := args[index]
     if arg.delimiter is delimiter or
        // Colon syntax selects required/optional roles as needed
        colon and arg.delimiter is `${delimiter}-parenthesized` or
@@ -1903,7 +1900,7 @@ function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fal
     // Only allow skipping over optional arguments
     break unless arg.delimiter.startsWith "optional"
   if allowFallback and delimiter is like "optional", "required" and
-     pattern.args[>=pattern.index].every .delimiter.startsWith "optional"
+     args[>=pattern.index].every .delimiter.startsWith "optional"
     return arg: { name: "argument", delimiter, mode: pattern.parentMode }
 
 function selectParenthesizedArgument(): SelectedArgument?
@@ -2023,32 +2020,10 @@ TextCommandWithColonArguments ::AST[]
   ColonCommandsEnabled Indent:indent PushTextCommandPattern:head CommandArgument*:args CommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
     return $skip unless colonArgs?
     [ indent, buildCall(head, { args: [ ...args, ...colonArgs ], complete }) ]
-  ColonCommandsEnabled Indent:indent PushGenericTextColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
-    return $skip unless colonArgs?
-    [ indent, command, ...colonArgs ]
 MathCommandWithColonArguments ::AST[]
   ColonCommandsEnabled Indent:indent PushMathCommandPattern:head CommandArgument*:args CommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
     return $skip unless colonArgs?
     [ indent, buildCall(head, { args: [ ...args, ...colonArgs ], complete }) ]
-  ColonCommandsEnabled Indent:indent PushGenericMathColonCommandPattern:command CommandColonArguments?:colonArgs PopCommandPattern ->
-    return $skip unless colonArgs?
-    [ indent, command, ...colonArgs ]
-
-# Undeclared colon commands repeat the surrounding text/math mode for unlimited
-# arguments. Declared commands skip these rules in favor of their declaration.
-PushGenericTextColonCommandPattern ::Command
-  StarredCommand:command &Colon ->
-    pushGenericColonCommandPattern(command, "text") ?? $skip
-PushGenericMathColonCommandPattern ::Command
-  StarredCommand:command &Colon ->
-    pushGenericColonCommandPattern(command, "math") ?? $skip
-
-```
-function pushGenericColonCommandPattern(command: Command, mode: ResolvedArgumentMode): Command?
-  return if state.declarations.hasCommand command.token
-  state.argumentPatterns.push mode
-  command
-```
 
 # ":", but don't treat :: as :
 Colon
@@ -2427,9 +2402,9 @@ function environment(indent: Indent, content: {env: string, children: AST[]}): E
 
 # Generic patterns for undeclared environments inherit the surrounding mode.
 PushGenericTextArgumentPattern
-  "" -> state.argumentPatterns.push "text"
+  "" -> pushArgumentPattern undefined, "text", true
 PushGenericMathArgumentPattern
-  "" -> state.argumentPatterns.push "math"
+  "" -> pushArgumentPattern undefined, "math", true
 
 EnvironmentContent ::{env: string, children: AST[]}
   &RawEnvironmentHeader EnvironmentHeaderAndArguments:head TrimmedRawText:first NestedRawEnvironmentStatement*:rest ->
@@ -2464,7 +2439,7 @@ EnvironmentArguments ::Argument[]
 # EnvironmentHeaderAndArguments pops the pattern.
 PushEnvironmentPattern ::string
   EnvironmentHeader:env ->
-    parentMode := state.argumentPatterns.-1
+    { parentMode } := state.argumentPatterns.-1
     assertResolvedArgumentMode parentMode
     pushEnvironmentPattern env, parentMode
     env
@@ -2473,10 +2448,7 @@ PushEnvironmentPattern ::string
 // The caller supplies the surrounding mode; declarations independently choose
 // argument modes and the grammar branch used for the body.
 function pushEnvironmentPattern(env: string, parentMode: ResolvedArgumentMode): void
-  if declaration := state.declarations.getEnvironment env
-    pushArgumentPattern declaration.args, parentMode
-  else
-    state.argumentPatterns.push parentMode
+  pushArgumentPattern state.declarations.getEnvironment(env)?.args, parentMode, true
 ```
 
 NestedArgumentList ::Argument[]
@@ -2515,13 +2487,13 @@ MathEnvironmentHeader ::string
  * Resolve an environment's body mode, using the surrounding mode for
  * undeclared environments and declarations with an inherited body mode.
  * Only for colon environments: TextEnvironment/MathEnvironment has pushed
- * the surrounding mode onto argumentPatterns. Native \begin environments
+ * a generic pattern for the surrounding mode. Native \begin environments
  * may instead have an empty stack or a command pattern on top.
  */
 function environmentBodyMode(env: string): ResolvedArgumentMode
   mode := state.declarations.getEnvironment(env)?.body
   if not mode? or mode is "inherit"
-    parentMode := state.argumentPatterns.-1
+    { parentMode } := state.argumentPatterns.-1
     assertResolvedArgumentMode parentMode
     parentMode
   else

@@ -170,18 +170,18 @@ export interface Enclosed extends ASTParent
   body: ASTObject
   close: string
 
-/** A recognized call to a declared command */
+/** A command with its parsed arguments and optional declaration metadata. */
 export interface Call extends ASTParent
   type: "Call"
   command: Command
-  /** Argument declaration selected when this call was parsed */
-  argsSpec: ArgumentsPattern
-  /** Package whose declaration supplied `argsSpec`; empty string means core */
-  package: string
+  /** Argument declaration; undefined for undeclared commands. */
+  argsSpec: ArgumentsPattern?
+  /** Package supplying argsSpec; empty string means core, undefined means undeclared. */
+  package: string?
   /** Parsed arguments, aliased as the second entry of `children` */
   args: Argument[]
-  /** Whether all remaining declared arguments are optional */
-  complete: boolean
+  /** Whether all remaining declared arguments are optional; undefined if undeclared. */
+  complete: boolean?
 
 /** Checklist marker whose style supplies the optional LaTeX label for `\item` */
 export interface Checklist extends Styled
@@ -211,6 +211,8 @@ export interface CodeSpan extends Styled
 
 export interface Command extends ASTToken
   type: "Command"
+  /** Whether a separate * suffix was consumed; token includes the suffix. */
+  star?: boolean
 
 export interface Comment extends ASTToken
   type: "Comment"

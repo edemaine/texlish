@@ -1322,7 +1322,7 @@ describe 'tables', ->
     assert call is like { type: 'Call' }
     if call is like { type: 'Call' }
       assert.deepEqual call.args.map(.specIndex), [0, 1, 2]
-      assert.equal call.argsSpec[2].tableCell, true
+      assert.equal call.argsSpec?[2].tableCell, true
       assert.equal call.children[1], call.args
       assert [...iterate(call.args[2].children)].includes call.args[2].body
       assert [...iterate(table.rows[0].cells[0].children)].includes table.rows[0].cells[0].body
