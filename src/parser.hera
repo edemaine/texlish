@@ -256,11 +256,10 @@ TextPart ::AST
   TextOnlyPart
   [()\[\]|]
 
-EnterMathMode ::AST[]
-  "$$" MathContent "$$"
-  "$" MathContent "$"
-  "\\(" MathContent "\\)"
-  "\\[" MathContent "\\]"
+EnterMathMode ::Enclosed
+  ( ( "$$" MathContent "$$" ) / ( "$" MathContent "$" ) / ( "\\(" MathContent "\\)" ) / ( "\\[" MathContent "\\]" ) ):content ->
+    [open, body, close] := content
+    { type: "Enclosed", open, body, close, children: content }
 
 # Rules for TextPart that apply only in text mode.
 TextOnlyPart ::AST

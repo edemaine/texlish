@@ -11,6 +11,17 @@ function findNode(source: string, type: ASTNode["type"]): ASTNode
   node
 
 describe 'semantic shorthand AST', ->
+  it 'keeps explicit math delimiters and contents in an enclosed node', ->
+    for [open, close] of [['$', '$'], ['$$', '$$'], ['\\(', '\\)'], ['\\[', '\\]']]
+      source := `${open}x_12${close}`
+      node := findNode source, 'Enclosed'
+      assert node is like { type: 'Enclosed' }
+      assert.equal node.open, open
+      assert.equal node.close, close
+      assert.equal generate(node.body), 'x_{12}'
+      assert.strictEqual node.children[1], node.body
+      assert.equal generate(node), `${open}x_{12}${close}`
+
   it 'records generic command and environment arguments with body aliases', ->
     for [source, forms, delimiters] of [
       ['\\custom: *body*', ['colon'], ['required']]

@@ -1,4 +1,4 @@
-{ testCase } from ./helper.civet
+{ r, testCase } from ./helper.civet
 { compile } from ../src/main.civet
 assert from assert
 
@@ -96,30 +96,30 @@ describe 'Markdown smart quotes', ->
     $Q$'s
   """
 
-  testCase '''
-    possessives after closing punctuation use closing quote
+  testCase r'''
+    possessives distinguish closing punctuation from atoms
     ---
     ::config
       quotes:
         ':
           open = <
           close = >
-    $Q$'s, \(x\)'s, (test)'s, [x]'s, C++'s, U.S.'s, {}'s
+    $Q$'s, \(x\)'s, (test)'s, [x]'s, C++'s, U.S.'s, {}'s, x's
     ---
-    $Q$>s, \(x\)>s, (test)>s, [x]>s, C++>s, U.S.>s, {}>s
+    $Q$'s, \(x\)'s, (test)>s, [x]>s, C++>s, U.S.>s, {}'s, x's
   '''
 
-  testCase '''
-    double quotes after closing punctuation use closing quote
+  testCase r'''
+    double quotes distinguish closing punctuation from atoms
     ---
     ::config
       quotes:
         ":
           open = <<
           close = >>
-    $Q$"s, \(x\)"s, (test)"s, [x]"s, C++"s, U.S."s, {}"s
+    $Q$"s, \(x\)"s, (test)"s, [x]"s, C++"s, U.S."s, {}"s, x"s
     ---
-    $Q$>>s, \(x\)>>s, (test)>>s, [x]>>s, C++>>s, U.S.>>s, {}>>s
+    $Q$"s, \(x\)"s, (test)>>s, [x]>>s, C++>>s, U.S.>>s, {}"s, x"s
   '''
 
   testCase """
@@ -137,6 +137,11 @@ describe 'Markdown smart quotes', ->
     ---
     {"} and {'} and {``x''}
   """
+
+  it 'keeps individually braced quotes literal with default and custom styles', ->
+    for options of [{}, { quotes: { "'": { open: '<', close: '>' }, '"': { open: '<<', close: '>>' } } }]
+      for source of ["{'}", '{"}', "x{'}s", 'x{"}s']
+        assert.equal compile(source, { fragment: true, ...options }), source
 
   testCase '''
     quotes treat declared calls like braced groups
@@ -166,17 +171,32 @@ describe 'Markdown smart quotes', ->
     "\\alpha"s
     "\\alpha"
     ---
-    \\custom''s
-    ``\\custom''s
+    \\custom"s
+    ``\\custom"s
     ``\\custom''
-    \\alpha''s
-    ``\\alpha''s
+    \\alpha"s
+    ``\\alpha"s
     ``\\alpha''
   '''
 
-  it 'treats opaque Raw content as an inline boundary for quote lookaround', ->
+  it 'treats groups and semantic inline nodes as atoms between word characters', ->
+    for source of ['{}', '{word}', '{\\LaTeX}', '\\textbf{x}', '\\custom{x}', "@'label'", '[[key]]', '![alt](image.pdf)', '`a"b%literal`']
+      body := compile source, fragment: true
+      assert.equal compile(`${source}"s`, fragment: true), body + '"s'
+      assert.equal compile(`x"${source}`, fragment: true), 'x"' + body
+      assert.equal compile(`${source}'s`, { fragment: true, quotes: { "'": { open: '<', close: '>' } } }), body + "'s"
+
+  it 'treats opaque Raw content as an atom for quote lookaround', ->
     for source of ['\\csname symbol\\endcsname', '\\char`x']
-      assert.equal compile(`"${source}"s`, fragment: true), "``" + source + "''s"
+      assert.equal compile(`"${source}"s`, fragment: true), "``" + source + '"s'
+      assert.equal compile(`"${source}"`, fragment: true), "``" + source + "''"
+
+  it 'treats every explicit math delimiter pair as one quote atom', ->
+    for source of ['$Q$', '$$Q$$', '\\(Q\\)', '\\[Q\\]']
+      assert.equal compile(`${source}"s`, fragment: true), source + '"s'
+      assert.equal compile(`x"${source}`, fragment: true), 'x"' + source
+      assert.equal compile(`"${source}"`, fragment: true), "``" + source + "''"
+      assert.equal compile(`${source}'s`, { fragment: true, quotes: { "'": { open: '<', close: '>' } } }), source + "'s"
 
   testCase '''
     unmatched double quotes after digits stay literal
@@ -238,8 +258,10 @@ describe 'Markdown smart quotes', ->
     unmatched closing quote can be forced
     ---
     before{}" after
+    before {}" after
     ---
     before{}'' after
+    before {}'' after
   '''
 
   testCase '''

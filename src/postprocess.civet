@@ -143,7 +143,8 @@ function nodeText(node: AST): string
   else if { type: "SmartQuote", quote } := node
     quote
   else if node is like { type: "Raw" }, { type: "Verbatim" }, { type: "Enclosed" }, { type: "Call" }, { type: "Argument" }, { type: "Ref" }, { type: "Citation" }, { type: "Image" }, { type: "CodeSpan" }
-    "{}"
+    // Treat an opaque inline group as a nondigit word-like atom.
+    "x"
   else if { token } := node
     // Delimiter can have both token and children
     return "" if "children" in node
@@ -493,10 +494,11 @@ function processDocument(root: AST[], fragment = false): void
         [ { type: "Indent" }, { type: "Preamble" } ]
           i := preamble.indexOf line
           preamble.splice i, 1 if i >= 0
-        [ { type: "Indent" }, { type: "Enclosed" } ]
+        [ { type: "Indent" }, { type: "Enclosed", open } ]
+          // Math starts the body; brace groups may wrap preamble commands.
           // Fragment may start with content like {\sout{removed}};
           // put \usepackage{ulem} before it.
-          break :line if fragment
+          break :line if fragment or open is not "{"
         ^document["\\end"]  // \begin{document} before \end{document}
           break :line
         ^document["\\maketitle"]  // \begin{document} before \maketitle

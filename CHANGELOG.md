@@ -2,11 +2,12 @@
 
 ## Unreleased
 
+* Smart quotes treat braced groups, command calls, and math as atoms rather
+  than punctuation, preserving possessive apostrophes even with custom quote
+  styles in examples like `{\LaTeX}'s` and `$Q$'s`.
 * Undeclared starred forms of declared commands no longer consume colon
   arguments, so `\alpha*: x` stays literal.
-* Smart quotes treat undeclared command calls like declared calls;
-  for example, `\foo"s` now becomes `\foo''s`.
-* AST includes call nodes for undeclared commands too
+* AST includes call nodes for undeclared commands too.
 
 ## 0.3.0
 

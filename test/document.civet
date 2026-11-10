@@ -4,6 +4,14 @@
 assert from assert
 
 describe '\\begin/\\end{document}', ->
+  it 'starts the document body before a leading math enclosure', ->
+    for source of ['$x$', '$$x$$', '\\(x\\)', '\\[x\\]']
+      result := compile `${source}\nBody`
+      begin := result.indexOf '\\begin{document}'
+      assert begin >= 0
+      assert begin < result.indexOf(source)
+      assert result.indexOf(source) < result.indexOf('Body')
+
   it 'recognizes environment names split by TeX comments', ->
     source := '\\begin{doc% comment\nument}\nHello\n\\end{doc% comment\nument}'
     result := compile source
