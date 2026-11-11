@@ -1,7 +1,7 @@
 {
   "name": "texlish",
   "type": "module",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Better LaTeX that compiles to LaTeX",
   "main": "dist/main.js",
   "exports": {

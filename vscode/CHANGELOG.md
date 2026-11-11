@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.1
+
 * Highlight `***` and longer emphasis delimiters as complete star runs.
   Runs of three or more stars use bold italic highlighting.
 * Stop highlighting underscore emphasis, which Texlish does not support.

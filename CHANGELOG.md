@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.1
+
 * Smart quotes treat braced groups, command calls, and math as atoms rather
   than punctuation, preserving possessive apostrophes even with custom quote
   styles in examples like `{\LaTeX}'s` and `$Q$'s`.
