@@ -190,6 +190,77 @@ describe 'Markdown footnotes', ->
     \and Repeat\footref{footnote:a}}
   '''
 
+  for each tableStart of ['::table', '|-|-|']
+    testCase r```
+      footnote after an undeclared command in a table cell (${tableStart})
+      ---
+      ${tableStart}
+      \mbox{\cite{foo}}[^note] | b
+
+      [^note]: Test
+      ---
+      \begin{tabular}{ll}
+      \mbox{\cite{foo}}%
+      \footnote{\protect\label{footnote:note}Test}%
+       & b \\
+      \end{tabular}
+
+    ```
+
+    testCase r```
+      repeated footnotes after undeclared commands across cells and ordinary text (${tableStart})
+      ---
+      ${tableStart}
+      \custom{x}[^note][^note] | \custom{y}[^note]
+      \custom{z}[^note] | b
+
+      \custom{outside}[^note].
+      [^note]: Test
+      ---
+      \begin{tabular}{ll}
+      \custom{x}%
+      \footnote{\protect\label{footnote:note}Test}%
+      \footref{footnote:note} & \custom{y}\footref{footnote:note} \\
+      \custom{z}\footref{footnote:note} & b \\
+      \end{tabular}
+
+      \custom{outside}\footref{footnote:note}.
+    ```
+
+    testCase r```
+      disabled footnotes after undeclared commands in table cells (${tableStart})
+      ---
+      ${tableStart}
+      \custom{x}[^note] | b
+
+      [^note]: Test
+      ---
+      \begin{tabular}{ll}
+      \custom{x}[^note] & b \\
+      \end{tabular}
+
+      [^note]: Test
+    ```, markdownFootnotes: false
+
+  testCase r'''
+    footnotes in headers and body of an automatically recognized table
+    ---
+    \mbox{Header}[^note] | B
+    - | -
+    \custom{body}[^note] | b
+
+    [^note]: Test
+    ---
+    \begin{tabular}{ll}
+    \textbf{\mbox{Header}%
+    \footnote{\protect\label{footnote:note}Test}%
+    } & \textbf{B} \\
+    \hline
+    \custom{body}\footref{footnote:note} & b \\
+    \end{tabular}
+
+  '''
+
   testCase r'''
     quoted footnote ref
     ---

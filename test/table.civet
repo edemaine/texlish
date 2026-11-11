@@ -427,6 +427,36 @@ describe 'tables', ->
     \end{tabular}
     '''
 
+  it 'splits top-level pipes in undeclared optional arguments in text and math', ->
+    for each math of [false, true]
+      for each tableStart of ['::table', '|-|-|-|']
+        body := r'\custom[before|after]{body} | {\custom[grouped|option]{body}}'
+        source .= `${tableStart}\n${body}`
+        source = `$$\n${source}\n$$` if math
+        result := compile source, fragment: true
+        assert result.includes r'\custom[before & after]{body} & {\custom[grouped|option]{body}} \\'
+        assert result.includes if math then r'\begin{array}{ccc}' else r'\begin{tabular}{lll}'
+
+  for each tableStart of ['::table', '|-|-|']
+    testCase r```
+      preserves optional arguments before and after required arguments (${tableStart})
+      ---
+      ${tableStart}
+      \custom[before]{body}[after] | \cite[pre|note][post|note]{foo}
+      \newtheorem{thm}{Theorem}[section|counter] | b
+      \newtheorem{lem}{Lemma}[^note] | c
+
+      [^note]: Not a footnote reference.
+      ---
+      \begin{tabular}{ll}
+      \custom[before]{body}[after] & \cite[pre|note][post|note]{foo} \\
+      \newtheorem{thm}{Theorem}[section|counter] & b \\
+      \newtheorem{lem}{Lemma}[^note] & c \\
+      \end{tabular}
+
+      [^note]: Not a footnote reference.
+      ```
+
   it 'preserves command-only final cells without a trailing pipe', ->
     for each command of [r'\alpha', r'\textbf{x}', r'\multicolumn{2}{c}{x}']
       result := compile(`::table tabular{lll}\na|${command}`, fragment: true)
@@ -444,6 +474,19 @@ describe 'tables', ->
     \label{raw*key*} & \foo{\textbf{c}} \\
     \end{tabular}
     '''
+
+  it 'does not mix LaTeX-style and colon arguments for undeclared commands', ->
+    for each math of [false, true]
+      for each tableStart of ['::table', '|-|-|']
+        source .= r```
+          ${tableStart}
+          \custom{body}: tail | \custom[option]: tail
+          \custom*: body | \custom: tail
+        ```
+        source = `$$\n${source}\n$$` if math
+        result := compile source, fragment: true
+        assert result.includes r'\custom{body}: tail & \custom[option]: tail \\'
+        assert result.includes r'\custom*{body} & \custom{tail} \\'
 
   testCase r'''
     raw colon argument comments stay outside braces

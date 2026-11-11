@@ -34,6 +34,8 @@ describe 'command call AST', ->
       ['\\custom:\n  body', ['colon']]
       ['\\custom:\n  ~ short\n  - *body*\n  final', ['bullet', 'bullet', 'final']]
       ['$\\custom: x_12$', ['colon']]
+      ['::table\n\\custom: *body* | b', ['colon']]
+      ['|-|-|\n\\custom: *body* | b', ['colon']]
       ['\\custom:', ['colon']]
     ] as const
       token := if source is '\\' then '\\' else '\\custom'

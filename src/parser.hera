@@ -1700,19 +1700,16 @@ TableMathPart ::AST
 
 # Inline colon arguments end at the cell boundary. Braced arguments continue
 # to use the normal grammar, including literal pipes and nested commands.
+# For example, `\foo: a | b` becomes `\foo{a} & b`, while `\foo{a|b}`
+# keeps its pipe inside the group.
+# As in ordinary text/math, undeclared commands only collect colon arguments;
+# following groups and brackets are parsed by the surrounding cell grammar.
+# Thus `\foo{x}[^note]` leaves `[^note]` for Markdown footnote parsing.
 TableTextCommand ::AST
-  PushTextCommandPattern:head TableCommandArguments:parsed ->
-    return $skip unless head.argsSpec? or parsed.args# and not head.command.star
-    buildCall head, parsed
-  CommandWithoutNewline:command PushGenericTextArgumentPattern TableCommandArguments:parsed ->
-    [command, parsed.args]
+  PushTextCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
 
 TableMathCommand ::AST
-  PushMathCommandPattern:head TableCommandArguments:parsed ->
-    return $skip unless head.argsSpec? or parsed.args# and not head.command.star
-    buildCall head, parsed
-  CommandWithoutNewline:command PushGenericMathArgumentPattern TableCommandArguments:parsed ->
-    [command, parsed.args]
+  PushMathCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
 
 TableCommandArguments ::ParsedCallArguments
   CommandArgument*:args TableColonArgument?:arg CommandPatternComplete:complete PopCommandPattern ->

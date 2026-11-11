@@ -5,6 +5,9 @@
 * Smart quotes treat braced groups, command calls, and math as atoms rather
   than punctuation, preserving possessive apostrophes even with custom quote
   styles in examples like `{\LaTeX}'s` and `$Q$'s`.
+* Undeclared commands in table cells now parse like ordinary text,
+  fixing following Markdown footnotes.
+  Pipes in (undeclared) optional arguments need to be wrapped in braces.
 * Undeclared starred forms of declared commands no longer consume colon
   arguments, so `\alpha*: x` stays literal.
 * AST includes call nodes for undeclared commands too.
