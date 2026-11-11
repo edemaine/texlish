@@ -2027,17 +2027,43 @@ repository:
       - include: text.tex.latex
       - include: '#ampersand'
       - include: '#bracket'
-      - include: '#bold'
-      - include: '#italic'
+      - include: '#emphasis'
       - include: '#raw'
       - include: '#strikethrough'
       - include: '#escape'
       - include: '#image-inline'
       - include: '#link-email'
       - include: '#link-inet'
+  # Texlish treats complete runs of stars as independent styles. Keep the
+  # Markdown bold/italic rules as fallbacks for partially matched runs, such
+  # as ***bold** italic*, which the compiler also supports.
+  emphasis:
+    patterns:
+      - include: '#emphasis-run'
+      - include: '#bold'
+      - include: '#italic'
+  emphasis-run:
+    patterns:
+      - begin: |
+          (?x)
+          (?<!\*)(\*{3,})(?![\s*]|$)
+          (?:(?![\p{Punctuation}\p{Symbol}])|(?<=(?:^|\s|[\p{Punctuation}\p{Symbol}])\1))
+          (?=.+?(?<![\s*])\1(?!\*)
+            (?:(?<![\p{Punctuation}\p{Symbol}]\1)|(?=$|\s|[\p{Punctuation}\p{Symbol}])))
+        end: |
+          (?x)
+          (?<![\s*])(\1)(?!\*)
+          (?:(?<![\p{Punctuation}\p{Symbol}]\1)|(?=$|\s|[\p{Punctuation}\p{Symbol}]))
+        name: markup.bold.markdown markup.italic.markdown
+        captures:
+          1:
+            name: punctuation.definition.emphasis.texlish
+        patterns:
+          - include: '#inline'
   bold:
     begin: |
-      (?x) (?<open>(\*\*(?=\w)|(?<!\w)\*\*|(?<!\w)\b__))(?=\S) (?=
+      (?x) (?<open>(\*\*(?=\w)|(?<!\w)\*\*))(?=\S) (?=
+        \**(?=[^\s*])        # Skip the rest of the opening star run
         (
           <[^>]*+>              # HTML tags
           | (?<raw>`+)([^`]|(?!(?<!`)\k<raw>(?!`))`)*+\k<raw>
@@ -2073,7 +2099,7 @@ repository:
           | (?!(?<=\S)\k<open>).            # Everything besides
                             # style closer
         )++
-        (?<=\S)(?=__\b|\*\*)\k<open>                # Close
+        (?<![\s*])(?=\*\*)\k<open>                # Close
       )
     captures:
       1:
@@ -2090,16 +2116,16 @@ repository:
       - include: '#ampersand'
       - include: '#bracket'
       - include: '#raw'
-      - include: '#bold'
-      - include: '#italic'
+      - include: '#emphasis'
       - include: '#image-inline'
       - include: '#link-inet'
       - include: '#link-email'
       - include: '#strikethrough'
   italic:
     begin: |
-      (?x) (?<open>(\*(?=\w)|(?<!\w)\*|(?<!\w)\b_))(?=\S)                # Open
+      (?x) (?<open>(\*(?=\w)|(?<!\w)\*))(?=\S)                # Open
         (?=
+          \**(?=[^\s*])        # Skip the rest of the opening star run
           (
             <[^>]*+>              # HTML tags
             | (?<raw>`+)([^`]|(?!(?<!`)\k<raw>(?!`))`)*+\k<raw>
@@ -2136,7 +2162,7 @@ repository:
             | (?!(?<=\S)\k<open>).            # Everything besides
                               # style closer
           )++
-          (?<=\S)(?=_\b|\*)\k<open>                # Close
+          (?<![\s*])(?=\*)\k<open>                # Close
         )
     captures:
       1:
@@ -2153,7 +2179,7 @@ repository:
       - include: '#ampersand'
       - include: '#bracket'
       - include: '#raw'
-      - include: '#bold'
+      - include: '#emphasis'
       - include: '#link-inet'
       - include: '#link-email'
       - include: '#strikethrough'
@@ -2168,8 +2194,7 @@ repository:
         name: punctuation.definition.strikethrough.markdown
     name: markup.strikethrough.markdown
     patterns:
-      - include: '#bold'
-      - include: '#italic'
+      - include: '#emphasis'
       - include: '#raw'
       - include: '#escape'
   image-inline:
@@ -2191,8 +2216,7 @@ repository:
       4:
         name: punctuation.definition.link.markdown
     patterns:
-      - include: '#bold'
-      - include: '#italic'
+      - include: '#emphasis'
       - include: '#raw'
       - include: '#escape'
   link-email:

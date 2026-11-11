@@ -155,7 +155,8 @@ function nodeText(node: AST): string
 /** Process Markdown delimiters, based on CommonMark spec:
 https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis
 Deviations:
-* We treat ***, ****, etc. as their own styles which can be defined.
+* We treat ***, ****, etc. as their own styles which can be defined;
+  undefined star-run styles fall back to the longest defined shorter run.
   By contrast, CommonMark only defines * and ** and defines how they nest.
 * If one of the delimiters is both left and right delimiting, CommonMark
   requires forbids the delimiters from having total size a multiple of 3.
@@ -176,7 +177,11 @@ function processMarkdown(root: AST[]): void
         close .= child.token!
         for i of [opens#>..0]
           function opener(delim: string): string
-            style := opens[i].styles[delim] ?? ""
+            style .= opens[i].styles[delim]
+            while not style? and delim.startsWith '**'
+              delim = delim[< -1]
+              style = opens[i].styles[delim]
+            style ??= ""
             opens[i].style = style
             style + '{'
           open .= opens[i].token!

@@ -1,0 +1,93 @@
+assert from node:assert/strict
+fs from node:fs
+{ createRequire } from node:module
+textmate from vscode-textmate
+onig from vscode-oniguruma
+
+require := createRequire import.meta.url
+let registry: textmate.Registry
+let grammar: textmate.IGrammar
+
+before ->
+  await onig.loadWASM fs.readFileSync require.resolve 'vscode-oniguruma/release/onig.wasm'
+  registry = new textmate.Registry
+    onigLib: Promise.resolve onig
+    loadGrammar: async (scope) =>
+      return null unless scope is 'text.tex.texlish'
+      JSON.parse fs.readFileSync new URL('../syntaxes/texlish.tmLanguage.json', import.meta.url), 'utf8'
+    theme:
+      settings: [
+        { scope: 'markup.bold', settings: { fontStyle: 'bold' } }
+        { scope: 'markup.italic', settings: { fontStyle: 'italic' } }
+        // The combined-style settings rule recommended to users.
+        {
+          scope: ['markup.bold markup.italic', 'markup.italic markup.bold']
+          settings: { fontStyle: 'bold italic' }
+        }
+      ]
+  grammar = (await registry.loadGrammar 'text.tex.texlish')!
+
+after -> registry.dispose()
+
+function tokenize(line: string)
+  grammar.tokenizeLine(line).tokens.map (token) =>
+    text: line.slice token.startIndex, token.endIndex
+    scopes: token.scopes
+
+describe 'Texlish emphasis highlighting', ->
+  for stars of ['***', '****', '*****', '******', '************']
+    it `keeps ${stars} delimiters whole`, ->
+      tokens := tokenize `${stars}text${stars} outside`
+      assert.deepEqual tokens.map((token) => token.text), [stars, 'text', stars, ' outside']
+      assert.deepEqual tokens[0].scopes, tokens[2].scopes
+      assert.equal tokens[0].scopes.at(-1), 'punctuation.definition.emphasis.texlish'
+      assert.deepEqual tokens[3].scopes, ['text.tex.texlish']
+      assert.ok tokens[1].scopes.includes 'markup.bold.markdown'
+      assert.ok tokens[1].scopes.includes 'markup.italic.markdown'
+
+    it `uses the same bold italic style for ${stars} and the enclosed text`, ->
+      // With only font-style rules, the entire emphasized span is one encoded
+      // token; a second token starts at the plain text that follows it.
+      line := `${stars}bold italic${stars} outside`
+      tokens := grammar.tokenizeLine2(line).tokens
+      tripleTokens := grammar.tokenizeLine2('***bold italic*** outside').tokens
+      assert.equal tokens.length, 4
+      assert.equal tokens[0], 0
+      assert.equal tokens[2], line.indexOf ' outside'
+      assert.equal tokens[1], tripleTokens[1]
+      assert.notEqual tokens[1], tokens[3]
+
+  for body of [
+    String.raw`Counting Satisfiability Hypothesis (\#SH)`
+    String.raw`$\mathrm{SAT}(\Gamma)$`
+  ]
+    it `keeps delimiters whole around ${body}`, ->
+      tokens := tokenize `***${body}***.`
+      assert.equal tokens[0].text, '***'
+      assert.equal tokens.at(-2)!.text, '***'
+      assert.deepEqual tokens[0].scopes, tokens.at(-2)!.scopes
+      assert.deepEqual tokens.at(-1)!.scopes, ['text.tex.texlish']
+
+  for line of ['*italic*', '**bold**', '*italic **both** italic*', '**bold *both* bold**']
+    it `preserves ${line}`, ->
+      tokens := tokenize line
+      assert.ok tokens.some((token) => token.scopes.includes 'markup.italic.markdown') if line.includes 'italic'
+      assert.ok tokens.some((token) => token.scopes.includes 'markup.bold.markdown') if line.includes 'bold'
+      if line.includes 'both'
+        token := tokens.find((token) => token.text.includes 'both')!
+        assert.ok token.scopes.includes 'markup.bold.markdown'
+        assert.ok token.scopes.includes 'markup.italic.markdown'
+
+  for line of ['**bold ***both*** bold**', '~~***both***~~', '# ***both***', '![***both***](image.png)']
+    it `recognizes complete runs inside ${line}`, ->
+      tokens := tokenize line
+      delimiters := tokens.filter((token) => token.text is '***')
+      assert.equal delimiters.length, 2
+      assert.deepEqual delimiters[0].scopes, delimiters[1].scopes
+      assert.ok delimiters[0].scopes.includes 'markup.bold.markdown'
+      assert.ok delimiters[0].scopes.includes 'markup.italic.markdown'
+
+  for line of ['_plain_', '__plain__', '___plain___', '***unclosed', '****unclosed', '*****unclosed', '*** text***', '***text ***']
+    it `leaves ${line} unstyled`, ->
+      tokens := tokenize line
+      assert.ok tokens.every((token) => token.scopes.every((scope) => not scope.startsWith 'markup.'))

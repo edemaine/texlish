@@ -5,6 +5,9 @@
 * Smart quotes treat braced groups, command calls, and math as atoms rather
   than punctuation, preserving possessive apostrophes even with custom quote
   styles in examples like `{\LaTeX}'s` and `$Q$'s`.
+* Undefined emphasis styles fall back to the longest defined shorter star run,
+  so `****text****` and longer runs default to bold italic.
+  Explicitly empty styles remain empty.
 * Undeclared commands in table cells now parse like ordinary text,
   fixing following Markdown footnotes.
   Pipes in (undeclared) optional arguments need to be wrapped in braces.

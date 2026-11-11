@@ -38,11 +38,14 @@
   "scripts": {
     "grammar": "civet --no-config build/yaml2json.civet",
     "build": "bash ./build/build.sh",
+    "test": "pnpm grammar && mocha --config ../.mocharc.json",
     "package": "pnpm run build && vsce package",
     "vsce-publish": "pnpm run build && vsce publish"
   },
   "devDependencies": {
     "@vscode/vsce": "^4.1.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2",
     "yaml": "^2.9.0"
   }
 }

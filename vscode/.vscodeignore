@@ -4,6 +4,7 @@ out/**
 node_modules/**
 build/**
 src/**
+test/**
 tmp/**
 .gitignore
 .yarnrc

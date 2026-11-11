@@ -93,6 +93,43 @@ describe 'Markdown emphasis (*/**/***)', ->
   '''
 
   testCase r'''
+    longer star runs fall back to bold italic by default
+    ---
+    ****four**** *****five***** ************twelve************ ****$x$****
+    ---
+    \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+    \defn{four} \defn{five} \defn{twelve} \defn{$x$}
+  '''
+
+  testCase r'''
+    longer star runs use the longest defined style
+    ---
+    ::styles
+      *** = \textsf
+      **** = \texttt
+      ****** = \textsc
+    ***three*** ****four**** *****five***** ******six****** *******seven*******
+    ---
+    \textsf{three} \texttt{four} \texttt{five} \textsc{six} \textsc{seven}
+  '''
+
+  testCase r'''
+    explicitly empty styles stop fallback for longer runs
+    ---
+    ****four**** *****five*****
+    ---
+    {four} {five}
+  ''', styles: {'****': ''}
+
+  testCase r'''
+    explicitly empty triple-star style stops the default fallback
+    ---
+    ****four****
+    ---
+    {four}
+  ''', styles: {'***': ''}
+
+  testCase r'''
     nested styles
     ---
     ::styles
@@ -665,7 +702,8 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       foo******bar*********baz
       ---
-      foo{bar}***baz
+      \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+      foo\defn{bar}***baz
     '''
 
     testCase r'''
@@ -1048,7 +1086,8 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       ****foo****
       ---
-      {foo}
+      \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+      \defn{foo}
     '''
 
     testCase.skip r'''
@@ -1064,7 +1103,8 @@ describe 'Markdown emphasis (*/**/***)', ->
       ---
       ******foo******
       ---
-      {foo}
+      \providecommand\defn[1]{\textbf{\textit{\boldmath #1}}}
+      \defn{foo}
     '''
 
     testCase r'''
