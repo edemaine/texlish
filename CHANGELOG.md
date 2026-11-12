@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Apostrophes and backticks in inline code always use literal glyphs
+  `\textquotesingle` and `\textasciigrave`, matching
+  [`upquote`](https://ctan.org/pkg/upquote)'s behavior for more ASCII-like code.
+
 ## 0.3.1
 
 * Smart quotes treat braced groups, command calls, and math as atoms rather

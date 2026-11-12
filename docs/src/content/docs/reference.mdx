@@ -719,6 +719,10 @@ matching backtick runs compile to LaTeX `\texttt` with escaped literal text:
   Escaping: \`\\foo{a_b}  ~ -- 50% & #1\`.
 `}/>
 
+Apostrophes `'` and backticks `` ` `` always use literal glyphs
+`\textquotesingle` and `\textasciigrave`, matching
+[`upquote`](https://ctan.org/pkg/upquote)'s behavior
+for more ASCII-like code.
 Code-span line endings and following indentation become a single space.
 If the code starts and ends with a space, exactly one space gets stripped
 from each end (like CommonMark), making it easier to write literal backticks.

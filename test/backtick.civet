@@ -20,7 +20,7 @@ describe 'Markdown backticks', ->
     ---
     ``There is a literal backtick (`) here.``
     ---
-    \\texttt{There\\ is\\ a\\ literal\\ backtick\\ (`{})\\ here.}
+    \\texttt{There\\ is\\ a\\ literal\\ backtick\\ (\\textasciigrave{})\\ here.}
   '''
 
   testCase '''
@@ -28,7 +28,7 @@ describe 'Markdown backticks', ->
     ---
     A single backtick: `` ` ``
     ---
-    A single backtick: \\texttt{`{}}
+    A single backtick: \\texttt{\\textasciigrave{}}
   '''
 
   testCase '''
@@ -36,8 +36,24 @@ describe 'Markdown backticks', ->
     ---
     `  ``  `
     ---
-    \\texttt{\\ `{}`{}\\ }
+    \\texttt{\\ \\textasciigrave{}\\textasciigrave{}\\ }
   '''
+
+  it 'uses literal apostrophe and backtick glyphs, including in arguments', ->
+    for [source, body] of [
+      ["`'`", "\\texttt{\\textquotesingle{}}"]
+      ["`'a''12'`", "\\texttt{\\textquotesingle{}a\\textquotesingle{}\\textquotesingle{}12\\textquotesingle{}}"]
+      ["\\textbf{`'`}", "\\textbf{\\texttt{\\textquotesingle{}}}"]
+      ["[`'`](https://example.com)", "\\protect\\href{https://example.com}{\\texttt{\\textquotesingle{}}}"]
+    ]
+      assert.equal compile(source, fragment: true), body
+
+  it 'keeps quotes literal for verbatim styles', ->
+    assert.equal compile("`'a''12'`", { fragment: true, ...verbOptions }), "\\verb`'a''12'`"
+
+  it 'uses literal quote glyphs in custom text styles', ->
+    for [source, body] of [["`'`", "\\textsf{\\textquotesingle{}}"], ['`` ` ``', '\\textsf{\\textasciigrave{}}']]
+      assert.equal compile(source, { fragment: true, styles: { '`': '\\textsf' } }), body
 
   testCase '''
     code span keeps one-sided padding
@@ -274,7 +290,7 @@ describe 'Markdown backticks', ->
     ---
     `'' -- << >> ,,`
     ---
-    \\texttt{'{}'{}\\ -{}-{}\\ <{}<{}\\ >{}>{}\\ ,{},{}}
+    \\texttt{\\textquotesingle{}\\textquotesingle{}\\ -{}-{}\\ <{}<{}\\ >{}>{}\\ ,{},{}}
   '''
 
   testCase '''

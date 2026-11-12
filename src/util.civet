@@ -5,9 +5,13 @@ export function escapeRegExp(text: string): string
   text.replace /[.*+?^${}()|[\]\\]/g, "\\$&"
 
 /** These characters can make ligatures, e.g. `--` makes en-dash */
-ligatureChars := new Set "`'<>,-"
+ligatureChars := new Set "<>,-"
 /** \&, \#, and \% select the current font's glyph directly via \chardef */
 backslashEscapes := new Set " &#%"
+/** Match upquote's literal quote glyphs for more ASCII-like code. */
+quoteEscapes := new Map Object.entries
+  "'": "\\textquotesingle{}"
+  "`": "\\textasciigrave{}"
 
 /**
  * Escape literal text for a LaTeX text argument, preserving spaces.
@@ -15,7 +19,9 @@ backslashEscapes := new Set " &#%"
  */
 export function escapeText(content: string): string
   content.replace /[\\{}$&#%_^~ `'<>,\-]/g, (char) =>
-    if ligatureChars.has char
+    if escaped := quoteEscapes.get char
+      escaped
+    else if ligatureChars.has char
       // Empty groups prevent adjacent punctuation from forming ligatures.
       char + "{}"
     else if backslashEscapes.has char
