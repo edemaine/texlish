@@ -63,6 +63,47 @@ describe '\\command:', ->
     $\frac{a_{12}}{b_{34}}$
   '''
 
+  for command of ['def', 'gdef', 'edef', 'xdef']
+    testCase r'''
+      primitive \COMMAND definitions accept colon replacement bodies
+      ---
+      \COMMAND\foo: *X*
+      Text {\COMMAND\foo: *X*}
+      \COMMAND\foo:
+        *X*
+      \COMMAND\foo#1#2: *#1* and #2
+      \COMMAND\foo#1,#2\stop:
+        *#1* and #2
+      ---
+      \COMMAND\foo{\emph{X}}%
+      Text {\COMMAND\foo{\emph{X}}}
+      \COMMAND\foo{%
+        \emph{X}}%
+      \COMMAND\foo#1#2{\emph{#1} and #2}%
+      \COMMAND\foo#1,#2\stop{%
+        \emph{#1} and #2}%
+    '''.replace /COMMAND/g, command
+
+  testCase r'''
+    primitive replacement bodies inherit math mode
+    ---
+    $\def\foo: x_12$
+    $\def\foo{x_12}$
+    $\def\foo#1: #1_12$
+    ---
+    $\def\foo{x_{12}}$
+    $\def\foo{x_{12}}$
+    $\def\foo#1{#1_{12}}$
+  '''
+
+  testCase r'''
+    primitive parameter text can contain colons with shorthand disabled
+    ---
+    \def\foo#1:#2{*#1* and #2}
+    ---
+    \def\foo#1:#2{\emph{#1} and #2}
+  ''', colonCommands: false
+
   testCase r'''
     implicit comments do not hide same-line math delimiters
     ---

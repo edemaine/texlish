@@ -5,6 +5,8 @@
 * Apostrophes and backticks in inline code always use literal glyphs
   `\textquotesingle` and `\textasciigrave`, matching
   [`upquote`](https://ctan.org/pkg/upquote)'s behavior for more ASCII-like code.
+* Fix `\...def` colon command bodies such as `\def\foo#1#2: Y`,
+  via new "parameters" argument declaration.
 
 ## 0.3.1
 

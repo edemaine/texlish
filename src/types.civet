@@ -129,6 +129,7 @@ export type ASTNode
  * - `braced`: a LaTeX required argument, `{argument}`
  * - `unbraced`: a single control sequence `\command` as a required argument
  * - `delimited`: matching arbitrary delimiters, as in `\verb|argument|`
+ * - `parameters`: raw TeX parameter text before the replacement body
  * - `colon`: the argument directly introduced by `\command: argument`
  * - `bullet`: an item in an indented command-argument list
  * - `final`: an unbulleted final required argument after such a list
@@ -139,6 +140,7 @@ export type ArgumentForm =
   | "braced"
   | "unbraced"
   | "delimited"
+  | "parameters"
   | "colon"
   | "bullet"
   | "final"

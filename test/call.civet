@@ -354,7 +354,56 @@ describe 'command call AST', ->
     ]
     assert.equal generate(ast), source
 
-  it 'represents primitive definitions as a declared prefix', ->
+  it 'omits empty primitive parameters before replacement bodies', ->
+    for source of [
+      '\\def\\foo{X}'
+      '\\def\\foo: X'
+      'Text {\\def\\foo: X}'
+      '$\\def\\foo: X$'
+      '::table\n\\def\\foo: X | b'
+      '\\def\\foo:\n  - X'
+      '\\def\\foo:\n  % comment\n  - X'
+    ]
+      call := compileCall source, '\\def'
+      assert.equal call.complete, true
+      assert.deepEqual call.args.map(.specIndex), [0, 2]
+      assert.equal generate(call.args[0].body), '\\foo'
+      assert.equal generate(call.args[1].body), 'X'
+      assertAliases call
+
+  it 'omits empty parameters and optionals in argument lists', ->
+    builtinPackages.set 'parameter-skips', {
+      name: 'parameter-skips'
+      commands: new Map [['\\custom', [
+        { name: 'first', delimiter: 'required', mode: 'raw' }
+        { name: 'options', delimiter: 'optional', mode: 'raw' }
+        { name: 'parameters', delimiter: 'parameters', mode: 'raw' }
+        { name: 'body', delimiter: 'required', mode: 'text' }
+      ]]]
+    }
+    try
+      for source of [
+        '\\custom{first}{*body*}'
+        '\\custom{first}:\n  - *body*'
+        '\\custom:\n  - first\n  % comment\n  - *body*'
+        '\\custom:\n  - first\n  *body*'
+      ]
+        call := compileCall `::use parameter-skips\n${source}`, '\\custom'
+        assert.equal call.complete, true
+        assert.deepEqual call.args.map(.specIndex), [0, 3]
+        assert generate(call.args[1].body).includes '\\emph{body}'
+        assertAliases call
+    finally
+      builtinPackages.delete 'parameter-skips'
+
+  it 'leaves missing primitive replacement bodies incomplete', ->
+    call := compileCall '\\def\\foo', '\\def'
+    assert.equal call.complete, false
+    assert.deepEqual call.args.map(.specIndex), [0]
+    assert.equal generate(call), '\\def\\foo'
+    assertAliases call
+
+  it 'collects primitive parameter text and its replacement body', ->
     source := '\\def\\foo#1!{value}'
     ast := compile source, ast: true, fragment: true
     call := findCall ast, '\\def'
@@ -362,13 +411,28 @@ describe 'command call AST', ->
 
     assert.equal call.complete, true
     assert call.argsSpec?
-    assert.equal call.argsSpec#, 1
+    assert.equal call.argsSpec#, 3
     assert.equal call.argsSpec[0].defines, "command"
     assert.equal call.args[0].form, "unbraced"
     assert.deepEqual call.args[0].body,
       type: "Command"
       token: "\\foo"
+    assert.equal call.args[1].form, "parameters"
+    assert.equal call.args[1].specIndex, 1
+    assert.equal generate(call.args[1].body), '#1!'
+    assert.equal call.args[2].specIndex, 2
+    assert.equal generate(call.args[2].body), 'value'
+    assertAliases call
     assert.equal generate(ast), source
+
+  it 'keeps escaped delimiters and comments in primitive parameter text raw', ->
+    for parameters of ['#1\\{#2\\:', '#1% hidden { :\n  #2']
+      source := `\\def\\foo${parameters}{value}`
+      call := compileCall source, '\\def'
+      assert.equal call.complete, true
+      assert.equal generate(call.args[1].body), parameters
+      assert.equal generate(call), source
+      assertAliases call
 
   it 'records declaration package provenance on the call', ->
     call := compileCall '\\sout{removed}', '\\sout'

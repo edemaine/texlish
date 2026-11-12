@@ -53,6 +53,7 @@ type {
   assertResolvedArgumentMode
   Declarations
   argumentPatternKey
+  isOptionalArgument
 } from ./declarations.civet
 { assertTexlishVersion } from ./version.civet
 {
@@ -462,7 +463,7 @@ CommandPatternComplete ::boolean
   "" ->
     { args, index } := state.argumentPatterns.-1
     return false unless args?
-    args[>=index].every .delimiter.startsWith "optional"
+    args[>=index].every isOptionalArgument
 
 MathParenthesizedText ::AST[]
   "(" MathParenContent ")"
@@ -1394,7 +1395,7 @@ function buildTable(
   automatic := if declaration
     columnIndex? >= 0 and not table.args.some .specIndex is columnIndex
   else
-    not table.args.some not .delimiter.startsWith "optional"
+    table.args.every isOptionalArgument
 
   // Open the environment, placing generated columns before style content and comments.
   comment := getEndComment args
@@ -1845,6 +1846,9 @@ PopCommandPattern
   "" -> state.argumentPatterns.pop()
 
 CommandArgument ::Argument
+  ParametersArgumentPossible CommandSpace:space ParametersPart+:children &ParametersEnd ->
+    body := { type: "Raw", children } as Raw
+    commandArgument "parameters", "parameters", body, [space, body]
   OptionalArgumentPossible CommandSpace:space OptionalArgumentContent:content ->
     commandArgument "optional", "bracketed", content.body, [space, content]
   RequiredArgumentPossible CommandSpace:space RequiredArgumentContent:content ->
@@ -1894,9 +1898,9 @@ function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fal
        delimiter is like "required", "delimited"
       return { arg, index }
     // Only allow skipping over optional arguments
-    break unless arg.delimiter.startsWith "optional"
+    break unless isOptionalArgument arg
   if allowFallback and delimiter is like "optional", "required" and
-     args[>=pattern.index].every .delimiter.startsWith "optional"
+     args[>=pattern.index].every isOptionalArgument
     return arg: { name: "argument", delimiter, mode: pattern.parentMode }
 
 function selectParenthesizedArgument(): SelectedArgument?
@@ -1923,6 +1927,8 @@ function commandArgument(
 
 OptionalArgumentPossible
   "" -> $skip unless selectCommandArgument "optional"
+ParametersArgumentPossible
+  "" -> $skip unless selectCommandArgument "parameters"
 RequiredArgumentPossible
   "" -> $skip unless selectCommandArgument "required"
 ParenthesizedArgumentPossible ::ArgumentDelimiter
@@ -1951,6 +1957,17 @@ CommandSpace ::AST[]
   Space CommandCommentContinuation*
 CommandCommentContinuation ::AST[]
   Comment:comment EOL:eol &IndentedAtLeast Indent:indent -> [ comment, eol, indent ]
+
+# TeX parameter tokens such as `#1` and delimiters. Treat as raw until
+# ParametersEnd, except for processing comments.
+ParametersPart ::AST
+  CommandWithoutNewline:command -> command.token
+  CommandCommentContinuation
+  !ParametersEnd /[^\\{}%\r\n]/ -> $2
+
+ParametersEnd
+  "{"
+  Colon ColonCommandsEnabled
 
 OptionalArgumentContent ::Enclosed
   OptionalRawArgument RawBracketedContent:arg -> unparsedArgument arg, "Raw"

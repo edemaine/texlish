@@ -28,6 +28,8 @@ export type DefinitionKind = "command" | "environment"
  *   (like `\verb`)
  * - `required-or-delimited` accepts either paired braces or matching
  *   non-whitespace delimiters (like `\url`)
+ * - `parameters` preserves TeX parameter text up to `{` or colon shorthand,
+ *   omitting the argument when empty
  */
 export type ArgumentDelimiter =
   | "optional"
@@ -36,6 +38,7 @@ export type ArgumentDelimiter =
   | "required-parenthesized"
   | "delimited"
   | "required-or-delimited"
+  | "parameters"
 
 /** Fields shared by all declared command arguments */
 interface ArgumentSpecBase
@@ -55,8 +58,17 @@ interface DelimitedArgumentSpec extends ArgumentSpecBase
   delimiter: "delimited" | "required-or-delimited"
   mode: "verbatim"
 
+/** TeX parameter text preceding the replacement body; omitted when empty. */
+interface ParametersArgumentSpec extends ArgumentSpecBase
+  delimiter: "parameters"
+  mode: "raw"
+
 /** The parsing specification for one named command argument. */
-export type ArgumentSpec = PairedArgumentSpec | DelimitedArgumentSpec
+export type ArgumentSpec = PairedArgumentSpec | DelimitedArgumentSpec | ParametersArgumentSpec
+
+/** Whether an argument is optional. */
+export function isOptionalArgument({ delimiter }: Pick<ArgumentSpec, "delimiter">): boolean
+  delimiter is like "optional", "optional-parenthesized", "parameters"
 
 /** Ordered argument specifications for a LaTeX command or environment. */
 export type ArgumentsPattern = ArgumentSpec[]
@@ -102,7 +114,7 @@ export interface CommandResolution extends CommandDeclaration
  * delimiter code and one mode code per argument:
  * - delimiter: `o` optional, `r` required,
  *   `p` optional-parenthesized, `P` required-parenthesized,
- *   `d` delimited, `b` both required or delimited
+ *   `d` delimited, `b` both required or delimited, `#` parameters
  * - mode: `t` text, `m` math, `i` inherit, `r` raw, `v` verbatim
  *
  * Codes must remain unique within each position; the same character can be
@@ -111,14 +123,17 @@ export interface CommandResolution extends CommandDeclaration
 export function argumentPatternKey(pattern: ArgumentsPattern?): string
   return "?" unless pattern?
   for join each {delimiter, mode} of pattern
-    if delimiter is "required-or-delimited"
-      "b"
-    else if delimiter is "optional-parenthesized"
-      "p"
-    else if delimiter is "required-parenthesized"
-      "P"
-    else
-      delimiter[0]
+    switch delimiter
+      when "required-or-delimited"
+        "b"
+      when "optional-parenthesized"
+        "p"
+      when "required-parenthesized"
+        "P"
+      when "parameters"
+        "#"
+      else
+        delimiter[0]
     + mode[0]
 
 // Reusable parsing behavior for the named built-in arguments below.
@@ -219,6 +234,8 @@ packagesPattern: ArgumentsPattern :=
   . { name: "packages", ...rawRequired }
 commandDefinitionPattern: ArgumentsPattern :=
   . { name: "command", ...rawRequired, defines: "command" }
+  . { name: "parameters", delimiter: "parameters", mode: "raw" }
+  . { name: "definition", ...inheritRequired }
 latexCommandDefinitionPattern: ArgumentsPattern :=
   . { name: "command", ...rawRequired, defines: "command" }
   . { name: "arguments", ...rawOptional }

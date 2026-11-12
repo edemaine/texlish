@@ -93,6 +93,12 @@ describe 'declarations', ->
       assert result.includes definition
       assert.doesNotMatch result, /\\usepackage(?:\[[^\]]*\])?\{ulem\}/
 
+  it 'recognizes primitive definitions with colon replacement bodies', ->
+    for command of ['def', 'gdef', 'edef', 'xdef']
+      result := compile `\\${command}\\sout#1: *#1*\nText \\sout{Hello}`
+      assert result.includes `\\${command}\\sout#1{\\emph{#1}}`
+      assert.doesNotMatch result, /\\usepackage(?:\[[^\]]*\])?\{ulem\}/
+
   it 'preserves escaped percent commands when extracting definition names', ->
     ast := compile '\\newcommand{\\%}{percent}\nText \\%', ast: true, fragment: true
     getDeclarations().autoimports =
@@ -120,7 +126,7 @@ describe 'declarations', ->
     assert.doesNotMatch result, /\\usepackage\[normalem\]\{ulem\}/
 
   it 'keeps parenthesized argument cache keys distinct', ->
-    delimiters := ['optional', 'optional-parenthesized', 'required', 'required-parenthesized'] as const
+    delimiters := ['optional', 'optional-parenthesized', 'required', 'required-parenthesized', 'parameters'] as const
     keys := delimiters.map (delimiter) =>
       argumentPatternKey [{ name: 'argument', delimiter, mode: 'raw' }]
     assert.equal new Set(keys).size, delimiters.length
