@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.2
+
 * Apostrophes and backticks in inline code always use literal glyphs
   `\textquotesingle` and `\textasciigrave`, matching
   [`upquote`](https://ctan.org/pkg/upquote)'s behavior for more ASCII-like code.
