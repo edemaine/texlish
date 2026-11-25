@@ -142,13 +142,6 @@ export function getStateKey(): string
     ":" + pattern.parentMode +
     (if pattern.allowLatexArguments then "+" else "")
 
-/**
- * Key Hera's memo on the state that getStateKey() describes.
- * Call after every change to that state.  Rules whose handlers read it,
- * directly or through the functions here that do, are tagged @state; rules
- * that can't reach one share their memoized results across states.
- * Rules whose runs can leave any parser state changed are tagged @nomemo.
- */
 function updateStateKey(): void
   $setStateKey getStateKey()
 
@@ -178,7 +171,6 @@ Main ::AST[]
   Init Content -> $2
 
 @state
-@nomemo
 Init
   "" ->
     state.indents = [ initialIndent ]
@@ -188,7 +180,6 @@ Init
     state.pendingLineIndent = undefined
     state.codeMarker = undefined
     state.declarations = new Declarations
-    // Loading a package changes how later commands parse
     state.declarations.onLoad = $clearMemo
     state.argumentPatterns = []
     updateStateKey()
@@ -751,8 +742,6 @@ SmartQuote ::SmartQuote
       $loc
     }
 
-# Sets or reads codeMarker, the open code span or block marker
-@nomemo
 CodeSpan ::CodeSpan
   CodeSpanOpen:marker CodeSpanBody:code CodeSpanClose ->
     state.codeMarker = undefined
@@ -806,7 +795,6 @@ CodeSpan ::CodeSpan
       children: [style, delimiter ?? "{", body, delimiter ?? "}"]
     }
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeSpanOpen ::string
   /// (?<!`) `{${Math.max(1, state.compilerOptions.markdownBackticks)},} (?!`) /// ->
@@ -815,7 +803,6 @@ CodeSpanOpen ::string
 CodeSpanBody ::string
   CodeSpanBodyPart*:parts -> parts.join ''
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeSpanBodyPart ::string
   /[^`\r\n]+/
@@ -824,13 +811,10 @@ CodeSpanBodyPart ::string
   # Also require respecting current level of indentation.
   &EOL !(EOL EOL) $Nested -> $3
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeSpanClose ::string
   /// (?<!`) ${state.codeMarker} (?!`) ///
 
-# Sets or reads codeMarker, the open code span or block marker
-@nomemo
 CodeBlock ::CodeBlock
   CodeBlockOpen:blockOpen CodeBlockBody:content CodeBlockClose ->
     state.codeMarker = undefined
@@ -896,7 +880,6 @@ function environmentStyle(style: string, description: string, option: string = "
     throw new Error `Invalid ${description} style ${JSON.stringify style}; expected environment name or \\begin{environment}`
 ```
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeBlockOpen ::{indent: Indent, marker: string, info: string}
   Indent:indent /// (`{${Math.max(3, state.compilerOptions.markdownBackticks)},}) [ \t]* ([^\r\n`]*) [ \t]* (?:\r\n?|\n|$) ///:match ->
@@ -907,7 +890,6 @@ CodeBlockOpen ::{indent: Indent, marker: string, info: string}
 CodeBlockBody ::string
   CodeBlockBodyLine*:lines -> lines.join ''
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeBlockBodyLine ::string
   # Blank lines don't need to be indented
@@ -915,7 +897,6 @@ CodeBlockBodyLine ::string
   # Content lines must be indented within current indent scope
   !CodeBlockClose &IndentedAtLeast $( /[^\r\n]+/ EOL ):line -> line
 
-# Sets or reads codeMarker, the open code span or block marker
 @nomemo
 CodeBlockClose ::string
   &IndentedAtLeast /// [ \t]* ${state.codeMarker}`* [ \t]* /// &EOL -> ""
@@ -1018,7 +999,6 @@ FootnoteDefinition ::FootnoteDefinition
 
 ## META COMMANDS
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 MetaBlock ::AST[]
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
@@ -1036,8 +1016,6 @@ MetaVersion ::AST
     assertTexlishVersion range[1].trim()
     return '\0'  // eat following newline
 
-# Changes the compiler options
-@nomemo
 MetaConfig ::AST
   "config" ActualSpace ConfigAssignment:body ->
     applyConfigAssignments body
@@ -1053,12 +1031,9 @@ function applyConfigAssignments(body: ConfigEntry[]): void
     state.compilerOptions.styles = {...state.compilerOptions.styles}
   for [key, value] of body
     applyCompilerOption state.compilerOptions, key, value
-  // Memoized results read the old options
   $clearMemo()
 ```
 
-# Changes the compiler options
-@nomemo
 MetaStyles ::AST
   # One-line assignment `::styles key = value`
   "styles" ActualSpace ConfigAssignment:body ->
@@ -1074,7 +1049,6 @@ function applyStyleAssignments(body: ConfigEntry[]): void
   state.compilerOptions.styles = {...state.compilerOptions.styles}
   for [key, value] of body
     applyCompilerOption state.compilerOptions, ["styles", ...key], value
-  // Memoized results read the old options
   $clearMemo()
 ```
 
@@ -1251,7 +1225,6 @@ function buildList(indent: Indent, env: string, items: AST[], args: AST[] = [], 
   }
 ```
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
@@ -1281,7 +1254,6 @@ UnorderedListContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent UnorderedBullet:bullet ->
     return [ comments, eol, indent, bullet ]
 
-# Sets listItemIndent for PushListItemIndent
 @nomemo
 Bullet ::[symbol: string, space: string]
   $( OptionalBullet / RequiredBullet ):symbol $( ActualSpace / &ActualEOL ):space ->
@@ -1294,7 +1266,6 @@ OptionalBullet ::string
 RequiredBullet ::string
   [*\-]
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
@@ -1307,7 +1278,6 @@ OrderedBullet ::ListItem & {number: number}
   NumberBullet:bullet ListItemLine:text NestedBody:body ->
     { type: "ListItem", bullet.number, children: [ '\\item', bullet.space, text, body ] }
 
-# Sets listItemIndent for PushListItemIndent
 @nomemo
 NumberBullet ::{number: number, space: string}
   /(\d+)\.([ \t]+|(?=[\r\n]))/ ->
@@ -1319,8 +1289,6 @@ OrderedListContinuation ::AST[]
     return [ comments, eol, indent, bullet ]
 
 # First line of every list item, immediately after the bullet.
-# Chooses between statement and text list-item setup, both stateful
-@nomemo
 ListItemLine ::AST[]
   PushListItemPendingIndent ListItemStatement?:statement PopListItemIndent ->
     return $skip unless statement
@@ -1331,7 +1299,6 @@ ListItemLine ::AST[]
   # Note: Text always matches, so we don't need `?`/`$skip` here
   PushListItemIndent Text:text PopListItemIndent -> text
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 ListItemStatement ::AST
   # Alternatives must reject before Indent unless they are really matching:
@@ -1352,7 +1319,6 @@ ListDirective ::List
       buildList indent, env, [], args
 
 @state
-@nomemo
 PushListEnvironmentPattern ::string
   # `::list env` parses arguments like `: env`
   EnvironmentName:env ->
@@ -1367,12 +1333,9 @@ PushListEnvironmentPattern ::string
     env
 
 @state
-@nomemo
 PushEnumerateArgumentPattern
   "" -> pushEnvironmentPattern "enumerate", "text"
 
-# Leaves the caller's argument index advanced
-@nomemo
 ListDirectiveArguments ::AST[]
   CommandArgument*:args ( ListColonArguments / TrimmedText ):tail NestedComment*:comments &EOL ->
     [
@@ -1384,8 +1347,6 @@ ListDirectiveArguments ::AST[]
 # Like command/environment colon arguments, but list argument bullets must be
 # strictly indented, and unbulleted indented content is never an argument.
 # Also allow an empty trailing colon and preserve a comment after it.
-# Leaves the caller's argument index advanced
-@nomemo
 ListColonArguments ::AST[]
   Space Colon Space !( Comment / EOL ) InlineCommandArgumentAfterColon:arg -> [arg]
   Space Colon ( Space Comment )?:comment &EOL PushStrictIndent ArgumentList?:args PopIndent ->
@@ -1593,7 +1554,6 @@ TableDirectiveHeader ::TableContext
     }
 
 @state
-@nomemo
 PushTableEnvironmentPattern ::TableContext
   &TableDirective TableHeader:table ->
     pushEnvironmentPattern table.env, table.parentMode
@@ -1777,15 +1737,11 @@ TableTextCommand ::AST
 TableMathCommand ::AST
   PushMathCommandPattern:head TableCommandArguments:parsed -> buildCall head, parsed
 
-# Advances the active pattern's argument index
-@nomemo
 TableCommandArguments ::ParsedCallArguments
   CommandArgument*:args TableColonArgument?:arg CommandPatternComplete:complete PopCommandPattern ->
     { args: args ++ (arg ?? []), complete }
 
-# Advances the active pattern's argument index
 @state
-@nomemo
 TableColonArgument ::Argument
   ColonCommandsEnabled Colon TableColonBody:body ->
     [open, close] := colonDelimiters()
@@ -1861,8 +1817,6 @@ function buildCall(
 
 # Parse LaTeX-style arguments, optionally switch to inline colon arguments,
 # and pop the active command pattern.
-# Pops the active pattern before returning
-@nomemo
 CommandArguments ::ParsedCallArguments
   CommandArgument*:args InlineCommandColonArguments?:colonArgs CommandPatternComplete:complete PopCommandPattern ->
     args = [ ...args, ...colonArgs ] if colonArgs?
@@ -1871,8 +1825,6 @@ CommandArguments ::ParsedCallArguments
 # Colon arguments for a command in the middle of a line in text or math.
 # Accept either indented argument bullets, or one argument that is same-line
 # or indented, but not both (unlike statement-level `\command`).
-# Leaves the caller's argument index advanced
-@nomemo
 InlineCommandColonArguments ::Argument[]
   ColonCommandsEnabled Colon NestedCommandArgumentList:args -> args
   ColonCommandsEnabled Colon InlineCommandArgumentAfterColon:arg -> [ arg ]
@@ -1880,14 +1832,12 @@ InlineCommandColonArguments ::Argument[]
 # Undeclared commands collect only colon arguments: `\foo{x}[^note]`
 # leaves `{x}[^note]` to ordinary text parsing.
 @state
-@nomemo
 PushTextCommandPattern ::PendingCall
   StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
     pushCommandPattern(command, "text", Boolean colon) ?? $skip
   Command:command -> pushCommandPattern(command, "text") ?? $skip
 
 @state
-@nomemo
 PushMathCommandPattern ::PendingCall
   StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
     pushCommandPattern(command, "math", Boolean colon) ?? $skip
@@ -1926,13 +1876,10 @@ function popArgumentPattern(): void
 ```
 
 @state
-@nomemo
 PopCommandPattern
   "" -> popArgumentPattern()
 
-# Advances the active pattern's argument index
 @state
-@nomemo
 CommandArgument ::Argument
   ParametersArgumentPossible CommandSpace:space ParametersPart+:children &ParametersEnd ->
     body := { type: "Raw", children } as Raw
@@ -2152,17 +2099,13 @@ Colon
 # Colon arguments for a command starting a statement.
 # Accepts either indented argument bullets, or
 # one argument that can continue same-line and/or indented following lines.
-# Leaves the caller's argument index advanced
-@nomemo
 CommandColonArguments ::Argument[]
   Colon NestedCommandArgumentList:args -> args
   Colon CommandArgumentAfterColon:arg -> [ arg ]
 
 # Parse and consume one required colon argument according to the next remaining
 # declared mode.
-# Advances the active pattern's argument index
 @state
-@nomemo
 CommandArgumentAfterColon ::Argument
   RequiredRawArgument RawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
@@ -2274,9 +2217,7 @@ VerbatimTextPart ::AST
 
 # Parse and consume one required inline colon argument according to the next
 # remaining declared mode, without combining same-line and indented content.
-# Advances the active pattern's argument index
 @state
-@nomemo
 InlineCommandArgumentAfterColon ::Argument
   RequiredRawArgument InlineRawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
@@ -2336,8 +2277,6 @@ TrimmedVerbatimText ::AST[]
 
 # Argument bullets plus an optional final nested body block,
 # which becomes another braced command argument.
-# Leaves the caller's argument index advanced
-@nomemo
 NestedCommandArgumentList ::Argument[]
   PushIndent ( ArgumentList CommandFinalArgument? )?:content PopIndent ->
     return $skip unless content
@@ -2347,23 +2286,17 @@ NestedCommandArgumentList ::Argument[]
 StrictNestedStatements ::{eols: AST[], statement: AST, children: AST[]}[]
   PushStrictCurrentIndent NestedStatement*:body PopIndent -> body
 
-# Leaves the caller's argument index advanced
-@nomemo
 ArgumentList ::Argument[]
   NestedComment*:comments Nested:eol &/\s*[*\-~]/ &Indent PushIndent ( ArgumentBullet ArgumentListContinuation* )?:content PopIndent ->
     return $skip unless content
     [first, continuations] := content
     [ { ...first, children: [ comments, eol, first.children ] }, ...continuations ]
 
-# Leaves the caller's argument index advanced
-@nomemo
 ArgumentListContinuation ::Argument
   NestedComment*:comments SameLevel:eol ArgumentBullet:bullet ->
     { ...bullet, children: [ comments, eol, bullet.children ] }
 
-# Advances the active pattern's argument index
 @state
-@nomemo
 ArgumentBullet ::Argument
   RawArgumentBullet Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
@@ -2417,9 +2350,7 @@ VerbatimArgumentListItemLine ::AST[]
 MathArgumentListItemLine ::AST[]
   PushListItemIndent MathText:text PopListItemIndent -> text
 
-# Advances the active pattern's argument index
 @state
-@nomemo
 CommandFinalArgument ::Argument
   RequiredRawArgument NonEmptyStrictRawArgumentStatements:body ->
     finalCommandArgument body
@@ -2525,14 +2456,12 @@ RawEnvironment ::Environment
       children: [{ type: "Raw", children: [match[0]] }]
     }
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 TextEnvironment ::Environment
   &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericTextArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
     return $skip unless content
     environment indent, content
 
-# Indent consumes pendingLineIndent, and this can fail after it
 @nomemo
 MathEnvironment ::Environment
   &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericMathArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
@@ -2558,11 +2487,9 @@ function environment(indent: Indent, content: {env: string, children: AST[]}): E
 
 # Generic patterns for undeclared environments inherit the surrounding mode.
 @state
-@nomemo
 PushGenericTextArgumentPattern
   "" -> pushArgumentPattern undefined, "text", true
 @state
-@nomemo
 PushGenericMathArgumentPattern
   "" -> pushArgumentPattern undefined, "math", true
 
@@ -2588,8 +2515,6 @@ EnvironmentHeaderAndArguments ::{env: string, args: Argument[]}
   PushEnvironmentPattern:env EnvironmentArguments:args PopCommandPattern -> { env, args }
 
 # Environment and table arguments share non-strict argument bullets.
-# Leaves the caller's argument index advanced
-@nomemo
 EnvironmentArguments ::Argument[]
   CommandArgument*:args ( Space Colon ( NestedArgumentList / InlineCommandArgumentAfterColon ) )?:colonArgs ->
     args ++ (colonArgs?[2] ?? [])
@@ -2600,7 +2525,6 @@ EnvironmentArguments ::Argument[]
 # Return the name for the environment AST.
 # EnvironmentHeaderAndArguments pops the pattern.
 @state
-@nomemo
 PushEnvironmentPattern ::string
   EnvironmentHeader:env ->
     { parentMode } := state.argumentPatterns.-1
@@ -2615,8 +2539,6 @@ function pushEnvironmentPattern(env: string, parentMode: ResolvedArgumentMode): 
   pushArgumentPattern state.declarations.getEnvironment(env)?.args, parentMode, true
 ```
 
-# Leaves the caller's argument index advanced
-@nomemo
 NestedArgumentList ::Argument[]
   PushIndent ArgumentList?:content PopIndent ->
     return $skip unless content
@@ -2818,7 +2740,6 @@ Indentation ::Indent
       $loc
     }
 
-# Sets thisLineIndent and consumes pendingLineIndent
 @nomemo
 Indent ::Indent
   Indentation:indent ->
@@ -2893,7 +2814,6 @@ IndentedSame ::Indent
     return $skip unless indent.level is state.currentIndent.level
     return $0
 
-# Reads thisLineIndent, which isn't part of getStateKey()
 @nomemo
 SaveIndent ::Indent
   "" -> state.thisLineIndent

@@ -1,4 +1,3 @@
-// Compile .hera files as the build does (see build/hera-options.js)
 import { createRequire, register } from "node:module"
 import heraOptions from "../build/hera-options.js"
 

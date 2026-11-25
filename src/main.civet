@@ -83,7 +83,6 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
   |> generate
   |> as CompileOutput<T>
 
-/** A Hera tracer that logs every rule, for the `trace` option */
 function makeTracer(): Tracer & { logs: string[] }
   logs: string[] := []
   depth .= 0
@@ -99,7 +98,6 @@ function makeTracer(): Tracer & { logs: string[] }
       depth--
       result := if value is FAIL then "❌" else "✅"
       if cached
-        // A cache hit runs no other rules, so it replaces its enter line
         logs[logs# - 1] = line rule, pos, "💰" + result
       else
         logs.push line rule, pos, "} " + result

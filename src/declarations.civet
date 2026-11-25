@@ -650,7 +650,6 @@ export class Declarations
   loadedPackageNames: Set<string>
   commandCache: Map<string, CommandResolution?> = new Map
   environmentCache: Map<string, EnvironmentDeclaration?> = new Map
-  /** Called after loading a package, which changes how names resolve. */
   onLoad?: () => void
 
   constructor(
