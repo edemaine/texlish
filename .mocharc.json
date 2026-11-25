@@ -3,7 +3,7 @@
     "civet"
   ],
   "require": [
-    "@danielx/hera/register/civet",
+    "./test/register-hera.js",
     "@danielx/civet/register"
   ],
   "reporter": "dot",

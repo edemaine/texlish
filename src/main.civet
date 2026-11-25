@@ -1,6 +1,8 @@
 // based on https://github.com/DanielXMoore/Civet/blob/main/source/main.civet
 
 { parse, getStateKey, ParseError, getCompilerOptions, setCompilerOptions } from ./parser.hera
+{ FAIL } from @danielx/hera/lib
+type { Tracer } from @danielx/hera
 //import * as sourcemap from "./sourcemap.civet"
 //{ SourceMap } := sourcemap
 export { parse, ParseError }
@@ -17,8 +19,6 @@ type {
 } from ./types.civet
 export type { Argument, ArgumentForm, AST, Call, CompilerOptions }
 
-StateCache from ./state-cache.civet
-type { CacheKey } from ./state-cache.civet
 { makeCompilerOptions } from ./config.civet
 export {
   applyCompilerOption
@@ -26,81 +26,6 @@ export {
   parseConfigAssignment
 } from ./config.civet
 export { version } from ./version.civet
-
-// Cache hits reuse values without replaying state changes. Exclude rules with
-// observable state changes or dependencies missing from getStateKey().
-
-uncacheable := new Set [
-  // Indentation
-  // Push* and Pop* rules mutate the indentation stack or pending line indent;
-  // they must not be reused across parser states.
-  "Indent"
-  "PushIndent"
-  "PushStrictIndent"
-  "PushStrictCurrentIndent"
-  "PopIndent"
-  "PushLineIndent"
-  "PopLineIndent"
-  "PushListItemIndent"
-  "PushListItemPendingIndent"
-  "PopListItemIndent"
-  // Reads thisLineIndent, which is not part of getStateKey().
-  "SaveIndent"
-  // List item markers set state.listItemIndent for PushListItemIndent.
-  "Bullet"
-  "NumberBullet"
-  // ListItemLine chooses between statement/text list-item setup, both stateful.
-  "ListItemLine"
-  // These rules change the argument-pattern stack or its current argument index.
-  // Reads of keyed state and wrappers with balanced push/pop stay cached,
-  // including EnvironmentHeaderAndArguments and complete command/environment rules.
-  // Push or pop the active pattern.
-  "PushTextCommandPattern"
-  "PushMathCommandPattern"
-  "PushGenericTextArgumentPattern"
-  "PushGenericMathArgumentPattern"
-  "PopCommandPattern"
-  "PushListEnvironmentPattern"
-  "PushEnumerateArgumentPattern"
-  "PushEnvironmentPattern"
-  "PushTableEnvironmentPattern"
-  "TableCommandArguments"
-  "TableColonArgument"
-  // Parse an argument and advance the active pattern's argument index.
-  "CommandArgument"
-  "CommandArgumentAfterColon"
-  "InlineCommandArgumentAfterColon"
-  "ArgumentBullet"
-  "CommandFinalArgument"
-  // Child rules advance the caller's argument index, and these rules leave it
-  // advanced. A cache hit would return the AST without advancing that index.
-  // Their indentation push/pop does not restore the argument index; unlike
-  // EnvironmentHeaderAndArguments, they do not push/pop their own argument pattern.
-  "ListDirectiveArguments"
-  "ListColonArguments"
-  "EnvironmentArguments"
-  "NestedArgumentList"
-  "NestedCommandArgumentList"
-  "ArgumentList"
-  "ArgumentListContinuation"
-  "CommandColonArguments"
-  "InlineCommandColonArguments"
-  // Parse arguments and pop the active pattern before returning.
-  "CommandArguments"
-  // Parser config mutation
-  "MetaStyles"
-  "MetaConfig"
-  // Code spans/blocks temporarily record their opening marker/fence; body
-  // rules use marker-sensitive close checks.
-  "CodeSpan"
-  "CodeSpanOpen"
-  "CodeSpanBodyPart"
-  "CodeSpanClose"
-  "CodeBlock"
-  "CodeBlockOpen"
-  "CodeBlockBodyLine"
-  "CodeBlockClose"
-]
 
 export function generate(ast: AST): string
   function recurse(ast: AST): string
@@ -136,19 +61,18 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
   setCompilerOptions makeCompilerOptions options
   finally setCompilerOptions oldOptions
 
-  events := makeCache options
+  tracer := makeTracer() if options.trace
 
   let ast: AST[]
   try
     ast = parse(src, {
       filename
-      events
+      ...(tracer and { trace: tracer })
     })
   finally
     if trace := options.trace
       import('node:fs').then ({ writeFileSync }) =>
-        { logs } := events.meta
-        writeFileSync trace, logs.join "\n"
+        writeFileSync trace, tracer!.logs.join "\n"
 
   process ast, options
 
@@ -159,66 +83,24 @@ export function compile<const T extends CompilerOptions>(src: string, options?: 
   |> generate
   |> as CompileOutput<T>
 
-type MetaData
-  logs: string[]
-
-type ParseState =
-  input: string
-  pos: number
-
-type ParseResult = {
-  pos: number
-  value: unknown
-} | undefined
-
-type CacheEvents
-  meta: MetaData
-  enter: (ruleName: string, state: ParseState) => { cache: ParseResult } | undefined
-  exit: (ruleName: string, state: ParseState, result: ParseResult) => void
-
-function makeCache(options: CompilerOptions): CacheEvents
-  stateCache := new StateCache<ParseResult>
-
-  { trace } := options
+/** A Hera tracer that logs every rule, for the `trace` option */
+function makeTracer(): Tracer & { logs: string[] }
   logs: string[] := []
-  stack: string[] := []
-  meta: MetaData := { logs }
+  depth .= 0
+  line := (rule: string, pos: number, mark: string) =>
+    "".padStart(depth * 2, " ") + rule + ":" + pos + `[${getStateKey()}]` + mark
 
-  events := {
-    meta
-    enter(ruleName: string, state: ParseState)
-      return if uncacheable.has ruleName
-
-      stateKey := getStateKey()
-      key: CacheKey := [stateKey, state.pos, ruleName ]
-
-      // We cache `undefined` when a rule fails to match so we need to use `has` here.
-      if stateCache.has(key)
-        result := stateCache.get(key)
-        if trace
-          logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "💰" + (if result then "✅" else "❌")
-        return {
-          cache: if result then { ...result }
-        }
-
-      if trace
-        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "{"
-        stack.push ruleName
-      return
-
-    exit(ruleName: string, state: ParseState, result: ParseResult): void
-      if uncacheable.has ruleName
-        logs.push "".padStart(stack# * 2, " ") + ruleName + `[${getStateKey()}]` + ":" + state.pos + " " + (if result then "✅" else "❌")
-        return
-
-      stateKey := getStateKey()
-      key: CacheKey := [stateKey, state.pos, ruleName ]
-      result = { ...result } if result?
-      stateCache.set(key, result)
-
-      if trace
-        stack.pop()
-        logs.push "".padStart(stack# * 2, " ") + ruleName + ":" + state.pos + `[${stateKey}]` + "} " + (if result then "✅" else "❌")
+  {
+    logs
+    enter(rule, pos)
+      logs.push line rule, pos, "{"
+      depth++
+    exit(rule, pos, _end, value, cached)
+      depth--
+      result := if value is FAIL then "❌" else "✅"
+      if cached
+        // A cache hit runs no other rules, so it replaces its enter line
+        logs[logs# - 1] = line rule, pos, "💰" + result
+      else
+        logs.push line rule, pos, "} " + result
   }
-
-  return events

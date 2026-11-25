@@ -1,6 +1,7 @@
 esbuild from esbuild
 heraPlugin from @danielx/hera/esbuild-plugin
 civetPlugin from @danielx/civet/esbuild
+heraOptions from ./hera-options.js
 
 watch := process.argv.includes '--watch'
 build :=
@@ -14,9 +15,11 @@ civetPluginOptions :=
   ts: 'civet' as const
   parseOptions:
     comptime: true
-heraPluginOptions :=
+heraPluginOptions := {
+  ...heraOptions
   module: true
   language: 'civet' as const
+}
 
 rewriteCivetImports := {
   name: 'rewrite-civet-imports'
