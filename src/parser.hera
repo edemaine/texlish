@@ -142,6 +142,9 @@ export function getStateKey(): string
     ":" + pattern.parentMode +
     (if pattern.allowLatexArguments then "+" else "")
 
+function updateStateKey(): void
+  $setStateKey getStateKey()
+
 /**
  * Prefix generated labels for shorthand references with special namespaces.
  * Returns undefined to reject shorthand meaning it should be left alone.
@@ -167,6 +170,7 @@ export { ParseError }
 Main ::AST[]
   Init Content -> $2
 
+@state
 Init
   "" ->
     state.indents = [ initialIndent ]
@@ -176,7 +180,9 @@ Init
     state.pendingLineIndent = undefined
     state.codeMarker = undefined
     state.declarations = new Declarations
+    state.declarations.onLoad = $clearMemo
     state.argumentPatterns = []
+    updateStateKey()
 
 Content ::AST[]
   Statement ( EOL Statement )* ->
@@ -459,6 +465,7 @@ ScriptCommand ::AST[]
     return $skip unless complete
     [ script[0], "{", buildCall(head, { args, complete }), "}" ]
 
+@state
 CommandPatternComplete ::boolean
   "" ->
     { args, index } := state.argumentPatterns.-1
@@ -788,6 +795,7 @@ CodeSpan ::CodeSpan
       children: [style, delimiter ?? "{", body, delimiter ?? "}"]
     }
 
+@nomemo
 CodeSpanOpen ::string
   /// (?<!`) `{${Math.max(1, state.compilerOptions.markdownBackticks)},} (?!`) /// ->
     state.codeMarker = $0
@@ -795,6 +803,7 @@ CodeSpanOpen ::string
 CodeSpanBody ::string
   CodeSpanBodyPart*:parts -> parts.join ''
 
+@nomemo
 CodeSpanBodyPart ::string
   /[^`\r\n]+/
   !CodeSpanClose "`" -> $2
@@ -802,6 +811,7 @@ CodeSpanBodyPart ::string
   # Also require respecting current level of indentation.
   &EOL !(EOL EOL) $Nested -> $3
 
+@nomemo
 CodeSpanClose ::string
   /// (?<!`) ${state.codeMarker} (?!`) ///
 
@@ -870,6 +880,7 @@ function environmentStyle(style: string, description: string, option: string = "
     throw new Error `Invalid ${description} style ${JSON.stringify style}; expected environment name or \\begin{environment}`
 ```
 
+@nomemo
 CodeBlockOpen ::{indent: Indent, marker: string, info: string}
   Indent:indent /// (`{${Math.max(3, state.compilerOptions.markdownBackticks)},}) [ \t]* ([^\r\n`]*) [ \t]* (?:\r\n?|\n|$) ///:match ->
     [, marker, info] := match
@@ -879,12 +890,14 @@ CodeBlockOpen ::{indent: Indent, marker: string, info: string}
 CodeBlockBody ::string
   CodeBlockBodyLine*:lines -> lines.join ''
 
+@nomemo
 CodeBlockBodyLine ::string
   # Blank lines don't need to be indented
   $EOL
   # Content lines must be indented within current indent scope
   !CodeBlockClose &IndentedAtLeast $( /[^\r\n]+/ EOL ):line -> line
 
+@nomemo
 CodeBlockClose ::string
   &IndentedAtLeast /// [ \t]* ${state.codeMarker}`* [ \t]* /// &EOL -> ""
 
@@ -986,6 +999,7 @@ FootnoteDefinition ::FootnoteDefinition
 
 ## META COMMANDS
 
+@nomemo
 MetaBlock ::AST[]
   &/[ \t]*::/ Indent:indent "::" /\s*/ MetaCommand:cmd -> [indent, cmd]
 
@@ -1017,6 +1031,7 @@ function applyConfigAssignments(body: ConfigEntry[]): void
     state.compilerOptions.styles = {...state.compilerOptions.styles}
   for [key, value] of body
     applyCompilerOption state.compilerOptions, key, value
+  $clearMemo()
 ```
 
 MetaStyles ::AST
@@ -1034,6 +1049,7 @@ function applyStyleAssignments(body: ConfigEntry[]): void
   state.compilerOptions.styles = {...state.compilerOptions.styles}
   for [key, value] of body
     applyCompilerOption state.compilerOptions, ["styles", ...key], value
+  $clearMemo()
 ```
 
 NestedConfigAssignments ::ConfigEntry[]
@@ -1209,6 +1225,7 @@ function buildList(indent: Indent, env: string, items: AST[], args: AST[] = [], 
   }
 ```
 
+@nomemo
 UnorderedList ::List
   &/[ \t]*[*\-~]/ Indent:indent PushIndent ( UnorderedBullet UnorderedListContinuation* )?:items PopIndent ->
     return $skip unless items
@@ -1237,6 +1254,7 @@ UnorderedListContinuation ::AST[]
   NestedComment*:comments SameLevel:eol Indent:indent UnorderedBullet:bullet ->
     return [ comments, eol, indent, bullet ]
 
+@nomemo
 Bullet ::[symbol: string, space: string]
   $( OptionalBullet / RequiredBullet ):symbol $( ActualSpace / &ActualEOL ):space ->
     setListItemIndent(symbol + space)
@@ -1248,6 +1266,7 @@ OptionalBullet ::string
 RequiredBullet ::string
   [*\-]
 
+@nomemo
 OrderedList ::List
   &/[ \t]*\d+\./ Indent:indent PushIndent ( OrderedBullet OrderedListContinuation* )?:items PopIndent ->
     return $skip unless items
@@ -1259,6 +1278,7 @@ OrderedBullet ::ListItem & {number: number}
   NumberBullet:bullet ListItemLine:text NestedBody:body ->
     { type: "ListItem", bullet.number, children: [ '\\item', bullet.space, text, body ] }
 
+@nomemo
 NumberBullet ::{number: number, space: string}
   /(\d+)\.([ \t]+|(?=[\r\n]))/ ->
     setListItemIndent $0
@@ -1279,6 +1299,7 @@ ListItemLine ::AST[]
   # Note: Text always matches, so we don't need `?`/`$skip` here
   PushListItemIndent Text:text PopListItemIndent -> text
 
+@nomemo
 ListItemStatement ::AST
   # Alternatives must reject before Indent unless they are really matching:
   # Indent consumes pendingLineIndent, which later alternatives need.
@@ -1297,6 +1318,7 @@ ListDirective ::List
     else
       buildList indent, env, [], args
 
+@state
 PushListEnvironmentPattern ::string
   # `::list env` parses arguments like `: env`
   EnvironmentName:env ->
@@ -1310,6 +1332,7 @@ PushListEnvironmentPattern ::string
     pushEnvironmentPattern env, "text"
     env
 
+@state
 PushEnumerateArgumentPattern
   "" -> pushEnvironmentPattern "enumerate", "text"
 
@@ -1530,6 +1553,7 @@ TableDirectiveHeader ::TableContext
       arguments: [table.arguments, args, tail, comments]
     }
 
+@state
 PushTableEnvironmentPattern ::TableContext
   &TableDirective TableHeader:table ->
     pushEnvironmentPattern table.env, table.parentMode
@@ -1537,6 +1561,7 @@ PushTableEnvironmentPattern ::TableContext
       consumeCommandArgument arg.delimiter
     table
 
+@state
 TableHeader ::TableContext
   TableDirective?:directive ->
     { parentMode } := state.argumentPatterns.-1
@@ -1576,7 +1601,7 @@ TableHeader ::TableContext
       Object.fromEntries for each [key, value] of Object.entries styles when key.startsWith prefix
         [key[prefix#..], value]
     pushEnvironmentPattern env.env, parentMode
-    finally state.argumentPatterns.pop()
+    finally popArgumentPattern()
     parsed := parse env.arguments, startRule: "StyleArguments", filename: `${env.env} table style`
     {
       explicit: directive?
@@ -1716,6 +1741,7 @@ TableCommandArguments ::ParsedCallArguments
   CommandArgument*:args TableColonArgument?:arg CommandPatternComplete:complete PopCommandPattern ->
     { args: args ++ (arg ?? []), complete }
 
+@state
 TableColonArgument ::Argument
   ColonCommandsEnabled Colon TableColonBody:body ->
     [open, close] := colonDelimiters()
@@ -1805,11 +1831,13 @@ InlineCommandColonArguments ::Argument[]
 
 # Undeclared commands collect only colon arguments: `\foo{x}[^note]`
 # leaves `{x}[^note]` to ordinary text parsing.
+@state
 PushTextCommandPattern ::PendingCall
   StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
     pushCommandPattern(command, "text", Boolean colon) ?? $skip
   Command:command -> pushCommandPattern(command, "text") ?? $skip
 
+@state
 PushMathCommandPattern ::PendingCall
   StarredCommand:command (&(Colon ColonCommandsEnabled))?:colon ->
     pushCommandPattern(command, "math", Boolean colon) ?? $skip
@@ -1840,11 +1868,18 @@ function pushArgumentPattern(
       else
         arg
   state.argumentPatterns.push { args, index: 0, parentMode, allowLatexArguments }
+  updateStateKey()
+
+function popArgumentPattern(): void
+  state.argumentPatterns.pop()
+  updateStateKey()
 ```
 
+@state
 PopCommandPattern
-  "" -> state.argumentPatterns.pop()
+  "" -> popArgumentPattern()
 
+@state
 CommandArgument ::Argument
   ParametersArgumentPossible CommandSpace:space ParametersPart+:children &ParametersEnd ->
     body := { type: "Raw", children } as Raw
@@ -1880,6 +1915,7 @@ function consumeCommandArgument(delimiter: ArgumentDelimiter, allowFallback = fa
   pattern := state.argumentPatterns.-1
   if pattern.args?
     pattern.index = if selected.index? then selected.index + 1 else pattern.args#
+    updateStateKey()
   selected
 
 function selectCommandArgument(delimiter: ArgumentDelimiter, allowFallback = false, colon = false): SelectedArgument?
@@ -1925,29 +1961,39 @@ function commandArgument(
   }
 ```
 
+@state
 OptionalArgumentPossible
   "" -> $skip unless selectCommandArgument "optional"
+@state
 ParametersArgumentPossible
   "" -> $skip unless selectCommandArgument "parameters"
+@state
 RequiredArgumentPossible
   "" -> $skip unless selectCommandArgument "required"
+@state
 ParenthesizedArgumentPossible ::ArgumentDelimiter
   "" ->
     selected := selectParenthesizedArgument()
     selected?.arg.delimiter ?? $skip
+@state
 ParenthesizedRawArgument
   "" -> $skip unless parenthesizedArgumentIs "raw"
+@state
 ParenthesizedVerbatimArgument
   "" -> $skip unless parenthesizedArgumentIs "verbatim"
+@state
 ParenthesizedTextArgument
   "" -> $skip unless parenthesizedArgumentIs "text"
+@state
 ParenthesizedMathArgument
   "" -> $skip unless parenthesizedArgumentIs "math"
 # Only a declaration can distinguish an unbraced argument from a body command.
+@state
 DeclaredRequiredArgumentPossible
   "" ->
     arg := selectCommandArgument "required"
     $skip unless arg?.index?
+@state
 DelimitedVerbatimArgument
   "" -> $skip unless commandArgumentIs "delimited", "verbatim"
 DelimitedVerbatim ::DelimitedContent
@@ -1999,20 +2045,28 @@ function unparsedArgument(
   enclosedContent open, { type, children }, close
 ```
 
+@state
 OptionalRawArgument
   "" -> $skip unless commandArgumentIs "optional", "raw"
+@state
 RequiredRawArgument
   "" -> $skip unless commandArgumentIs "required", "raw", false, true
+@state
 OptionalVerbatimArgument
   "" -> $skip unless commandArgumentIs "optional", "verbatim"
+@state
 RequiredVerbatimArgument
   "" -> $skip unless commandArgumentIs "required", "verbatim", false, true
+@state
 OptionalTextArgument
   "" -> $skip unless commandArgumentIs "optional", "text"
+@state
 RequiredTextArgument
   "" -> $skip unless commandArgumentIs "required", "text", false, true
+@state
 OptionalMathArgument
   "" -> $skip unless commandArgumentIs "optional", "math"
+@state
 RequiredMathArgument
   "" -> $skip unless commandArgumentIs "required", "math", false, true
 
@@ -2051,6 +2105,7 @@ CommandColonArguments ::Argument[]
 
 # Parse and consume one required colon argument according to the next remaining
 # declared mode.
+@state
 CommandArgumentAfterColon ::Argument
   RequiredRawArgument RawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
@@ -2066,9 +2121,11 @@ function consumeRequiredCommandArgument(arg: Enclosed): Argument
   commandArgument "required", "colon", arg.body, [arg]
 ```
 
+@state
 TextArgumentAfterColon ::Enclosed
   TrimmedText:text NestedBody:body ->
     argumentAfterColon text, body
+@state
 MathArgumentAfterColon ::Enclosed
   TrimmedMathText:text MathArgumentNestedBody:body ->
     argumentAfterColon text, body
@@ -2097,9 +2154,11 @@ function colonDelimiters(delimiter: ArgumentDelimiter = "required"): [string, st
   if delimiter is "optional" then ["[", "]"] else ["{", "}"]
 ```
 
+@state
 RawArgumentAfterColon ::Enclosed
   TrimmedRawText:text RawNestedBody:body ->
     argumentAfterColon text, body
+@state
 VerbatimArgumentAfterColon ::Enclosed
   TrimmedVerbatimText:text VerbatimNestedBody:body ->
     argumentAfterColon text, body, true
@@ -2158,6 +2217,7 @@ VerbatimTextPart ::AST
 
 # Parse and consume one required inline colon argument according to the next
 # remaining declared mode, without combining same-line and indented content.
+@state
 InlineCommandArgumentAfterColon ::Argument
   RequiredRawArgument InlineRawArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
@@ -2168,22 +2228,26 @@ InlineCommandArgumentAfterColon ::Argument
   RequiredMathArgument InlineMathArgumentAfterColon:arg ->
     consumeRequiredCommandArgument arg
 
+@state
 InlineTextArgumentAfterColon ::Enclosed
   NonEmptyNestedBody:body -> buildColonArgument ["%", body]
   TrimmedText:body -> buildColonArgument body
 
+@state
 InlineMathArgumentAfterColon ::Enclosed
   MathArgumentNestedBody:body ->
     return $skip unless body#
     buildColonArgument ["%", body]
   TrimmedMathText:body -> buildColonArgument body
 
+@state
 InlineRawArgumentAfterColon ::Enclosed
   RawNestedBody:body ->
     return $skip unless body#
     buildColonArgument ["%", body]
   TrimmedRawText:body -> buildColonArgument body
 
+@state
 InlineVerbatimArgumentAfterColon ::Enclosed
   VerbatimNestedBody:body ->
     return $skip unless body#
@@ -2232,6 +2296,7 @@ ArgumentListContinuation ::Argument
   NestedComment*:comments SameLevel:eol ArgumentBullet:bullet ->
     { ...bullet, children: [ comments, eol, bullet.children ] }
 
+@state
 ArgumentBullet ::Argument
   RawArgumentBullet Indent:indent Bullet:bullet RawArgumentListItemLine:text RawNestedBody:body ->
     commandArgumentBullet indent, bullet, text, body
@@ -2256,18 +2321,22 @@ function commandArgumentBullet(
   commandArgument delimiter, "bullet", content.body, [indent, space, content]
 ```
 
+@state
 RawArgumentBullet
   &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "raw", true
   &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "raw", true
 
+@state
 VerbatimArgumentBullet
   &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "verbatim", true
   &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "verbatim", true
 
+@state
 TextArgumentBullet
   &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "text", true
   &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "text", true
 
+@state
 MathArgumentBullet
   &(Space OptionalBullet) -> $skip unless commandArgumentIs "optional", "math", true
   &(Space RequiredBullet) -> $skip unless commandArgumentIs "required", "math", true
@@ -2281,6 +2350,7 @@ VerbatimArgumentListItemLine ::AST[]
 MathArgumentListItemLine ::AST[]
   PushListItemIndent MathText:text PopListItemIndent -> text
 
+@state
 CommandFinalArgument ::Argument
   RequiredRawArgument NonEmptyStrictRawArgumentStatements:body ->
     finalCommandArgument body
@@ -2386,11 +2456,13 @@ RawEnvironment ::Environment
       children: [{ type: "Raw", children: [match[0]] }]
     }
 
+@nomemo
 TextEnvironment ::Environment
   &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericTextArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
     return $skip unless content
     environment indent, content
 
+@nomemo
 MathEnvironment ::Environment
   &/[ \t]*:[ \t]/ Indent:indent PushStrictIndent PushGenericMathArgumentPattern EnvironmentContent?:content PopCommandPattern PopIndent ->
     return $skip unless content
@@ -2414,8 +2486,10 @@ function environment(indent: Indent, content: {env: string, children: AST[]}): E
 ```
 
 # Generic patterns for undeclared environments inherit the surrounding mode.
+@state
 PushGenericTextArgumentPattern
   "" -> pushArgumentPattern undefined, "text", true
+@state
 PushGenericMathArgumentPattern
   "" -> pushArgumentPattern undefined, "math", true
 
@@ -2450,6 +2524,7 @@ EnvironmentArguments ::Argument[]
 # mode, also used for arguments without a matching declaration.
 # Return the name for the environment AST.
 # EnvironmentHeaderAndArguments pops the pattern.
+@state
 PushEnvironmentPattern ::string
   EnvironmentHeader:env ->
     { parentMode } := state.argumentPatterns.-1
@@ -2475,21 +2550,25 @@ EnvironmentHeader ::string
 EnvironmentName ::string
   /[^\s:([{%]+/
 
+@state
 RawEnvironmentHeader ::string
   EnvironmentHeader:env ->
     return $skip unless environmentBodyMode(env) is "raw"
     env
 
+@state
 VerbatimEnvironmentHeader ::string
   EnvironmentHeader:env ->
     return $skip unless environmentBodyMode(env) is "verbatim"
     env
 
+@state
 TextEnvironmentHeader ::string
   EnvironmentHeader:env ->
     return $skip unless environmentBodyMode(env) is "text"
     env
 
+@state
 MathEnvironmentHeader ::string
   EnvironmentHeader:env ->
     return $skip unless environmentBodyMode(env) is "math"
@@ -2661,6 +2740,7 @@ Indentation ::Indent
       $loc
     }
 
+@nomemo
 Indent ::Indent
   Indentation:indent ->
     if pending := state.pendingLineIndent
@@ -2670,13 +2750,18 @@ Indent ::Indent
 
 # Non-strict baseline: Nested accepts later lines at this indentation or
 # deeper. This is used where same-level bullets/arguments are meaningful.
+@state
+@nomemo
 PushIndent
   "" ->
     state.savedLineIndents.push state.thisLineIndent
     state.indents.push state.thisLineIndent
+    updateStateKey()
 
 # Strict baseline from the current line: by pushing level + 1, the shared
 # Nested rule still uses >= but effectively requires deeper indentation.
+@state
+@nomemo
 PushStrictIndent
   "" ->
     state.savedLineIndents.push state.thisLineIndent
@@ -2684,10 +2769,13 @@ PushStrictIndent
       ...state.thisLineIndent
       level: state.thisLineIndent.level + 1
     }
+    updateStateKey()
 
 # Stricten the active indentation by 1 (without using thisLineIndent).
 # Use: Command argument lists are non-strictly indented, then
 # any trailing body must be deeper than that argument-list baseline.
+@state
+@nomemo
 PushStrictCurrentIndent
   "" ->
     state.savedLineIndents.push state.thisLineIndent
@@ -2695,11 +2783,15 @@ PushStrictCurrentIndent
       ...state.currentIndent
       level: state.currentIndent.level + 1
     }
+    updateStateKey()
 
+@state
+@nomemo
 PopIndent
   "" ->
     state.indents.pop()
     state.thisLineIndent = state.savedLineIndents.pop()!
+    updateStateKey()
 
 # Here and below, EOL+ skips over blank lines without correct indentation.
 # Strictness is encoded in the pushed baseline: PushIndent pushes the current
@@ -2707,6 +2799,7 @@ PopIndent
 Nested ::AST[]
   EOL+ &IndentedAtLeast -> $1
 
+@state
 IndentedAtLeast ::Indent
   Indentation:indent ->
     return $skip if indent.level < state.currentIndent.level
@@ -2715,19 +2808,23 @@ IndentedAtLeast ::Indent
 SameLevel ::AST[]
   EOL+ &IndentedSame -> $1
 
+@state
 IndentedSame ::Indent
   Indentation:indent ->
     return $skip unless indent.level is state.currentIndent.level
     return $0
 
+@nomemo
 SaveIndent ::Indent
   "" -> state.thisLineIndent
 
 # When testing whether a rule matches via `&` or `!`, but the rule uses Indent
 # so sets state.thisLineIndent, use these to restore the previous value.
+@nomemo
 PushLineIndent
   "" -> state.savedLineIndents.push state.thisLineIndent
 
+@nomemo
 PopLineIndent
   "" ->
     state.thisLineIndent = state.savedLineIndents.pop()!
@@ -2736,6 +2833,7 @@ PopLineIndent
 # Parse first-line list item content using the synthetic post-marker
 # indentation, while PushStrictIndent keeps multiline constructs inside
 # the list item.
+@nomemo
 PushListItemIndent
   PushStrictIndent ->
     state.thisLineIndent = state.listItemIndent
@@ -2743,10 +2841,12 @@ PushListItemIndent
 # Statement alternatives may immediately parse Indent, which should see the
 # same synthetic indentation. Plain Text does not consume Indent, so
 # ListItemLine uses PushListItemIndent without this pending override.
+@nomemo
 PushListItemPendingIndent
   PushListItemIndent ->
     state.pendingLineIndent = state.listItemIndent
 
+@nomemo
 PopListItemIndent
   PopIndent ->
     state.pendingLineIndent = undefined

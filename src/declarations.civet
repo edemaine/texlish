@@ -650,6 +650,7 @@ export class Declarations
   loadedPackageNames: Set<string>
   commandCache: Map<string, CommandResolution?> = new Map
   environmentCache: Map<string, EnvironmentDeclaration?> = new Map
+  onLoad?: () => void
 
   constructor(
     @packages: Map<string, PackageDeclarations> = builtinPackages
@@ -667,6 +668,7 @@ export class Declarations
       @loadedPackages.push declarations
       @commandCache.clear()
       @environmentCache.clear()
+      @onLoad?()
     declarations
 
   /** Find a command, autoimporting its package when necessary. */

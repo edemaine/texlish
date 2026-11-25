@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* About 3x faster parsing, using Hera's built-in memo (`memo` and `trace`
+  compile options) instead of a cache driven by Hera's `events` hooks.
+
 ## 0.3.2
 
 * Apostrophes and backticks in inline code always use literal glyphs
